@@ -1,4 +1,14 @@
-This is a [Plasmo extension](https://docs.plasmo.com/) project bootstrapped with [`plasmo init`](https://www.npmjs.com/package/plasmo).
+<h2 align="center">watch2gether</h2>
+
+<h2 align="center">openW2G</h2>
+
+<p align="center">The aim of openW2G is to enable two users to sync any kind of streaming service playback by simply sharing a room code similar to how <a href="https://w2g.tv">w2g.tv</a> works.
+openW2G is an ad-free open-source browser extension that syncs user's clicks in their browser through a websocket.<br/>
+<strong>The project is currently in early development and is not intended to be used in a real world scenario</strong></p>
+
+## How to contribute
+
+Read more about contributing to watch2gether in [CONTRIBUTING.md](https://github.com/andreademasi/watch2gether/blob/main/CONTRIBUTING.md).
 
 ## Getting Started
 
@@ -12,9 +22,7 @@ npm run dev
 
 Open your browser and load the appropriate development build. For example, if you are developing for the chrome browser, using manifest v3, use: `build/chrome-mv3-dev`.
 
-You can start editing the popup by modifying `popup.tsx`. It should auto-update as you make changes. To add an options page, simply add a `options.tsx` file to the root of the project, with a react component default exported. Likewise to add a content page, add a `content.ts` file to the root of the project, importing some module and do some logic, then reload the extension on your browser.
-
-For further guidance, [visit our Documentation](https://docs.plasmo.com/)
+For further guidance, [visit the Documentation](https://docs.plasmo.com/)
 
 ## Making production build
 
@@ -26,8 +34,4 @@ pnpm build
 npm run build
 ```
 
-This should create a production bundle for your extension, ready to be zipped and published to the stores.
-
-## Submit to the webstores
-
-The easiest way to deploy your Plasmo extension is to use the built-in [bpp](https://bpp.browser.market) GitHub action. Prior to using this action however, make sure to build your extension and upload the first version to the store to establish the basic credentials. Then, simply follow [this setup instruction](https://docs.plasmo.com/workflows/submit) and you should be on your way for automated submission!
+This should create a production bundle, ready to be zipped and published to the stores.
