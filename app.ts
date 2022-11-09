@@ -7,6 +7,7 @@ app.set('port', 3000);
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: '*', methods: ["GET", "POST"] } });
+const random = () => (Math.random() + 1).toString(36).substring(7).toUpperCase()
 
 app.get('/', (req, res) => {
   res.send('Hello World!')
@@ -27,16 +28,32 @@ io.sockets.on('connection', (socket) => {
     socket.emit('log', array);
   }
 
+  function isEmpty(room: string){
+    return io.sockets.adapter.rooms.get(room)?.size ?? 0 === 0
+  }
+
   socket.on('message', (room, message) => {
-    log('Got message:', room, message);
+    log('Got message:', room, message, 'from: ', socket.id);
     socket.to(room).emit('message', message);
   });
 
-  socket.on('check', (room) => {
-    socket.emit('check', Number(io.sockets.adapter.rooms.get(room)?.size ?? 0).toString())
+
+  // Creates a room code and checks that it's empty
+  socket.on('create', () => {
+    let valid = false;
+    let code = random()
+    while (!valid) {
+      if (isEmpty(code)) {
+        valid = true
+        break
+      }
+      code = random()
+    }
+    log('checked code:', code);
+    socket.emit("create", code)
   })
 
-  socket.on('create or join', (room) => {
+  socket.on('join', (room) => {
     const numClients = io.sockets.adapter.rooms.get(room)?.size ?? 0
 
     log('Room ' + room + ' has ' + numClients + ' client(s)');
