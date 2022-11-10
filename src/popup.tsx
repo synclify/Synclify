@@ -4,7 +4,11 @@ import { io } from "socket.io-client"
 import { useForm } from "react-hook-form"
 import { useStorage } from "@plasmohq/storage/hook"
 
-const socket = io("http://localhost:3000")
+const socket = io(
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:3000"
+    : process.env.PLASMO_PUBLIC_SOCKET_ENDPOINT
+)
 
 type FormData = {
   room: string

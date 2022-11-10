@@ -8,7 +8,7 @@ const storage = new Storage({ area: "session" })
 const socket = io(
   process.env.NODE_ENV === "development"
     ? "http://localhost:3000"
-    : "socket-andreademasi.koyeb.app"
+    : process.env.PLASMO_PUBLIC_SOCKET_ENDPOINT
 )
 
 console.log("loaded")
