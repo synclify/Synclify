@@ -1,6 +1,11 @@
+import * as dotenv from 'dotenv'
+
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import express from "express"
+import {instrument} from "@socket.io/admin-ui"
+
+dotenv.config()
 
 const app = express();
 app.set('port', 3000);
@@ -12,6 +17,14 @@ const random = () => (Math.random() + 1).toString(36).substring(7).toUpperCase()
 app.get('/', (req, res) => {
   res.send('Hello World!')
 })
+
+instrument(io, {
+  auth: {
+    type: "basic",
+    username: "admin",
+    password: process.env.ADMIN_PASSWORD as string
+  },
+});
 
 httpServer.listen(3000, () => {
   console.log('listening on *:3000');

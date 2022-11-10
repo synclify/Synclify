@@ -1,5 +1,5 @@
 {
-  "name": "openW2G-socket",
+  "name": "openw2g-socket",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -12,6 +12,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@socket.io/admin-ui": "^0.5.1",
+    "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "socket.io": "^4.5.3"
   },
