@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv'
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import express from "express"
-import {instrument} from "@socket.io/admin-ui"
+import { instrument } from "@socket.io/admin-ui"
 
 dotenv.config()
 
@@ -11,7 +11,7 @@ const app = express();
 app.set('port', 3000);
 
 const httpServer = createServer(app);
-const io = new Server(httpServer, { cors: { origin: '*', methods: ["GET", "POST"] } });
+const io = new Server(httpServer, { cors: { origin: true, credentials: true, methods: ["GET"] } });
 const random = () => (Math.random() + 1).toString(36).substring(7).toUpperCase()
 
 app.get('/', (req, res) => {
@@ -41,7 +41,7 @@ io.sockets.on('connection', (socket) => {
     socket.emit('log', array);
   }
 
-  function isEmpty(room: string){
+  function isEmpty(room: string) {
     return io.sockets.adapter.rooms.get(room)?.size ?? 0 === 0
   }
 
