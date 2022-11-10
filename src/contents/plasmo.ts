@@ -1,9 +1,9 @@
+import { SOCKET_EVENTS } from "~types/socket"
 import { Storage } from "@plasmohq/storage"
+import { VIDEO_EVENTS } from "~types/video"
 import { io } from "socket.io-client"
 
 export {}
-
-// TODO: create socket events and storage states types
 
 const storage = new Storage({ area: "session" })
 
@@ -23,21 +23,21 @@ storage.watch({
     room = r.newValue
     if (room) {
       console.log("Joining room ", room)
-      socket.emit("join", room)
+      socket.emit(SOCKET_EVENTS.JOIN, room)
     }
   }
 })
 
-socket.on("full", (room) => {
+socket.on(SOCKET_EVENTS.FULL, (room) => {
   // TODO: Handle full room
   console.log("Room " + room + " is full")
 })
 
-socket.on("join", (room) => {
+socket.on(SOCKET_EVENTS.JOIN, (room) => {
   console.log("Making request to join room " + room)
 })
 
-socket.on("log", (array) => {
+socket.on(SOCKET_EVENTS.LOG, (array) => {
   console.log(...array)
 })
 
@@ -61,8 +61,7 @@ const handleVideoDetect = (ev) => {
   video = ev.target.closest("video") as HTMLVideoElement
   console.log(video)
   if (video != null) {
-    // TODO: move allowed events in separate ts type
-    ;["seeked", "play", "pause", "volumechange"].forEach((event) =>
+    Object.values(VIDEO_EVENTS).forEach((event) =>
       video.addEventListener(event, (e) => videoEventHandler(e))
     )
 
@@ -73,24 +72,29 @@ const handleVideoDetect = (ev) => {
 const videoEventHandler = (event: Event) => {
   console.log(event)
   // consider throttle function if volumechange events impact performances
-  socket.emit("videoEvent", room, event.type, video.volume, video.currentTime)
+  socket.emit(
+    SOCKET_EVENTS.VIDEO_EVENT,
+    room,
+    event.type,
+    video.volume,
+    video.currentTime
+  )
 }
 
 socket.on(
-  "videoEvent",
-  (eventType: string, volumeValue: string, currentTime: string) => {
+  SOCKET_EVENTS.VIDEO_EVENT,
+  (eventType: VIDEO_EVENTS, volumeValue: string, currentTime: string) => {
     switch (eventType) {
-      case "play":
-        console.log("playing")
+      case VIDEO_EVENTS.PLAY:
         video.play()
         break
-      case "pause":
+      case VIDEO_EVENTS.PAUSE:
         video.pause()
         break
-      case "volumechange":
+      case VIDEO_EVENTS.VOLUMECHANGE:
         video.volume = Number.parseInt(volumeValue)
         break
-      case "seeked":
+      case VIDEO_EVENTS.SEEKED:
         video.currentTime = Number.parseInt(currentTime)
     }
   }

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react"
 
+import { SOCKET_EVENTS } from "~types/socket"
 import { io } from "socket.io-client"
 import { useForm } from "react-hook-form"
 import { useStorage } from "@plasmohq/storage/hook"
@@ -29,7 +30,7 @@ function IndexPopup() {
   const [detected, setDetected] = useState(false)
 
   const createRoom = useCallback(() => {
-    socket.emit("create")
+    socket.emit(SOCKET_EVENTS.CREATE)
     detectVideo()
   }, [])
 
@@ -54,13 +55,13 @@ function IndexPopup() {
   }
 
   useEffect(() => {
-    socket.on("create", (room) => {
+    socket.on(SOCKET_EVENTS.CREATE, (room) => {
       console.log("code created by server", room)
       setStoreValue(room)
     })
 
     return () => {
-      socket.off("create")
+      socket.off(SOCKET_EVENTS.CREATE)
     }
   }, [])
 
