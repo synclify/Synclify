@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 
 import { io } from "socket.io-client"
 import { useForm } from "react-hook-form"
@@ -26,15 +26,32 @@ function IndexPopup() {
     formState: { errors }
   } = useForm<FormData>()
 
+  const [detected, setDetected] = useState(false)
+
   const createRoom = useCallback(() => {
     socket.emit("create")
+    detectVideo()
   }, [])
 
   const joinRoom = useCallback((data: FormData) => {
     const room = data.room.toUpperCase()
+    console.log(room)
     setRenderValue(room)
     setStoreValue(room)
+    detectVideo()
   }, [])
+
+  const detectVideo = () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      chrome.tabs.sendMessage(
+        tabs[0].id,
+        { message: "detectVideo" },
+        function (response) {
+          if (response.message === "ok") setDetected(true)
+        }
+      )
+    })
+  }
 
   useEffect(() => {
     socket.on("create", (room) => {
@@ -58,6 +75,7 @@ function IndexPopup() {
           }}>
           <h1>Room code: {room}</h1>
           <button onClick={() => remove()}>Exit</button>
+          {detected ? <p></p> : <p>Now click on the video to detect it</p>}
         </div>
       ) : (
         <div
