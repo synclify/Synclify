@@ -1,6 +1,6 @@
 {
-  "name": "watch2gether",
-  "displayName": "Watch2gether",
+  "name": "openw2g",
+  "displayName": "openW2G",
   "version": "0.0.0",
   "description": "A basic Plasmo extension.",
   "author": "andrea",
@@ -36,7 +36,8 @@
   },
   "manifest": {
     "host_permissions": [
-      "https://*/*"
+      "$PLASMO_PUBLIC_SOCKET_ENDPOINT/*",
+      "http://localhost:3000/*"
     ],
     "permissions": [
       "storage",
