@@ -32,9 +32,9 @@ io.sockets.on('connection', (socket) => {
     return io.sockets.adapter.rooms.get(room)?.size ?? 0 === 0
   }
 
-  socket.on('message', (room, message) => {
-    log('Got message:', room, message, 'from: ', socket.id);
-    socket.to(room).emit('message', message);
+  socket.on('videoEvent', (room, event, volume, currentTime) => {
+    log('Got video event:', room, event, 'from: ', socket.id, volume, currentTime);
+    socket.to(room).emit('videoEvent', event, volume, currentTime);
   });
 
 
