@@ -1,6 +1,8 @@
 import { Storage } from "@plasmohq/storage"
 import { io } from "socket.io-client"
 
+export {}
+
 // TODO: create socket events and storage states types
 
 const storage = new Storage({ area: "session" })
@@ -14,6 +16,7 @@ const socket = io(
 console.log("loaded")
 
 let room: string
+let video: HTMLVideoElement
 
 storage.watch({
   room: (r) => {
@@ -35,30 +38,65 @@ socket.on("join", (room) => {
 })
 
 socket.on("log", (array) => {
-  console.log.apply(console, array)
+  console.log(...array)
 })
 
-socket.onAny((eventName, ...args) => {
-  console.log("Event: ", eventName, ...args)
-})
-
-socket.on("message", (message) => {
-  console.log("New message: " + message)
-  let element = getElementByXPath(message)
-  console.log("element is: ", element)
-  element.click()
-})
-
-document.addEventListener("click", (ev) => {
-  if (ev.isTrusted && room) {
-    console.log(ev.target)
-    let t = ev.target
-    let path = getXPathForElement(t as HTMLElement)
-    console.log(path)
-    console.log(t === getElementByXPath(path))
-    socket.emit("message", room, path)
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+  console.log(
+    sender.tab
+      ? "from a content script:" + sender.tab.url
+      : "from the extension"
+  )
+  console.log("request: ", request)
+  if (request.message === "detectVideo") {
+    document.addEventListener("click", handleVideoDetect)
+    sendResponse({ message: "ok" })
+    return true
   }
+  sendResponse({ message: "bad" })
+  return true
 })
+
+const handleVideoDetect = (ev) => {
+  video = ev.target.closest("video") as HTMLVideoElement
+  console.log(video)
+  if (video != null) {
+    // TODO: move allowed events in separate ts type
+    ;["seeked", "play", "pause", "volumechange"].forEach((event) =>
+      video.addEventListener(event, (e) => videoEventHandler(e))
+    )
+
+    document.removeEventListener("click", handleVideoDetect)
+  }
+}
+
+const videoEventHandler = (event: Event) => {
+  console.log(event)
+  // consider throttle function if volumechange events impact performances
+  socket.emit("videoEvent", room, event.type, video.volume, video.currentTime)
+}
+
+socket.on(
+  "videoEvent",
+  (eventType: string, volumeValue: string, currentTime: string) => {
+    switch (eventType) {
+      case "play":
+        console.log("playing")
+        video.play()
+        break
+      case "pause":
+        video.pause()
+        break
+      case "volumechange":
+        video.volume = Number.parseInt(volumeValue)
+        break
+      case "seeked":
+        video.currentTime = Number.parseInt(currentTime)
+    }
+  }
+)
+
+/*
 
 function getXPathForElement(element: HTMLElement): string {
   const idx = (
@@ -87,5 +125,4 @@ function getElementByXPath(path: string) {
     null
   ).singleNodeValue as HTMLElement
 }
-
-export {}
+*/
