@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
+import { deleteRoom, parseRooms, storeRoom } from "~utils/rooms"
 
 import { SOCKET_EVENTS } from "~types/socket"
 import { io } from "socket.io-client"
+import { setDefaultResultOrder } from "dns"
 import { useForm } from "react-hook-form"
 import { useStorage } from "@plasmohq/storage/hook"
 
@@ -16,10 +18,14 @@ type FormData = {
 }
 
 function IndexPopup() {
-  const [room, , { setRenderValue, setStoreValue, remove }] = useStorage({
-    key: "room",
-    area: "session"
+  const [rooms, , { setRenderValue, setStoreValue }] = useStorage<string>({
+    key: "rooms",
+    area: "local"
   })
+  const [inRoom, setInRoom] = useState(false)
+  const [error, setError] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
+  const currentTabRef = useRef<number>()
 
   const {
     register,
@@ -37,8 +43,9 @@ function IndexPopup() {
   const joinRoom = useCallback((data: FormData) => {
     const room = data.room.toUpperCase()
     console.log(room)
-    setRenderValue(room)
-    setStoreValue(room)
+    roomCallback(room)
+    setInRoom(true)
+
     detectVideo()
   }, [])
 
@@ -48,35 +55,67 @@ function IndexPopup() {
         tabs[0].id,
         { message: "detectVideo" },
         function (response) {
-          if (response.message === "ok") setDetected(true)
+          if (response.status === "success") setDetected(true)
+          else if (response.status === "error") {
+            setError(true)
+            setErrorMessage(response.message)
+          }
         }
       )
     })
   }
 
+  const roomCallback = useCallback((room: string) => {
+    setRenderValue((rooms) => {
+      console.log(rooms)
+      const r = storeRoom(rooms, { [currentTabRef.current]: room })
+      setStoreValue(r)
+      return r
+    })
+    setInRoom(true)
+  }, [])
+
   useEffect(() => {
-    socket.on(SOCKET_EVENTS.CREATE, (room) => {
-      console.log("code created by server", room)
-      setStoreValue(room)
+    socket.on(SOCKET_EVENTS.CREATE, roomCallback)
+
+    chrome.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+      console.log("SETTING STATE:", tabs[0].id)
+      currentTabRef.current = tabs[0].id
     })
 
+    if (parseRooms(rooms)[currentTabRef.current] != undefined) setInRoom(true)
+
     return () => {
-      socket.off(SOCKET_EVENTS.CREATE)
+      socket.off(SOCKET_EVENTS.CREATE, roomCallback)
     }
+  }, [])
+
+  useEffect(() => {
+    if (parseRooms(rooms)[currentTabRef.current] != undefined) setInRoom(true)
+  }, [rooms])
+
+  const exitRoom = useCallback(() => {
+    setRenderValue((rooms) => {
+      const r = deleteRoom(rooms, currentTabRef.current)
+      setStoreValue(r)
+      return r
+    })
+    setInRoom(false)
   }, [])
 
   return (
     <React.StrictMode>
-      {room ? (
+      {inRoom ? (
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             padding: 16
           }}>
-          <h1>Room code: {room}</h1>
-          <button onClick={() => remove()}>Exit</button>
-          {detected ? <p></p> : <p>Now click on the video to detect it</p>}
+          <h1>Room code: {parseRooms(rooms)[currentTabRef.current]}</h1>
+          <button onClick={exitRoom}>Exit</button>
+          {detected ? <></> : <p>Detecting the video...</p>}
+          {error ? <p style={{ color: "red" }}>{errorMessage}</p> : <></>}
         </div>
       ) : (
         <div

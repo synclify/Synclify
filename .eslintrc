@@ -25,7 +25,16 @@
     "camelcase": "error",
     "spaced-comment": "error",
     "quotes": ["warn", "double"],
-    "no-duplicate-imports": "error"
+    "no-duplicate-imports": "error",
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ]
   },
   "settings": {
     "import/resolver": {
