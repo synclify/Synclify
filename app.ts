@@ -2,6 +2,7 @@ import * as dotenv from 'dotenv'
 
 import { Server } from 'socket.io';
 import { createServer } from 'http';
+import crypto from "crypto"
 import express from "express"
 import { instrument } from "@socket.io/admin-ui"
 
@@ -12,7 +13,7 @@ app.set('port', 3000);
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: true, credentials: true, methods: ["GET"] } });
-const random = () => (Math.random() + 1).toString(36).substring(7).toUpperCase()
+const random = () => crypto.randomBytes(20).toString('hex').slice(0,5).toUpperCase();
 
 app.get('/', (req, res) => {
   res.send('Hello World!')
@@ -72,6 +73,15 @@ io.sockets.on('connection', (socket) => {
     log('Room ' + room + ' has ' + numClients + ' client(s)');
     log('Request to create or join room ' + room);
 
+    if (numClients > 1) {
+      socket.emit('full', room);
+    }
+
+    // only one room allowed per socket
+    for (room in socket.rooms) {
+      if (socket.id !== room) socket.leave(room);
+    }
+
     if (numClients === 0) {
       socket.join(room);
       socket.emit('created', room);
@@ -79,8 +89,6 @@ io.sockets.on('connection', (socket) => {
       io.sockets.in(room).emit('join', room);
       socket.join(room);
       socket.emit('joined', room);
-    } else { // max two clients
-      socket.emit('full', room);
     }
     socket.emit('emit(): client ' + socket.id +
       ' joined room ' + room);
