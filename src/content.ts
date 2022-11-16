@@ -1,12 +1,27 @@
+import type { AppRouter } from "./background"
 import { SOCKET_EVENTS } from "~types/socket"
 import { Storage } from "@plasmohq/storage"
 import { VIDEO_EVENTS } from "~types/video"
+import { chromeLink } from "trpc-chrome/link"
+import { createTRPCProxyClient } from "@trpc/client"
 import { io } from "socket.io-client"
 import { parseRooms } from "~utils/rooms"
 
 console.log("loaded")
+const port = chrome.runtime.connect(chrome.runtime.id)
 
-let room
+const chromeClient = createTRPCProxyClient<AppRouter>({
+  links: [/* 👉 */ chromeLink({ port })]
+})
+
+let tabId: number
+
+chromeClient.getTabId.query().then((v) => {
+  console.log("V: ", v)
+  tabId = v
+})
+
+let room: string
 let video: HTMLVideoElement
 const storage = new Storage({ area: "local" })
 const socket = io(
@@ -15,43 +30,25 @@ const socket = io(
     : process.env.PLASMO_PUBLIC_SOCKET_ENDPOINT
 )
 
-const getCookie = (cookie: string) => {
-  // https://stackoverflow.com/a/19971550/934239
-  return document.cookie.split(";").reduce(function (prev, c) {
-    const arr = c.split("=")
-    return arr[0].trim() === cookie ? arr[1] : prev
-  }, undefined)
-}
-
-const tabId = getCookie("tab_id")
-console.log(tabId)
-
 storage.get("rooms").then((r) => {
   console.log("getting rooms: ", r)
-
-  if (r) {
-    const rooms = parseRooms(r)
-    console.log(rooms)
-    if (rooms[tabId]) {
-      room = rooms[tabId]
-      console.log("Joining room ", room)
-      socket.emit(SOCKET_EVENTS.JOIN, room)
-    }
-  }
+  console.log(tabId)
+  if (r) joinRoom(r)
 })
 
 storage.watch({
-  rooms: (r) => {
-    const rooms = parseRooms(r.newValue)
-    console.log(rooms)
-    room = rooms[tabId]
-    if (rooms[tabId]) {
-      room = rooms[tabId]
-      console.log("Joining room ", room)
-      socket.emit(SOCKET_EVENTS.JOIN, room)
-    }
-  }
+  rooms: (r) => joinRoom(r.newValue)
 })
+
+const joinRoom = (r: string) => {
+  const rooms = parseRooms(r)
+  console.log(rooms)
+  room = rooms[tabId]
+  console.log("Joining room ", room)
+  if (room) {
+    socket.emit(SOCKET_EVENTS.JOIN, room)
+  }
+}
 
 socket.on(SOCKET_EVENTS.FULL, (room) => {
   // TODO: Handle full room

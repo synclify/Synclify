@@ -1,11 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { deleteRoom, parseRooms, storeRoom } from "~utils/rooms"
 
+import type { AppRouter } from "./background"
 import { SOCKET_EVENTS } from "~types/socket"
+import { chromeLink } from "trpc-chrome/link"
+import { createTRPCProxyClient } from "@trpc/client"
 import { io } from "socket.io-client"
-import { setDefaultResultOrder } from "dns"
 import { useForm } from "react-hook-form"
 import { useStorage } from "@plasmohq/storage/hook"
+
+const port = chrome.runtime.connect()
+const trpc = createTRPCProxyClient<AppRouter>({
+  links: [chromeLink({ port })]
+})
 
 const socket = io(
   process.env.NODE_ENV === "development"
@@ -78,9 +85,9 @@ function IndexPopup() {
   useEffect(() => {
     socket.on(SOCKET_EVENTS.CREATE, roomCallback)
 
-    chrome.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
-      console.log("SETTING STATE:", tabs[0].id)
-      currentTabRef.current = tabs[0].id
+    trpc.getTabId.query().then((tabId) => {
+      console.log("SETTING STATE:", tabId)
+      currentTabRef.current = tabId
     })
 
     if (parseRooms(rooms)[currentTabRef.current] != undefined) setInRoom(true)
