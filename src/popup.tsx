@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import { deleteRoom, parseRooms, storeRoom } from "~utils/rooms"
 
 import type { AppRouter } from "./background"
@@ -32,7 +32,7 @@ function IndexPopup() {
   const [inRoom, setInRoom] = useState(false)
   const [error, setError] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
-  const currentTabRef = useRef<number>()
+  const [currentTab, setCurrentTab] = useState<number>()
 
   const {
     register,
@@ -44,15 +44,6 @@ function IndexPopup() {
 
   const createRoom = useCallback(() => {
     socket.emit(SOCKET_EVENTS.CREATE)
-    detectVideo()
-  }, [])
-
-  const joinRoom = useCallback((data: FormData) => {
-    const room = data.room.toUpperCase()
-    console.log(room)
-    roomCallback(room)
-    setInRoom(true)
-
     detectVideo()
   }, [])
 
@@ -72,43 +63,59 @@ function IndexPopup() {
     })
   }
 
-  const roomCallback = useCallback((room: string) => {
-    setRenderValue((rooms) => {
-      console.log(rooms)
-      const r = storeRoom(rooms, { [currentTabRef.current]: room })
-      setStoreValue(r)
-      return r
-    })
-    setInRoom(true)
-  }, [])
+  const roomCallback = useCallback(
+    (room: string) => {
+      setRenderValue((rooms) => {
+        console.log(rooms)
+        const r = storeRoom(rooms, { [currentTab]: room })
+        setStoreValue(r)
+        return r
+      })
+      setInRoom(true)
+    },
+    [currentTab, setRenderValue, setStoreValue]
+  )
+
+  const joinRoom = useCallback(
+    (data: FormData) => {
+      const room = data.room.toUpperCase()
+      console.log(room)
+      roomCallback(room)
+      setInRoom(true)
+      detectVideo()
+    },
+    [roomCallback]
+  )
 
   useEffect(() => {
     socket.on(SOCKET_EVENTS.CREATE, roomCallback)
 
-    trpc.getTabId.query().then((tabId) => {
-      console.log("SETTING STATE:", tabId)
-      currentTabRef.current = tabId
-    })
-
-    if (parseRooms(rooms)[currentTabRef.current] != undefined) setInRoom(true)
+    if (parseRooms(rooms)[currentTab] != undefined) setInRoom(true)
 
     return () => {
       socket.off(SOCKET_EVENTS.CREATE, roomCallback)
     }
-  }, [])
+  }, [currentTab, roomCallback, rooms])
 
   useEffect(() => {
-    if (parseRooms(rooms)[currentTabRef.current] != undefined) setInRoom(true)
-  }, [rooms])
+    trpc.getTabId.query().then((tabId) => {
+      console.log("SETTING STATE:", tabId)
+      setCurrentTab(tabId)
+    })
+  }, [])
 
   const exitRoom = useCallback(() => {
     setRenderValue((rooms) => {
-      const r = deleteRoom(rooms, currentTabRef.current)
+      const r = deleteRoom(rooms, currentTab)
       setStoreValue(r)
       return r
     })
     setInRoom(false)
-  }, [])
+  }, [currentTab, setRenderValue, setStoreValue])
+
+  const getRoom = useCallback(() => {
+    return parseRooms(rooms)[currentTab]
+  }, [currentTab, rooms])
 
   return (
     <React.StrictMode>
@@ -119,7 +126,7 @@ function IndexPopup() {
             flexDirection: "column",
             padding: 16
           }}>
-          <h1>Room code: {parseRooms(rooms)[currentTabRef.current]}</h1>
+          <h1>Room code: {getRoom()}</h1>
           <button onClick={exitRoom}>Exit</button>
           {detected ? <></> : <p>Detecting the video...</p>}
           {error ? <p style={{ color: "red" }}>{errorMessage}</p> : <></>}
