@@ -15,12 +15,6 @@ const chromeClient = createTRPCProxyClient<AppRouter>({
 })
 
 let tabId: number
-
-chromeClient.getTabId.query().then((v) => {
-  console.log("V: ", v)
-  tabId = v
-})
-
 let room: string
 let video: HTMLVideoElement
 const storage = new Storage({ area: "local" })
@@ -30,23 +24,36 @@ const socket = io(
     : process.env.PLASMO_PUBLIC_SOCKET_ENDPOINT
 )
 
-storage.get("rooms").then((r) => {
-  console.log("getting rooms: ", r)
-  console.log(tabId)
-  if (r) joinRoom(r)
-})
-
 storage.watch({
   rooms: (r) => joinRoom(r.newValue)
 })
 
+const init = async () => {
+  tabId = await chromeClient.getTabId.query()
+  console.log("tabId: ", tabId)
+  const rooms = await storage.get("rooms")
+  if (rooms && tabId) {
+    joinRoom(rooms)
+    const videos = document.getElementsByTagName("video")
+    video = videos[0]
+    Object.values(VIDEO_EVENTS).forEach((event) =>
+      video.addEventListener(event, (e) => videoEventHandler(e))
+    )
+  }
+}
+
+init()
+
 const joinRoom = (r: string) => {
   const rooms = parseRooms(r)
   console.log(rooms)
-  room = rooms[tabId]
-  console.log("Joining room ", room)
-  if (room) {
-    socket.emit(SOCKET_EVENTS.JOIN, room)
+  if (tabId) {
+    room = rooms[tabId]
+    console.log("Got room ", room)
+    if (room) {
+      console.log("Joining room ", room)
+      socket.emit(SOCKET_EVENTS.JOIN, room)
+    }
   }
 }
 
@@ -80,6 +87,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   return true
 })
 
+// To be used when automatic detection doesn't work
 const handleVideoDetectManually = (ev) => {
   video = ev.target.closest("video") as HTMLVideoElement
   console.log(video)
