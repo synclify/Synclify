@@ -39,12 +39,12 @@
   },
   "manifest": {
     "host_permissions": [
-      "<all_urls>"
+      "$PLASMO_PUBLIC_SOCKET_ENDPOINT/*",
+      "http://localhost:3000/*"
     ],
     "permissions": [
       "storage",
-      "tabs",
-      "cookies"
+      "tabs"
     ]
   }
 }
