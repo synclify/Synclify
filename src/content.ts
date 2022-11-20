@@ -36,9 +36,10 @@ const init = async () => {
     joinRoom(rooms)
     const videos = document.getElementsByTagName("video")
     video = videos[0]
-    Object.values(VIDEO_EVENTS).forEach((event) =>
-      video.addEventListener(event, (e) => videoEventHandler(e))
-    )
+    if (video)
+      Object.values(VIDEO_EVENTS).forEach((event) =>
+        video.addEventListener(event, (e) => videoEventHandler(e))
+      )
   }
 }
 
@@ -120,7 +121,7 @@ socket.on(
         video.pause()
         break
       case VIDEO_EVENTS.VOLUMECHANGE:
-        video.volume = Number.parseInt(volumeValue)
+        video.volume = Number.parseFloat(volumeValue)
         break
       case VIDEO_EVENTS.SEEKED:
         // this check avoids entering in a loop between the two clients, a better solution could be found
