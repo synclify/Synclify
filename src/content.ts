@@ -1,5 +1,6 @@
+import { SOCKET_EVENTS, SOCKET_URL } from "~types/socket"
+
 import type { AppRouter } from "./background"
-import { SOCKET_EVENTS } from "~types/socket"
 import { Storage } from "@plasmohq/storage"
 import { VIDEO_EVENTS } from "~types/video"
 import { chromeLink } from "trpc-chrome/link"
@@ -18,11 +19,7 @@ let tabId: number
 let room: string
 let video: HTMLVideoElement
 const storage = new Storage({ area: "local" })
-const socket = io(
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:3000"
-    : process.env.PLASMO_PUBLIC_SOCKET_ENDPOINT
-)
+const socket = io(SOCKET_URL)
 
 storage.watch({
   rooms: (r) => joinRoom(r.newValue)
@@ -98,15 +95,17 @@ const handleVideoDetectManually = (ev) => {
 }
 
 const videoEventHandler = (event: Event) => {
-  console.log(event)
-  // consider throttle function if volumechange events impact performances
-  socket.emit(
-    SOCKET_EVENTS.VIDEO_EVENT,
-    room,
-    event.type,
-    video.volume,
-    video.currentTime
-  )
+  if (room) {
+    console.log(event)
+    // consider throttle function if volumechange events impact performances
+    socket.emit(
+      SOCKET_EVENTS.VIDEO_EVENT,
+      room,
+      event.type,
+      video.volume,
+      video.currentTime
+    )
+  }
 }
 
 socket.on(
