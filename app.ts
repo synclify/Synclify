@@ -13,10 +13,24 @@ app.set('port', 3000);
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: true, credentials: true, methods: ["GET"] } });
-const random = () => crypto.randomBytes(20).toString('hex').slice(0,5).toUpperCase();
+const random = () => crypto.randomBytes(20).toString('hex').slice(0, 5).toUpperCase();
 
 app.get('/', (req, res) => {
   res.send('Hello World!')
+})
+
+// Creates a room code and checks that it's empty
+app.get("/create", (req, res) => {
+  let valid = false;
+  let code = random()
+  while (!valid) {
+    if (isEmpty(code)) {
+      valid = true
+      break
+    }
+    code = random()
+  }
+  res.send(code)
 })
 
 instrument(io, {
@@ -31,6 +45,10 @@ httpServer.listen(3000, () => {
   console.log('listening on *:3000');
 });
 
+function isEmpty(room: string) {
+  return io.sockets.adapter.rooms.get(room)?.size ?? 0 === 0
+}
+
 io.sockets.on('connection', (socket) => {
 
   // Convenience function to log server messages to the client
@@ -42,30 +60,10 @@ io.sockets.on('connection', (socket) => {
     socket.emit('log', array);
   }
 
-  function isEmpty(room: string) {
-    return io.sockets.adapter.rooms.get(room)?.size ?? 0 === 0
-  }
-
   socket.on('videoEvent', (room, event, volume, currentTime) => {
     log('Got video event:', room, event, 'from: ', socket.id, volume, currentTime);
     socket.to(room).emit('videoEvent', event, volume, currentTime);
   });
-
-
-  // Creates a room code and checks that it's empty
-  socket.on('create', () => {
-    let valid = false;
-    let code = random()
-    while (!valid) {
-      if (isEmpty(code)) {
-        valid = true
-        break
-      }
-      code = random()
-    }
-    log('checked code:', code);
-    socket.emit("create", code)
-  })
 
   socket.on('join', (room) => {
     const numClients = io.sockets.adapter.rooms.get(room)?.size ?? 0
