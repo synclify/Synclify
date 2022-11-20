@@ -1,11 +1,9 @@
-import React, { useCallback, useEffect, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { deleteRoom, parseRooms, storeRoom } from "~utils/rooms"
 
 import type { AppRouter } from "./background"
-import { SOCKET_EVENTS } from "~types/socket"
 import { chromeLink } from "trpc-chrome/link"
 import { createTRPCProxyClient } from "@trpc/client"
-import { io } from "socket.io-client"
 import { useForm } from "react-hook-form"
 import { useStorage } from "@plasmohq/storage/hook"
 
@@ -13,12 +11,6 @@ const port = chrome.runtime.connect()
 const trpc = createTRPCProxyClient<AppRouter>({
   links: [chromeLink({ port })]
 })
-
-const socket = io(
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:3000"
-    : process.env.PLASMO_PUBLIC_SOCKET_ENDPOINT
-)
 
 type FormData = {
   room: string
@@ -30,22 +22,15 @@ function IndexPopup() {
     area: "local"
   })
   const [inRoom, setInRoom] = useState(false)
+  const [detected, setDetected] = useState(false)
   const [error, setError] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
   const [currentTab, setCurrentTab] = useState<number>()
-
   const {
     register,
     handleSubmit,
     formState: { errors }
   } = useForm<FormData>()
-
-  const [detected, setDetected] = useState(false)
-
-  const createRoom = useCallback(() => {
-    socket.emit(SOCKET_EVENTS.CREATE)
-    detectVideo()
-  }, [])
 
   const detectVideo = () => {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
@@ -72,28 +57,28 @@ function IndexPopup() {
         return r
       })
       setInRoom(true)
+      detectVideo()
     },
     [currentTab, setRenderValue, setStoreValue]
   )
+
+  const createRoom = useCallback(() => {
+    trpc.createRoom.query().then((roomCode) => roomCallback(roomCode))
+  }, [roomCallback])
 
   const joinRoom = useCallback(
     (data: FormData) => {
       const room = data.room.toUpperCase()
       console.log(room)
       roomCallback(room)
-      setInRoom(true)
-      detectVideo()
     },
     [roomCallback]
   )
 
   useEffect(() => {
-    socket.on(SOCKET_EVENTS.CREATE, roomCallback)
-
-    if (parseRooms(rooms)[currentTab] != undefined) setInRoom(true)
-
-    return () => {
-      socket.off(SOCKET_EVENTS.CREATE, roomCallback)
+    if (parseRooms(rooms)[currentTab] != undefined) {
+      console.log(parseRooms(rooms)[currentTab])
+      setInRoom(true)
     }
   }, [currentTab, roomCallback, rooms])
 
@@ -113,7 +98,7 @@ function IndexPopup() {
     setInRoom(false)
   }, [currentTab, setRenderValue, setStoreValue])
 
-  const getRoom = useCallback(() => {
+  const getRoom = useMemo(() => {
     return parseRooms(rooms)[currentTab]
   }, [currentTab, rooms])
 
@@ -126,7 +111,7 @@ function IndexPopup() {
             flexDirection: "column",
             padding: 16
           }}>
-          <h1>Room code: {getRoom()}</h1>
+          <h1>Room code: {getRoom}</h1>
           <button onClick={exitRoom}>Exit</button>
           {detected ? <></> : <p>Detecting the video...</p>}
           {error ? <p style={{ color: "red" }}>{errorMessage}</p> : <></>}
