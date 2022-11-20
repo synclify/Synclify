@@ -1,4 +1,4 @@
-type RoomsList = { [tabId: string]: string }
+type RoomsList = { [tabId: number]: string }
 
 export const storeRoom = (rooms: string, r: RoomsList) => {
   if (rooms === undefined) return JSON.stringify(r)
@@ -11,8 +11,8 @@ export const storeRoom = (rooms: string, r: RoomsList) => {
 }
 
 export const deleteRoom = (rooms: string, tabid: number) => {
-  const obj = JSON.parse(rooms)
-  delete obj[tabid]
+  const obj: RoomsList = JSON.parse(rooms)
+  if (obj[tabid]) delete obj[tabid]
   return JSON.stringify(obj)
 }
 
