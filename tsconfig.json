@@ -3,6 +3,7 @@
   "exclude": ["node_modules"],
   "include": ["./**/*.ts", "./**/*.tsx"],
   "compilerOptions": {
+    "strict": true,
     "paths": {
       "~*": ["./src/*"]
     },

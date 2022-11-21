@@ -8,51 +8,46 @@ import { createTRPCProxyClient } from "@trpc/client"
 import { io } from "socket.io-client"
 import { parseRooms } from "~utils/rooms"
 
-console.log("loaded")
+console.log("loaded cs")
 const port = chrome.runtime.connect(chrome.runtime.id)
 
 const chromeClient = createTRPCProxyClient<AppRouter>({
-  links: [/* 👉 */ chromeLink({ port })]
+  links: [chromeLink({ port })]
 })
 
 let tabId: number
-let room: string
+let roomCode: string | undefined
 let video: HTMLVideoElement
 const storage = new Storage({ area: "local" })
-const socket = io(SOCKET_URL)
+const socket = io(SOCKET_URL, { autoConnect: false })
 
-storage.watch({
-  rooms: (r) => joinRoom(r.newValue)
-})
-
-const init = async () => {
+export const init = async () => {
   tabId = await chromeClient.getTabId.query()
   console.log("tabId: ", tabId)
-  const rooms = await storage.get("rooms")
-  if (rooms && tabId) {
-    joinRoom(rooms)
+  const rooms: string | undefined = await storage.get("rooms")
+  const r = parseRooms(rooms)
+  roomCode = r?.[tabId]
+  if (roomCode) {
+    console.log("connecting")
+    joinRoom()
     const videos = document.getElementsByTagName("video")
     video = videos[0]
-    if (video)
+    if (video) {
+      console.log("Got video")
       Object.values(VIDEO_EVENTS).forEach((event) =>
         video.addEventListener(event, (e) => videoEventHandler(e))
       )
+    }
   }
 }
 
 init()
 
-const joinRoom = (r: string) => {
-  const rooms = parseRooms(r)
-  console.log(rooms)
-  if (tabId) {
-    room = rooms[tabId]
-    console.log("Got room ", room)
-    if (room) {
-      console.log("Joining room ", room)
-      socket.emit(SOCKET_EVENTS.JOIN, room)
-    }
-  }
+const joinRoom = () => {
+  console.log("Got room ", roomCode)
+  if (socket.disconnected) socket.connect()
+  console.log("Joining room ", roomCode)
+  socket.emit(SOCKET_EVENTS.JOIN, roomCode)
 }
 
 socket.on(SOCKET_EVENTS.FULL, (room) => {
@@ -68,9 +63,16 @@ socket.on(SOCKET_EVENTS.LOG, (array) => {
   console.log(...array)
 })
 
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+chrome.runtime.onMessage.addListener(function (request, _, sendResponse) {
   console.log("request: ", request)
-  if (request.message === "detectVideo") {
+  if (request.message === "init") {
+    init()
+    sendResponse({ status: "success", message: "ok" })
+  } else if (request.message === "exit") {
+    // TODO: Remove event listeners
+    socket.disconnect()
+    sendResponse({ status: "success", message: "ok" })
+  } else if (request.message === "detectVideo") {
     const videos = document.getElementsByTagName("video")
     if (videos.length === 0)
       sendResponse({ status: "error", message: "No videos found" })
@@ -86,8 +88,9 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 })
 
 // To be used when automatic detection doesn't work
-const handleVideoDetectManually = (ev) => {
-  video = ev.target.closest("video") as HTMLVideoElement
+const handleVideoDetectManually = (ev: Event) => {
+  const target = ev.target as Element
+  video = target.closest("video") as HTMLVideoElement
   console.log(video)
   if (video != null) {
     document.removeEventListener("click", handleVideoDetectManually)
@@ -95,12 +98,12 @@ const handleVideoDetectManually = (ev) => {
 }
 
 const videoEventHandler = (event: Event) => {
-  if (room) {
+  if (roomCode) {
     console.log(event)
     // consider throttle function if volumechange events impact performances
     socket.emit(
       SOCKET_EVENTS.VIDEO_EVENT,
-      room,
+      roomCode,
       event.type,
       video.volume,
       video.currentTime

@@ -25,13 +25,13 @@ function IndexPopup() {
   const [detected, setDetected] = useState(false)
   const [error, setError] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
-  const [currentTab, setCurrentTab] = useState<number>()
+  const [currentTab, setCurrentTab] = useState<number>(0)
   const {
     register,
     handleSubmit,
     formState: { errors }
   } = useForm<FormData>()
-
+  /*
   const detectVideo = () => {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       chrome.tabs.sendMessage(
@@ -47,17 +47,25 @@ function IndexPopup() {
       )
     })
   }
-
+*/
   const roomCallback = useCallback(
     (room: string) => {
       setRenderValue((rooms) => {
         console.log(rooms)
-        const r = storeRoom(rooms, { [currentTab]: room })
+        const r = storeRoom(rooms, { [currentTab]: room }) ?? rooms
         setStoreValue(r)
         return r
       })
       setInRoom(true)
-      detectVideo()
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        chrome.tabs.sendMessage(
+          tabs[0].id as number,
+          { message: "init" },
+          function (response) {
+            if (response.status === "success") console.log("init success")
+          }
+        )
+      })
     },
     [currentTab, setRenderValue, setStoreValue]
   )
@@ -76,8 +84,9 @@ function IndexPopup() {
   )
 
   useEffect(() => {
-    if (parseRooms(rooms)[currentTab] != undefined) {
-      console.log(parseRooms(rooms)[currentTab])
+    const room = parseRooms(rooms)?.[currentTab]
+    if (room) {
+      console.log(room)
       setInRoom(true)
     }
   }, [currentTab, roomCallback, rooms])
@@ -96,10 +105,19 @@ function IndexPopup() {
       return r
     })
     setInRoom(false)
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      chrome.tabs.sendMessage(
+        tabs[0].id as number,
+        { message: "exit" },
+        function (response) {
+          if (response.status === "success") console.log("exit success")
+        }
+      )
+    })
   }, [currentTab, setRenderValue, setStoreValue])
 
   const getRoom = useMemo(() => {
-    return parseRooms(rooms)[currentTab]
+    return parseRooms(rooms)?.[currentTab] ?? "ERROR"
   }, [currentTab, rooms])
 
   return (
@@ -113,7 +131,7 @@ function IndexPopup() {
           }}>
           <h1>Room code: {getRoom}</h1>
           <button onClick={exitRoom}>Exit</button>
-          {detected ? <></> : <p>Detecting the video...</p>}
+          {/* detected ? <></> : <p>Detecting the video...</p>*/}
           {error ? <p style={{ color: "red" }}>{errorMessage}</p> : <></>}
         </div>
       ) : (
