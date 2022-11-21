@@ -14,7 +14,7 @@ const t = initTRPC.create({
 const appRouter = t.router({
   getTabId: t.procedure.query(async () => {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
-    return tabs[0].id
+    return tabs[0].id as number
   }),
   createRoom: t.procedure.query(async () => {
     const res = await fetch(`${SOCKET_URL}/create`)
