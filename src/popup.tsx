@@ -17,7 +17,9 @@ type FormData = {
 }
 
 function IndexPopup() {
-  const [rooms, , { setRenderValue, setStoreValue }] = useStorage<string>({
+  const [rooms, , { setRenderValue, setStoreValue }] = useStorage<
+    string | undefined
+  >({
     key: "rooms",
     area: "local"
   })
@@ -52,7 +54,7 @@ function IndexPopup() {
     (room: string) => {
       setRenderValue((rooms) => {
         console.log(rooms)
-        const r = storeRoom(rooms, { [currentTab]: room }) ?? rooms
+        const r = storeRoom(rooms, { [currentTab]: room })
         setStoreValue(r)
         return r
       })
