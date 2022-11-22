@@ -29,7 +29,7 @@ export const init = async () => {
   roomCode = r?.[tabId]
   if (roomCode) {
     console.log("connecting")
-    joinRoom()
+    if (socket.disconnected) socket.connect()
     const videos = document.getElementsByTagName("video")
     video = videos[0]
     if (video) {
@@ -44,11 +44,21 @@ export const init = async () => {
 init()
 
 const joinRoom = () => {
-  console.log("Got room ", roomCode)
-  if (socket.disconnected) socket.connect()
   console.log("Joining room ", roomCode)
   socket.emit(SOCKET_EVENTS.JOIN, roomCode)
 }
+
+socket.on("disconnect", (reason) => {
+  console.log("Disconnected, reason:", reason)
+})
+
+socket.on("reconnect", () => {
+  if (roomCode) joinRoom()
+})
+
+socket.on("connect", () => {
+  if (roomCode) joinRoom()
+})
 
 socket.on(SOCKET_EVENTS.FULL, (room) => {
   // TODO: Handle full room
