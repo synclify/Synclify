@@ -1,3 +1,4 @@
+import { ExtResponse, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { deleteRoom, parseRooms, storeRoom } from "~utils/rooms"
 
@@ -58,16 +59,18 @@ function IndexPopup() {
         setStoreValue(r)
         return r
       })
-      setInRoom(true)
-      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        chrome.tabs.sendMessage(
-          tabs[0].id as number,
-          { message: "init" },
-          function (response) {
-            if (response.status === "success") console.log("init success")
+      chrome.tabs.sendMessage(
+        currentTab,
+        { type: MESSAGE_TYPE.INIT },
+        function (response: ExtResponse) {
+          if (response.status === MESSAGE_STATUS.SUCCESS) {
+            setDetected(true)
+            setInRoom(true)
+            setError(false)
+            console.log("init success")
           }
-        )
-      })
+        }
+      )
     },
     [currentTab, setRenderValue, setStoreValue]
   )
@@ -100,6 +103,21 @@ function IndexPopup() {
     })
   }, [])
 
+  useEffect(() => {
+    if (inRoom)
+      chrome.tabs.sendMessage(
+        currentTab,
+        { type: MESSAGE_TYPE.CHECK_VIDEO },
+        function (response: ExtResponse) {
+          if (response.status === MESSAGE_STATUS.ERROR) {
+            setError(true)
+            setErrorMessage(response.message as string)
+          } else if (response.status === MESSAGE_STATUS.SUCCESS)
+            setDetected(true)
+        }
+      )
+  }, [currentTab, inRoom])
+
   const exitRoom = useCallback(() => {
     setRenderValue((rooms) => {
       const r = deleteRoom(rooms, currentTab)
@@ -110,9 +128,10 @@ function IndexPopup() {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       chrome.tabs.sendMessage(
         tabs[0].id as number,
-        { message: "exit" },
+        { type: MESSAGE_TYPE.EXIT },
         function (response) {
-          if (response.status === "success") console.log("exit success")
+          if (response.status === MESSAGE_STATUS.SUCCESS)
+            console.log("exit success")
         }
       )
     })
@@ -124,53 +143,53 @@ function IndexPopup() {
 
   return (
     <React.StrictMode>
-      {inRoom ? (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            padding: 16
-          }}>
-          <h1>Room code: {getRoom}</h1>
-          <button onClick={exitRoom}>Exit</button>
-          {/* detected ? <></> : <p>Detecting the video...</p>*/}
-          {error ? <p style={{ color: "red" }}>{errorMessage}</p> : <></>}
-        </div>
-      ) : (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            padding: 16
-          }}>
-          <button onClick={createRoom}>Create room</button>
-          <p>or</p>
-          <p>Join room: </p>
-          <form onSubmit={handleSubmit(joinRoom)}>
-            <input
-              type="text"
-              placeholder="Room code"
-              {...register("room", {
-                required: { value: true, message: "Room code can't be empty." },
-                maxLength: { value: 5, message: "Room code too long." },
-                minLength: { value: 5, message: "Room code too short" },
-                pattern: {
-                  value: /^[a-zA-Z0-9]*$/,
-                  message: "Room code format incorrect"
-                }
-              })}
-            />
-            {errors.room && (
-              <div>
-                <p style={{ color: "red" }} role="alert">
-                  {errors.room?.message}
-                </p>
-              </div>
-            )}
-            <input type="submit" value="Join!" />
-          </form>
-        </div>
-      )}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          padding: 16
+        }}>
+        {inRoom ? (
+          <>
+            <h1>Room code: {getRoom}</h1>
+            <button onClick={exitRoom}>Exit</button>
+            {detected ? <></> : <p>Detecting the video...</p>}
+          </>
+        ) : (
+          <>
+            <button onClick={createRoom}>Create room</button>
+            <p>or</p>
+            <p>Join room: </p>
+            <form onSubmit={handleSubmit(joinRoom)}>
+              <input
+                type="text"
+                placeholder="Room code"
+                {...register("room", {
+                  required: {
+                    value: true,
+                    message: "Room code can't be empty."
+                  },
+                  maxLength: { value: 5, message: "Room code too long." },
+                  minLength: { value: 5, message: "Room code too short" },
+                  pattern: {
+                    value: /^[a-zA-Z0-9]*$/,
+                    message: "Room code format incorrect"
+                  }
+                })}
+              />
+              {errors.room && (
+                <div>
+                  <p style={{ color: "red" }} role="alert">
+                    {errors.room?.message}
+                  </p>
+                </div>
+              )}
+              <input type="submit" value="Join!" />
+            </form>
+          </>
+        )}
+        {error ? <p style={{ color: "red" }}>{errorMessage}</p> : <></>}
+      </div>
     </React.StrictMode>
   )
 }

@@ -1,3 +1,9 @@
+import {
+  ExtMessage,
+  MESSAGE_STATUS,
+  MESSAGE_TYPE,
+  sendResponse
+} from "~types/messaging"
 import { SOCKET_EVENTS, SOCKET_URL } from "~types/socket"
 
 import type { AppRouter } from "./background"
@@ -21,7 +27,7 @@ let video: HTMLVideoElement
 const storage = new Storage({ area: "local" })
 const socket = io(SOCKET_URL, { autoConnect: false })
 
-export const init = async () => {
+export const init = async (sendResponse?: sendResponse) => {
   tabId = await chromeClient.getTabId.query()
   console.log("tabId: ", tabId)
   const rooms: string | undefined = await storage.get("rooms")
@@ -30,18 +36,27 @@ export const init = async () => {
   if (roomCode) {
     console.log("connecting")
     if (socket.disconnected) socket.connect()
-    const videos = document.getElementsByTagName("video")
-    video = videos[0]
-    if (video) {
-      console.log("Got video")
-      Object.values(VIDEO_EVENTS).forEach((event) =>
-        video.addEventListener(event, (e) => videoEventHandler(e))
-      )
-    }
+    getVideo(sendResponse)
   }
 }
 
 init()
+
+const getVideo = (sendResponse?: sendResponse) => {
+  const videos = document.getElementsByTagName("video")
+  video = videos[0]
+  if (video) {
+    console.log("Got video")
+    Object.values(VIDEO_EVENTS).forEach((event) =>
+      video.addEventListener(event, (e) => videoEventHandler(e))
+    )
+    sendResponse?.({ status: MESSAGE_STATUS.SUCCESS })
+  } else
+    sendResponse?.({
+      status: MESSAGE_STATUS.ERROR,
+      message: "Video not found"
+    })
+}
 
 const joinRoom = () => {
   console.log("Joining room ", roomCode)
@@ -73,25 +88,50 @@ socket.on(SOCKET_EVENTS.LOG, (array) => {
   console.log(...array)
 })
 
-chrome.runtime.onMessage.addListener(function (request, _, sendResponse) {
+chrome.runtime.onMessage.addListener(function (
+  request: ExtMessage,
+  _,
+  sendResponse: sendResponse
+) {
   console.log("request: ", request)
-  if (request.message === "init") {
-    init()
-    sendResponse({ status: "success", message: "ok" })
-  } else if (request.message === "exit") {
-    // TODO: Remove event listeners
-    socket.disconnect()
-    sendResponse({ status: "success", message: "ok" })
-  } else if (request.message === "detectVideo") {
-    const videos = document.getElementsByTagName("video")
-    if (videos.length === 0)
-      sendResponse({ status: "error", message: "No videos found" })
-    else {
-      video = videos[0]
-      Object.values(VIDEO_EVENTS).forEach((event) =>
-        video.addEventListener(event, (e) => videoEventHandler(e))
-      )
-      sendResponse({ status: "success", message: "ok" })
+  switch (request.type) {
+    case MESSAGE_TYPE.INIT:
+      init(sendResponse)
+      break
+    case MESSAGE_TYPE.EXIT:
+      // TODO: Remove event listeners
+      socket.disconnect()
+      sendResponse({
+        status: MESSAGE_STATUS.SUCCESS
+      })
+      break
+    case MESSAGE_TYPE.CHECK_VIDEO:
+      if (video)
+        sendResponse({
+          status: MESSAGE_STATUS.SUCCESS
+        })
+      else
+        sendResponse({
+          status: MESSAGE_STATUS.ERROR,
+          message: "Video not found"
+        })
+      break
+    case MESSAGE_TYPE.DETECT_VIDEO: {
+      const videos = document.getElementsByTagName("video")
+      if (videos.length === 0)
+        sendResponse({
+          status: MESSAGE_STATUS.ERROR,
+          message: "No videos found"
+        })
+      else {
+        video = videos[0]
+        Object.values(VIDEO_EVENTS).forEach((event) =>
+          video.addEventListener(event, (e) => videoEventHandler(e))
+        )
+        sendResponse({
+          status: MESSAGE_STATUS.SUCCESS
+        })
+      }
     }
   }
   return true
