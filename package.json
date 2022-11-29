@@ -2,7 +2,7 @@
   "name": "openw2g",
   "displayName": "openW2G",
   "version": "0.0.1",
-  "description": "A basic Plasmo extension.",
+  "description": "Create a watch party straight from your browser—works anywhere, ad-free.",
   "author": "andrea",
   "scripts": {
     "dev": "plasmo dev",
