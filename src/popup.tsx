@@ -1,3 +1,6 @@
+import "./style.css"
+
+import { Button, TextInput, Tooltip } from "flowbite-react"
 import { ExtResponse, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { deleteRoom, parseRooms, storeRoom } from "~utils/rooms"
@@ -141,29 +144,50 @@ function IndexPopup() {
     return parseRooms(rooms)?.[currentTab] ?? "ERROR"
   }, [currentTab, rooms])
 
+  const copyToClipboard = useCallback(() => {
+    navigator.clipboard.writeText(getRoom)
+  }, [getRoom])
+
   return (
     <React.StrictMode>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          padding: 16
-        }}>
+      <div className="flex flex-col p-4">
+        <h1 className="font-['Space_Mono'] text-4xl text-center mb-3">
+          openW2G
+        </h1>
         {inRoom ? (
           <>
-            <h1>Room code: {getRoom}</h1>
-            <button onClick={exitRoom}>Exit</button>
-            {detected ? <></> : <p>Detecting the video...</p>}
+            <p className="text-base">
+              Room code (click to copy):
+              <Tooltip content="Copied!" trigger="click" arrow={false}>
+                <span className="cursor-pointer" onClick={copyToClipboard}>
+                  {getRoom}
+                </span>
+              </Tooltip>
+            </p>
+            <Button gradientDuoTone="purpleToBlue" onClick={exitRoom}>
+              Exit
+            </Button>
+            {detected ? (
+              <></>
+            ) : (
+              <p className="text-base">Detecting the video...</p>
+            )}
           </>
         ) : (
           <>
-            <button onClick={createRoom}>Create room</button>
-            <p>or</p>
-            <p>Join room: </p>
-            <form onSubmit={handleSubmit(joinRoom)}>
-              <input
+            <Button gradientDuoTone="purpleToBlue" onClick={createRoom}>
+              Create room
+            </Button>
+            <p className="text-base">or</p>
+            <p className="text-base">Join room: </p>
+            <form
+              onSubmit={handleSubmit(joinRoom)}
+              className="flex flex-col gap-4">
+              <TextInput
                 type="text"
                 placeholder="Room code"
+                sizing="sm"
+                className="text-base"
                 {...register("room", {
                   required: {
                     value: true,
@@ -179,16 +203,22 @@ function IndexPopup() {
               />
               {errors.room && (
                 <div>
-                  <p style={{ color: "red" }} role="alert">
+                  <p className="text-base text-red-700" role="alert">
                     {errors.room?.message}
                   </p>
                 </div>
               )}
-              <input type="submit" value="Join!" />
+              <Button gradientDuoTone="purpleToBlue" type="submit">
+                Join!
+              </Button>
             </form>
           </>
         )}
-        {error ? <p style={{ color: "red" }}>{errorMessage}</p> : <></>}
+        {error ? (
+          <p className="text-base text-red-700">{errorMessage}</p>
+        ) : (
+          <></>
+        )}
       </div>
     </React.StrictMode>
   )
