@@ -1,15 +1,25 @@
-.new-tab {
-  background-color: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  color: #333;
-  display: block;
-  font-size: 12px;
-  line-height: 16px;
-  margin: 0 0 10px;
+@import url("https://fonts.googleapis.com/css2?family=Space+Mono&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  background: rgb(15, 23, 42);
+  background-size: 400% 400%;
+  animation: gradient 15s ease infinite;
+  color: white;
   padding: 10px;
-  position: relative;
-  text-decoration: none;
-  width: 100%;
+  width: 300px;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
