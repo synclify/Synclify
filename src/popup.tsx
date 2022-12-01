@@ -1,11 +1,12 @@
 import "./style.css"
 
-import { Button, TextInput, Tooltip } from "flowbite-react"
+import { Button, TextInput } from "flowbite-react"
 import { ExtResponse, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { deleteRoom, parseRooms, storeRoom } from "~utils/rooms"
 
 import type { AppRouter } from "./background"
+import Tooltip from "~components/atoms/Tooltip"
 import { chromeLink } from "trpc-chrome/link"
 import { createTRPCProxyClient } from "@trpc/client"
 import { useForm } from "react-hook-form"
@@ -151,20 +152,21 @@ function IndexPopup() {
   return (
     <React.StrictMode>
       <div className="flex flex-col p-4">
-        <h1 className="font-['Space_Mono'] text-4xl text-center mb-3">
+        <h1 className="mb-3 text-center font-['Space_Mono'] text-4xl">
           openW2G
         </h1>
         {inRoom ? (
           <>
-            <p className="text-base">
-              Room code (click to copy):
-              <Tooltip content="Copied!" trigger="click" arrow={false}>
-                <span className="cursor-pointer" onClick={copyToClipboard}>
-                  {getRoom}
-                </span>
+            <div className="text-base">
+              <p>Room code (click to copy):</p>
+              <Tooltip content="Copied!" onReferenceClick={copyToClipboard}>
+                <span className="cursor-pointer">{getRoom}</span>
               </Tooltip>
-            </p>
-            <Button gradientDuoTone="purpleToBlue" onClick={exitRoom}>
+            </div>
+            <Button
+              gradientDuoTone="purpleToBlue"
+              onClick={exitRoom}
+              className="my-4">
               Exit
             </Button>
             {detected ? (
