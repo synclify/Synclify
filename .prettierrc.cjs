@@ -10,8 +10,9 @@ module.exports = {
   trailingComma: "none",
   bracketSpacing: true,
   bracketSameLine: true,
-  plugins: [require.resolve("@plasmohq/prettier-plugin-sort-imports")],
+  plugins: [require.resolve("@plasmohq/prettier-plugin-sort-imports"), "prettier-plugin-tailwindcss"],
   importOrder: ["^@plasmohq/(.*)$", "^~(.*)$", "^[./]"],
   importOrderSeparation: true,
-  importOrderSortSpecifiers: true
+  importOrderSortSpecifiers: true,
+  tailwindConfig: "./tailwind.config.js"
 }
