@@ -1,9 +1,9 @@
 import { SOCKET_URL } from "~types/socket"
 import { Storage } from "@plasmohq/storage"
+import browser from "webextension-polyfill"
 import { createChromeHandler } from "trpc-chrome/adapter"
 import { deleteRoom } from "~utils/rooms"
 import { initTRPC } from "@trpc/server"
-
 const storage = new Storage({ area: "local" })
 
 const t = initTRPC.create({
@@ -13,7 +13,7 @@ const t = initTRPC.create({
 
 const appRouter = t.router({
   getTabId: t.procedure.query(async () => {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true })
     return tabs[0].id as number
   }),
   createRoom: t.procedure.query(async () => {

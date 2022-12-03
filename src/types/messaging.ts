@@ -19,5 +19,3 @@ export enum MESSAGE_TYPE {
   DETECT_VIDEO = "detectVideo",
   CHECK_VIDEO = "checkVideo"
 }
-
-export type sendResponse = (response: ExtResponse) => void

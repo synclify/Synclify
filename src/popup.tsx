@@ -1,20 +1,21 @@
 import "./style.css"
 
 import { Button, TextInput } from "flowbite-react"
+import { ChromeLinkOptions, chromeLink } from "trpc-chrome/link"
 import { ExtResponse, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { deleteRoom, parseRooms, storeRoom } from "~utils/rooms"
 
 import type { AppRouter } from "./background"
 import Tooltip from "~components/atoms/Tooltip"
-import { chromeLink } from "trpc-chrome/link"
+import browser from "webextension-polyfill"
 import { createTRPCProxyClient } from "@trpc/client"
 import { useForm } from "react-hook-form"
 import { useStorage } from "@plasmohq/storage/hook"
 
-const port = chrome.runtime.connect()
+const port = browser.runtime.connect()
 const trpc = createTRPCProxyClient<AppRouter>({
-  links: [chromeLink({ port })]
+  links: [chromeLink({ port } as ChromeLinkOptions)]
 })
 
 type FormData = {
@@ -40,8 +41,8 @@ function IndexPopup() {
   } = useForm<FormData>()
   /*
   const detectVideo = () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      chrome.tabs.sendMessage(
+    browser.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      browser.tabs.sendMessage(
         tabs[0].id,
         { message: "detectVideo" },
         function (response) {
@@ -63,18 +64,16 @@ function IndexPopup() {
         setStoreValue(r)
         return r
       })
-      chrome.tabs.sendMessage(
-        currentTab,
-        { type: MESSAGE_TYPE.INIT },
-        function (response: ExtResponse) {
+      browser.tabs
+        .sendMessage(currentTab, { type: MESSAGE_TYPE.INIT })
+        .then((response: ExtResponse) => {
           if (response.status === MESSAGE_STATUS.SUCCESS) {
             setDetected(true)
             setInRoom(true)
             setError(false)
             console.log("init success")
           }
-        }
-      )
+        })
     },
     [currentTab, setRenderValue, setStoreValue]
   )
@@ -109,17 +108,15 @@ function IndexPopup() {
 
   useEffect(() => {
     if (inRoom)
-      chrome.tabs.sendMessage(
-        currentTab,
-        { type: MESSAGE_TYPE.CHECK_VIDEO },
-        function (response: ExtResponse) {
+      browser.tabs
+        .sendMessage(currentTab, { type: MESSAGE_TYPE.CHECK_VIDEO })
+        .then((response: ExtResponse) => {
           if (response.status === MESSAGE_STATUS.ERROR) {
             setError(true)
             setErrorMessage(response.message as string)
           } else if (response.status === MESSAGE_STATUS.SUCCESS)
             setDetected(true)
-        }
-      )
+        })
   }, [currentTab, inRoom])
 
   const exitRoom = useCallback(() => {
@@ -129,16 +126,14 @@ function IndexPopup() {
       return r
     })
     setInRoom(false)
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      chrome.tabs.sendMessage(
-        tabs[0].id as number,
-        { type: MESSAGE_TYPE.EXIT },
-        function (response) {
+    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) =>
+      browser.tabs
+        .sendMessage(tabs[0].id as number, { type: MESSAGE_TYPE.EXIT })
+        .then((response: ExtResponse) => {
           if (response.status === MESSAGE_STATUS.SUCCESS)
             console.log("exit success")
-        }
-      )
-    })
+        })
+    )
   }, [currentTab, setRenderValue, setStoreValue])
 
   const getRoom = useMemo(() => {
