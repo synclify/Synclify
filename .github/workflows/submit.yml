@@ -23,10 +23,17 @@ jobs:
         with:
           node-version: 16.x
           cache: "pnpm"
-      - name: Build and zip extension artifact
+      - name: Build and zip chromium extension artifact
         run: pnpm build -- --zip
-      - name: Browser Platform Publish
+      - name: Chrome/Edge Platform Publish
         uses: PlasmoHQ/bpp@v2
         with:
-          keys: ${{ secrets.SUBMIT_KEYS }}
+          keys: ${{ secrets.SUBMIT_CHROMIUM }}
+          artifact: build/chrome-mv3-prod.zip
+      - name: Build and zip firefox extension artifact
+        run: pnpm build -- --zip --target=firefox-mv2
+      - name: Chrome/Edge Platform Publish
+        uses: PlasmoHQ/bpp@v2
+        with:
+          keys: ${{ secrets.SUBMIT_FIREFOX }}
           artifact: build/chrome-mv3-prod.zip
