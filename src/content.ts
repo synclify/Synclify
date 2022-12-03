@@ -1,24 +1,20 @@
-import {
-  ExtMessage,
-  MESSAGE_STATUS,
-  MESSAGE_TYPE,
-  sendResponse
-} from "~types/messaging"
+import { ChromeLinkOptions, chromeLink } from "trpc-chrome/link"
+import { ExtMessage, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import { SOCKET_EVENTS, SOCKET_URL } from "~types/socket"
 
 import type { AppRouter } from "./background"
 import { Storage } from "@plasmohq/storage"
 import { VIDEO_EVENTS } from "~types/video"
-import { chromeLink } from "trpc-chrome/link"
+import browser from "webextension-polyfill"
 import { createTRPCProxyClient } from "@trpc/client"
 import { io } from "socket.io-client"
 import { parseRooms } from "~utils/rooms"
 
 console.log("loaded cs")
-const port = chrome.runtime.connect(chrome.runtime.id)
+const port = browser.runtime.connect(browser.runtime.id)
 
 const chromeClient = createTRPCProxyClient<AppRouter>({
-  links: [chromeLink({ port })]
+  links: [chromeLink({ port } as ChromeLinkOptions)]
 })
 
 let tabId: number
@@ -27,22 +23,24 @@ let video: HTMLVideoElement
 const storage = new Storage({ area: "local" })
 const socket = io(SOCKET_URL, { autoConnect: false })
 
-export const init = async (sendResponse?: sendResponse) => {
+export const init = async () => {
   tabId = await chromeClient.getTabId.query()
   console.log("tabId: ", tabId)
   const rooms: string | undefined = await storage.get("rooms")
   const r = parseRooms(rooms)
   roomCode = r?.[tabId]
   if (roomCode) {
-    console.log("connecting")
-    if (socket.disconnected) socket.connect()
-    getVideo(sendResponse)
+    if (socket.disconnected) {
+      console.log("connecting")
+      socket.connect()
+    }
+    return getVideo()
   }
 }
 
 init()
 
-const getVideo = (sendResponse?: sendResponse) => {
+const getVideo = () => {
   const videos = document.getElementsByTagName("video")
   video = videos[0]
   if (video) {
@@ -50,12 +48,12 @@ const getVideo = (sendResponse?: sendResponse) => {
     Object.values(VIDEO_EVENTS).forEach((event) =>
       video.addEventListener(event, (e) => videoEventHandler(e))
     )
-    sendResponse?.({ status: MESSAGE_STATUS.SUCCESS })
+    return { status: MESSAGE_STATUS.SUCCESS }
   } else
-    sendResponse?.({
+    return {
       status: MESSAGE_STATUS.ERROR,
       message: "Video not found"
-    })
+    }
 }
 
 const joinRoom = () => {
@@ -88,53 +86,48 @@ socket.on(SOCKET_EVENTS.LOG, (array) => {
   console.log(...array)
 })
 
-chrome.runtime.onMessage.addListener(function (
-  request: ExtMessage,
-  _,
-  sendResponse: sendResponse
-) {
+browser.runtime.onMessage.addListener(async function (request: ExtMessage) {
   console.log("request: ", request)
   switch (request.type) {
     case MESSAGE_TYPE.INIT:
-      init(sendResponse)
-      break
+      return init()
+
     case MESSAGE_TYPE.EXIT:
       // TODO: Remove event listeners
       socket.disconnect()
-      sendResponse({
+      return {
         status: MESSAGE_STATUS.SUCCESS
-      })
-      break
+      }
+
     case MESSAGE_TYPE.CHECK_VIDEO:
       if (video)
-        sendResponse({
+        return {
           status: MESSAGE_STATUS.SUCCESS
-        })
+        }
       else
-        sendResponse({
+        return {
           status: MESSAGE_STATUS.ERROR,
           message: "Video not found"
-        })
+        }
       break
     case MESSAGE_TYPE.DETECT_VIDEO: {
       const videos = document.getElementsByTagName("video")
       if (videos.length === 0)
-        sendResponse({
+        return {
           status: MESSAGE_STATUS.ERROR,
           message: "No videos found"
-        })
+        }
       else {
         video = videos[0]
         Object.values(VIDEO_EVENTS).forEach((event) =>
           video.addEventListener(event, (e) => videoEventHandler(e))
         )
-        sendResponse({
+        return {
           status: MESSAGE_STATUS.SUCCESS
-        })
+        }
       }
     }
   }
-  return true
 })
 
 // To be used when automatic detection doesn't work
