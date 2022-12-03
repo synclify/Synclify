@@ -1,6 +1,7 @@
 import * as dotenv from 'dotenv'
 
 import { Server } from 'socket.io';
+import cors from "cors"
 import { createServer } from 'http';
 import crypto from "crypto"
 import express from "express"
@@ -10,6 +11,7 @@ dotenv.config()
 
 const app = express();
 app.set('port', 3000);
+app.use(cors({ origin: true }))
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: true, credentials: true, methods: ["GET"] } });
