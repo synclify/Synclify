@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1",
+  "javascript": {
+    "name": "openw2g",
+    "rootDir": "./",
+    "testEnvironment": "node",
+    "testLocationStrategy": "relativeToProjectRoot",
+    "testLocationFolder": "./tests"
+  }
+}
