@@ -1,0 +1,33 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`rooms.deleteRoom 0 1`] = `"{"1000959510":"EB875"}"`;
+
+exports[`rooms.deleteRoom 1 1`] = `undefined`;
+
+exports[`rooms.deleteRoom 2 1`] = `undefined`;
+
+exports[`rooms.deleteRoom 3 1`] = `"{}"`;
+
+exports[`rooms.deleteRoom 4 1`] = `undefined`;
+
+exports[`rooms.deleteRoom 5 1`] = `undefined`;
+
+exports[`rooms.parseRooms 0 1`] = `null`;
+
+exports[`rooms.parseRooms 1 1`] = `
+{
+  "1000959510": "EB875",
+}
+`;
+
+exports[`rooms.parseRooms 2 1`] = `null`;
+
+exports[`rooms.storeRoom 0 1`] = `"{"123":"ABCD"}"`;
+
+exports[`rooms.storeRoom 1 1`] = `"{"123":"ABCD","456":"DEFG","1000959510":"EB875"}"`;
+
+exports[`rooms.storeRoom 3 1`] = `"{}"`;
+
+exports[`rooms.storeRoom 4 1`] = `"{"123":"ABCD","456":"DEFG"}"`;
+
+exports[`rooms.storeRoom 5 1`] = `"{"123":""}"`;

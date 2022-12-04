@@ -1,7 +1,7 @@
 type RoomsList = { [tabId: number]: string }
 
 export const storeRoom = (rooms: string | undefined, r: RoomsList) => {
-  if (rooms === undefined) return JSON.stringify(r)
+  if (!rooms) return JSON.stringify(r)
   const obj: Record<number, string> = JSON.parse(rooms)
   console.log("after parse", obj)
   Object.assign(obj, r)
@@ -18,7 +18,7 @@ export const deleteRoom = (rooms: string | undefined, tabid: number) => {
 }
 
 export const parseRooms = (rooms?: string): RoomsList | null => {
-  if (rooms === undefined) return null
+  if (!rooms) return null
   return JSON.parse(rooms)
 }
 
