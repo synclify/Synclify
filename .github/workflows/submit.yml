@@ -23,6 +23,10 @@ jobs:
         with:
           node-version: 16.x
           cache: "pnpm"
+      - name: Create .env file
+        run: |
+          touch .env
+          echo PLASMO_PUBLIC_SOCKET_ENDPOINT=${{ secrets.PLASMO_PUBLIC_SOCKET_ENDPOINT }} >> .env
       - name: Build and zip chromium extension artifact
         run: pnpm build -- --zip
       - name: Chrome/Edge Platform Publish
