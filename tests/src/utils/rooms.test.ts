@@ -83,3 +83,15 @@ describe("rooms.storeRoom", () => {
     expect(result).toMatchSnapshot()
   })
 })
+
+describe("rooms.isInRoom", () => {
+  test("0", () => {
+    let result: any = rooms.isInRoom('{ "1000959510": "EB875" }', 1000959510)
+    expect(result).toMatchSnapshot()
+  })
+
+  test("1", () => {
+    let result: any = rooms.isInRoom('{ "1000959510": "EB875" }', 1)
+    expect(result).toMatchSnapshot()
+  })
+})

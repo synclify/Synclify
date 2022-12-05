@@ -12,6 +12,10 @@ exports[`rooms.deleteRoom 4 1`] = `undefined`;
 
 exports[`rooms.deleteRoom 5 1`] = `undefined`;
 
+exports[`rooms.isInRoom 0 1`] = `true`;
+
+exports[`rooms.isInRoom 1 1`] = `false`;
+
 exports[`rooms.parseRooms 0 1`] = `null`;
 
 exports[`rooms.parseRooms 1 1`] = `
