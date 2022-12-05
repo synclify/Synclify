@@ -6,7 +6,6 @@ import browser from "webextension-polyfill"
 import { createChromeHandler } from "trpc-chrome/adapter"
 import { initTRPC } from "@trpc/server"
 
-console.log("loaded")
 const storage = new Storage({ area: "local" })
 
 const t = initTRPC.create({

@@ -10,7 +10,6 @@ import { createTRPCProxyClient } from "@trpc/client"
 import { io } from "socket.io-client"
 import { parseRooms } from "~utils/rooms"
 
-console.log("loaded cs")
 const port = browser.runtime.connect(browser.runtime.id)
 
 const chromeClient = createTRPCProxyClient<AppRouter>({
@@ -25,13 +24,11 @@ const socket = io(SOCKET_URL, { autoConnect: false })
 
 export const init = async () => {
   tabId = await chromeClient.getTabId.query()
-  console.log("tabId: ", tabId)
   const rooms: string | undefined = await storage.get("rooms")
   const r = parseRooms(rooms)
   roomCode = r?.[tabId]
   if (roomCode) {
     if (socket.disconnected) {
-      console.log("connecting")
       socket.connect()
     }
     return getVideo()
@@ -40,19 +37,28 @@ export const init = async () => {
 
 init()
 
-// Callback function to execute when mutations are observed
-const callback: MutationCallback = () => {
-  if (!video) getVideo()
+const videoEventHandler = (event: Event) => {
+  if (roomCode) {
+    // consider throttle function if volumechange events impact performances
+    socket.emit(
+      SOCKET_EVENTS.VIDEO_EVENT,
+      roomCode,
+      event.type,
+      video.volume,
+      video.currentTime
+    )
+  }
 }
 
-const observer = new MutationObserver(callback)
+const observer = new MutationObserver(() => {
+  if (!video) getVideo()
+})
 
 const getVideo = () => {
   const videos = document.getElementsByTagName("video")
   // TODO: Handle multiple videos
   video = videos[0]
   if (video) {
-    console.log("Got video")
     Object.values(VIDEO_EVENTS).forEach((event) =>
       video.addEventListener(event, (e) => videoEventHandler(e))
     )
@@ -73,13 +79,8 @@ const getVideo = () => {
 }
 
 const joinRoom = () => {
-  console.log("Joining room ", roomCode)
   socket.emit(SOCKET_EVENTS.JOIN, roomCode)
 }
-
-socket.on("disconnect", (reason) => {
-  console.log("Disconnected, reason:", reason)
-})
 
 socket.on("reconnect", () => {
   if (roomCode) joinRoom()
@@ -91,52 +92,48 @@ socket.on("connect", () => {
 
 socket.on(SOCKET_EVENTS.FULL, (room) => {
   // TODO: Handle full room
-  console.log("Room " + room + " is full")
 })
 
-socket.on(SOCKET_EVENTS.JOIN, (room) => {
-  console.log("Making request to join room " + room)
-})
-
-socket.on(SOCKET_EVENTS.LOG, (array) => {
-  console.log(...array)
-})
-
-browser.runtime.onMessage.addListener(async function (request: ExtMessage) {
-  console.log("request: ", request)
+browser.runtime.onMessage.addListener((request: ExtMessage) => {
+  // Promises used only to to adhere to the type of addListener
   switch (request.type) {
     case MESSAGE_TYPE.INIT:
-      return init()
+      return Promise.resolve(init())
     case MESSAGE_TYPE.EXIT:
       // TODO: Remove event listeners
       socket.disconnect()
-      return {
+      return Promise.resolve({
         status: MESSAGE_STATUS.SUCCESS
-      }
+      })
     case MESSAGE_TYPE.CHECK_VIDEO:
       if (video)
-        return {
+        return Promise.resolve({
           status: MESSAGE_STATUS.SUCCESS
-        }
-      return {
+        })
+      return Promise.resolve({
         status: MESSAGE_STATUS.ERROR,
         message: "Video not found"
-      }
+      })
     case MESSAGE_TYPE.DETECT_VIDEO: {
       const videos = document.getElementsByTagName("video")
       if (videos.length === 0)
-        return {
+        return Promise.resolve({
           status: MESSAGE_STATUS.ERROR,
           message: "No videos found"
-        }
+        })
       video = videos[0]
       Object.values(VIDEO_EVENTS).forEach((event) =>
         video.addEventListener(event, (e) => videoEventHandler(e))
       )
-      return {
+      return Promise.resolve({
         status: MESSAGE_STATUS.SUCCESS
-      }
+      })
     }
+    default:
+      return Promise.resolve({
+        status: MESSAGE_STATUS.ERROR,
+        message: `Unhandled request ${request}`
+      })
   }
 })
 
@@ -145,25 +142,11 @@ browser.runtime.onMessage.addListener(async function (request: ExtMessage) {
 const handleVideoDetectManually = (ev: Event) => {
   const target = ev.target as Element
   video = target.closest("video") as HTMLVideoElement
-  console.log(video)
   if (video != null) {
     document.removeEventListener("click", handleVideoDetectManually)
   }
 }
 */
-const videoEventHandler = (event: Event) => {
-  if (roomCode) {
-    console.log(event)
-    // consider throttle function if volumechange events impact performances
-    socket.emit(
-      SOCKET_EVENTS.VIDEO_EVENT,
-      roomCode,
-      event.type,
-      video.volume,
-      video.currentTime
-    )
-  }
-}
 
 socket.on(
   SOCKET_EVENTS.VIDEO_EVENT,

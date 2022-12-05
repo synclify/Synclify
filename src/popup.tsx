@@ -57,10 +57,9 @@ function IndexPopup() {
   }
 */
   const roomCallback = useCallback(
-    (room: string) => {
-      setRenderValue((rooms) => {
-        console.log(rooms)
-        const r = storeRoom(rooms, { [currentTab]: room })
+    (newRooms: string) => {
+      setRenderValue((oldRooms) => {
+        const r = storeRoom(oldRooms, { [currentTab]: newRooms })
         setStoreValue(r)
         return r
       })
@@ -71,7 +70,6 @@ function IndexPopup() {
             setDetected(true)
             setInRoom(true)
             setError(false)
-            console.log("init success")
           } else if (response.status === MESSAGE_STATUS.ERROR) {
             setDetected(false)
             setError(true)
@@ -89,7 +87,6 @@ function IndexPopup() {
   const joinRoom = useCallback(
     (data: FormData) => {
       const room = data.room.toUpperCase()
-      console.log(room)
       roomCallback(room)
     },
     [roomCallback]
@@ -101,7 +98,6 @@ function IndexPopup() {
 
   useEffect(() => {
     trpc.getTabId.query().then((tabId) => {
-      console.log("SETTING STATE:", tabId)
       setCurrentTab(tabId)
     })
   }, [])
@@ -121,19 +117,16 @@ function IndexPopup() {
   }, [currentTab, inRoom])
 
   const exitRoom = useCallback(() => {
-    setRenderValue((rooms) => {
-      const r = deleteRoom(rooms, currentTab)
+    setRenderValue((roomsState) => {
+      const r = deleteRoom(roomsState, currentTab)
       setStoreValue(r)
       return r
     })
     setInRoom(false)
     browser.tabs.query({ active: true, currentWindow: true }).then((tabs) =>
-      browser.tabs
-        .sendMessage(tabs[0].id as number, { type: MESSAGE_TYPE.EXIT })
-        .then((response: ExtResponse) => {
-          if (response.status === MESSAGE_STATUS.SUCCESS)
-            console.log("exit success")
-        })
+      browser.tabs.sendMessage(tabs[0].id as number, {
+        type: MESSAGE_TYPE.EXIT
+      })
     )
   }, [currentTab, setRenderValue, setStoreValue])
 
