@@ -40,20 +40,30 @@ export const init = async () => {
 
 init()
 
+// Callback function to execute when mutations are observed
+const callback: MutationCallback = () => {
+  if (!video) getVideo()
+}
+
+const observer = new MutationObserver(callback)
+
 const getVideo = () => {
   const videos = document.getElementsByTagName("video")
+  // TODO: Handle multiple videos
   video = videos[0]
   if (video) {
     console.log("Got video")
     Object.values(VIDEO_EVENTS).forEach((event) =>
       video.addEventListener(event, (e) => videoEventHandler(e))
     )
+    observer.disconnect()
     return { status: MESSAGE_STATUS.SUCCESS }
-  } else
-    return {
-      status: MESSAGE_STATUS.ERROR,
-      message: "Video not found"
-    }
+  }
+  observer.observe(document, { subtree: true, childList: true })
+  return {
+    status: MESSAGE_STATUS.ERROR,
+    message: "Video not found"
+  }
 }
 
 const joinRoom = () => {
@@ -91,25 +101,21 @@ browser.runtime.onMessage.addListener(async function (request: ExtMessage) {
   switch (request.type) {
     case MESSAGE_TYPE.INIT:
       return init()
-
     case MESSAGE_TYPE.EXIT:
       // TODO: Remove event listeners
       socket.disconnect()
       return {
         status: MESSAGE_STATUS.SUCCESS
       }
-
     case MESSAGE_TYPE.CHECK_VIDEO:
       if (video)
         return {
           status: MESSAGE_STATUS.SUCCESS
         }
-      else
-        return {
-          status: MESSAGE_STATUS.ERROR,
-          message: "Video not found"
-        }
-      break
+      return {
+        status: MESSAGE_STATUS.ERROR,
+        message: "Video not found"
+      }
     case MESSAGE_TYPE.DETECT_VIDEO: {
       const videos = document.getElementsByTagName("video")
       if (videos.length === 0)
@@ -117,20 +123,19 @@ browser.runtime.onMessage.addListener(async function (request: ExtMessage) {
           status: MESSAGE_STATUS.ERROR,
           message: "No videos found"
         }
-      else {
-        video = videos[0]
-        Object.values(VIDEO_EVENTS).forEach((event) =>
-          video.addEventListener(event, (e) => videoEventHandler(e))
-        )
-        return {
-          status: MESSAGE_STATUS.SUCCESS
-        }
+      video = videos[0]
+      Object.values(VIDEO_EVENTS).forEach((event) =>
+        video.addEventListener(event, (e) => videoEventHandler(e))
+      )
+      return {
+        status: MESSAGE_STATUS.SUCCESS
       }
     }
   }
 })
 
 // To be used when automatic detection doesn't work
+/*
 const handleVideoDetectManually = (ev: Event) => {
   const target = ev.target as Element
   video = target.closest("video") as HTMLVideoElement
@@ -139,7 +144,7 @@ const handleVideoDetectManually = (ev: Event) => {
     document.removeEventListener("click", handleVideoDetectManually)
   }
 }
-
+*/
 const videoEventHandler = (event: Event) => {
   if (roomCode) {
     console.log(event)
