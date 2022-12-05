@@ -4,7 +4,7 @@ import { Button, TextInput } from "flowbite-react"
 import { ChromeLinkOptions, chromeLink } from "trpc-chrome/link"
 import { ExtResponse, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
-import { deleteRoom, parseRooms, storeRoom } from "~utils/rooms"
+import { deleteRoom, isInRoom, parseRooms, storeRoom } from "~utils/rooms"
 
 import type { AppRouter } from "./background"
 import Tooltip from "~components/atoms/Tooltip"
@@ -72,6 +72,10 @@ function IndexPopup() {
             setInRoom(true)
             setError(false)
             console.log("init success")
+          } else if (response.status === MESSAGE_STATUS.ERROR) {
+            setDetected(false)
+            setError(true)
+            setErrorMessage(response.message as string)
           }
         })
     },
@@ -92,11 +96,7 @@ function IndexPopup() {
   )
 
   useEffect(() => {
-    const room = parseRooms(rooms)?.[currentTab]
-    if (room) {
-      console.log(room)
-      setInRoom(true)
-    }
+    if (rooms && isInRoom(rooms, currentTab)) setInRoom(true)
   }, [currentTab, roomCallback, rooms])
 
   useEffect(() => {
@@ -112,6 +112,7 @@ function IndexPopup() {
         .sendMessage(currentTab, { type: MESSAGE_TYPE.CHECK_VIDEO })
         .then((response: ExtResponse) => {
           if (response.status === MESSAGE_STATUS.ERROR) {
+            setDetected(false)
             setError(true)
             setErrorMessage(response.message as string)
           } else if (response.status === MESSAGE_STATUS.SUCCESS)
@@ -164,11 +165,12 @@ function IndexPopup() {
               className="my-4">
               Exit
             </Button>
-            {detected ? (
-              <></>
-            ) : (
+            {detected || error ? null : (
               <p className="text-base">Detecting the video...</p>
             )}
+            {error ? (
+              <p className="text-base text-red-700">{errorMessage}</p>
+            ) : null}
           </>
         ) : (
           <>
@@ -210,11 +212,6 @@ function IndexPopup() {
               </Button>
             </form>
           </>
-        )}
-        {error ? (
-          <p className="text-base text-red-700">{errorMessage}</p>
-        ) : (
-          <></>
         )}
       </div>
     </React.StrictMode>
