@@ -22,4 +22,22 @@ export const parseRooms = (rooms?: string): RoomsList | null => {
   return JSON.parse(rooms)
 }
 
+export const updateTab = (oldTab: number, newTab: number, rooms?: string) => {
+  if (!rooms) return null
+
+  const obj: Record<number, string> = JSON.parse(rooms)
+  if (obj[oldTab]) {
+    const code = obj[oldTab]
+    delete obj[oldTab]
+    Object.assign(obj, { [newTab]: code })
+    return JSON.stringify(obj)
+  }
+  return rooms
+}
+
+export const isInRoom = (rooms: string, tabId: number) => {
+  if (parseRooms(rooms)?.[tabId]) return true
+  return false
+}
+
 export {}

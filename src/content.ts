@@ -59,6 +59,12 @@ const getVideo = () => {
     observer.disconnect()
     return { status: MESSAGE_STATUS.SUCCESS }
   }
+  const iframes = document.getElementsByTagName("iframe")
+  if (iframes.length !== 0)
+    return {
+      status: MESSAGE_STATUS.ERROR,
+      message: "Embedded video found, reload the page and press play"
+    }
   observer.observe(document, { subtree: true, childList: true })
   return {
     status: MESSAGE_STATUS.ERROR,
