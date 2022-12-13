@@ -1,28 +1,24 @@
 import * as dotenv from 'dotenv'
 
+import { App } from "uWebSockets.js";
 import { Server } from 'socket.io';
-import cors from "cors"
-import { createServer } from 'http';
 import crypto from "crypto"
-import express from "express"
 import { instrument } from "@socket.io/admin-ui"
 
 dotenv.config()
 
-const app = express();
-app.set('port', 3000);
-app.use(cors({ origin: true }))
+const app = App();
 
-const httpServer = createServer(app);
-const io = new Server(httpServer, { cors: { origin: true, credentials: true, methods: ["GET"] } });
+const io = new Server({ cors: { origin: true, credentials: true, methods: ["GET"] } });
+io.attachApp(app)
 const random = () => crypto.randomBytes(20).toString('hex').slice(0, 5).toUpperCase();
 
-app.get('/', (req, res) => {
-  res.send('Hello World!')
+app.get('/', (res, req) => {
+  res.end('Hello World!')
 })
 
 // Creates a room code and checks that it's empty
-app.get("/create", (req, res) => {
+app.get("/create", (res, req) => {
   let valid = false;
   let code = random()
   while (!valid) {
@@ -32,7 +28,7 @@ app.get("/create", (req, res) => {
     }
     code = random()
   }
-  res.send(code)
+  res.end(code)
 })
 
 instrument(io, {
@@ -43,7 +39,7 @@ instrument(io, {
   },
 });
 
-httpServer.listen(3000, () => {
+app.listen(3000, () => {
   console.log('listening on *:3000');
 });
 
