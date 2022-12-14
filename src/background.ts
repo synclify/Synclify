@@ -5,6 +5,7 @@ import { Storage } from "@plasmohq/storage"
 import browser from "webextension-polyfill"
 import { createChromeHandler } from "trpc-chrome/adapter"
 import { initTRPC } from "@trpc/server"
+import { z } from "zod"
 
 const storage = new Storage({ area: "local" })
 
@@ -22,7 +23,26 @@ const appRouter = t.router({
     const res = await fetch(`${SOCKET_URL}/create`)
     const code = await res.text()
     return code
-  })
+  }),
+  showToast: t.procedure
+    .input(
+      z.object({
+        type: z.enum(["error", "success"]),
+        content: z.string(),
+        show: z.boolean()
+      })
+    )
+    .query(async ({ input }) => {
+      const id = (
+        await browser.tabs.query({ active: true, currentWindow: true })
+      )[0].id as number
+      browser.tabs.sendMessage(id, {
+        to: "toast",
+        type: input.type,
+        content: input.content,
+        show: input.show
+      })
+    })
 })
 
 createChromeHandler({ router: appRouter })
