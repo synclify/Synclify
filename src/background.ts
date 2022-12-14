@@ -26,9 +26,9 @@ const appRouter = t.router({
   showToast: t.procedure
     .input(
       z.object({
-        error: z.boolean().optional().default(false),
+        type: z.enum(["error", "success"]),
         content: z.string(),
-        show: z.boolean().optional().default(true)
+        show: z.boolean()
       })
     )
     .query(async ({ input }) => {
@@ -37,7 +37,7 @@ const appRouter = t.router({
       )[0].id as number
       browser.tabs.sendMessage(id, {
         to: "toast",
-        error: input.error,
+        type: input.type,
         content: input.content,
         show: input.show
       })
