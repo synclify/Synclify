@@ -2,10 +2,13 @@ import { ChromeLinkOptions, chromeLink } from "trpc-chrome/link"
 import { ExtMessage, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import { SOCKET_EVENTS, SOCKET_URL } from "~types/socket"
 
-import type { AppRouter } from "./background"
+import type { AppRouter } from "../background"
+import PlasmoOverlay from "./toast"
+import type { PlasmoRender } from "plasmo"
 import { Storage } from "@plasmohq/storage"
 import { VIDEO_EVENTS } from "~types/video"
 import browser from "webextension-polyfill"
+import { createRoot } from "react-dom/client"
 import { createTRPCProxyClient } from "@trpc/client"
 import { io } from "socket.io-client"
 import { parseRooms } from "~utils/rooms"
@@ -20,7 +23,10 @@ let tabId: number
 let roomCode: string | undefined
 let video: HTMLVideoElement
 const storage = new Storage({ area: "local" })
-const socket = io(SOCKET_URL, { autoConnect: false })
+const socket = io(SOCKET_URL, {
+  autoConnect: false,
+  transports: ["websocket", "polling"]
+})
 
 export const init = async () => {
   tabId = await chromeClient.getTabId.query()
@@ -31,9 +37,17 @@ export const init = async () => {
     if (socket.disconnected) {
       socket.connect()
     }
+    console.log("rendering")
+    chromeClient.showToast.query({
+      show: true,
+      type: "success",
+      content: "test"
+    })
+
     return getVideo()
   }
 }
+console.log("loaded")
 
 init()
 
@@ -92,6 +106,11 @@ socket.on("connect", () => {
 
 socket.on(SOCKET_EVENTS.FULL, (room) => {
   // TODO: Handle full room
+})
+
+socket.on("connect_error", () => {
+  // revert to classic upgrade
+  socket.io.opts.transports = ["polling", "websocket"]
 })
 
 browser.runtime.onMessage.addListener((request: ExtMessage) => {
@@ -169,5 +188,3 @@ socket.on(
     }
   }
 )
-
-export {}
