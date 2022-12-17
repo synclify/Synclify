@@ -27,12 +27,12 @@ const checkVideosInPage = () => {
 let hasIframes = checkIframesInPage()
 let hasVideos = checkVideosInPage()
 
+// if we're in an iframe OR there are no IFrames AND there's a video load the content script
 if ((window != top || !hasIframes) && hasVideos) {
   let tabId: number
   let roomCode: string | undefined
   let video: HTMLVideoElement
 
-  let iframe: HTMLIFrameElement
   const storage = new Storage({ area: "local" })
   const socket = io(SOCKET_URL, {
     autoConnect: false,
@@ -49,22 +49,16 @@ if ((window != top || !hasIframes) && hasVideos) {
     const rooms: string | undefined = await storage.get("rooms")
     const r = parseRooms(rooms)
     roomCode = r?.[tabId]
-    console.log(roomCode)
     if (roomCode) {
-      // if we're in an iframe OR there are no IFrames
-      if ((window != top || !hasIframes) && hasVideos) {
-        console.log(window != top)
-        if (socket.disconnected) {
-          socket.connect()
-        }
-        chromeClient.showToast.query({
-          show: true,
-          error: false,
-          content: "test"
-        })
+      if (socket.disconnected) socket.connect()
 
-        return getVideo()
-      }
+      chromeClient.showToast.query({
+        show: true,
+        error: false,
+        content: "test"
+      })
+
+      return getVideo()
     }
   }
   console.log("loaded")
@@ -101,15 +95,6 @@ if ((window != top || !hasIframes) && hasVideos) {
       observer.disconnect()
       return { status: MESSAGE_STATUS.SUCCESS }
     }
-    const iframes = document.getElementsByTagName("iframe")
-    if (iframes.length !== 0) {
-      iframe = iframes[0]
-      observer.disconnect()
-      return {
-        status: MESSAGE_STATUS.ERROR,
-        message: "Embedded video found, reload the page and press play"
-      }
-    }
     observer.observe(document, { subtree: true, childList: true })
     return {
       status: MESSAGE_STATUS.ERROR,
@@ -126,7 +111,6 @@ if ((window != top || !hasIframes) && hasVideos) {
   })
 
   socket.on("connect", () => {
-    console.log(socket.id, window != top ? "FROM IFRAME" : "FROM MAIN")
     if (roomCode) joinRoom()
   })
 
@@ -155,12 +139,6 @@ if ((window != top || !hasIframes) && hasVideos) {
           return Promise.resolve({
             status: MESSAGE_STATUS.SUCCESS
           })
-        if (iframe) {
-          return Promise.resolve({
-            status: MESSAGE_STATUS.ERROR,
-            message: "Embedded video found, reload the page and press play"
-          })
-        }
         return Promise.resolve({
           status: MESSAGE_STATUS.ERROR,
           message: "Video not found"
