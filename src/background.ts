@@ -26,7 +26,7 @@ const appRouter = t.router({
   showToast: t.procedure
     .input(
       z.object({
-        type: z.enum(["error", "success"]),
+        error: z.boolean().optional(),
         content: z.string(),
         show: z.boolean()
       })
@@ -37,7 +37,7 @@ const appRouter = t.router({
       )[0].id as number
       browser.tabs.sendMessage(id, {
         to: "toast",
-        type: input.type,
+        error: input.error,
         content: input.content,
         show: input.show
       })
@@ -52,7 +52,5 @@ browser.tabs.onRemoved.addListener((tabId) => {
     if (r) storage.set("rooms", r)
   })
 })
-
-browser.runtime.onInstalled.addListener(() => browser.storage.local.clear())
 
 export type AppRouter = typeof appRouter
