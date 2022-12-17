@@ -59,7 +59,7 @@
     ],
     "permissions": [
       "storage",
-      "tabs"
+      "activeTab"
     ]
   }
 }
