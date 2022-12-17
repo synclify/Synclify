@@ -27,7 +27,7 @@ const appRouter = t.router({
   showToast: t.procedure
     .input(
       z.object({
-        type: z.enum(["error", "success"]),
+        error: z.boolean().optional(),
         content: z.string(),
         show: z.boolean()
       })
@@ -38,7 +38,7 @@ const appRouter = t.router({
       )[0].id as number
       browser.tabs.sendMessage(id, {
         to: "toast",
-        type: input.type,
+        error: input.error,
         content: input.content,
         show: input.show
       })
@@ -51,29 +51,6 @@ browser.tabs.onRemoved.addListener((tabId) => {
   storage.get("rooms").then((r) => {
     if (r) storage.set("rooms", deleteRoom(r, tabId))
   })
-})
-
-const iframeCallback = (
-  details: browser.WebRequest.OnSendHeadersDetailsType
-) => {
-  browser.tabs.query({ active: true, currentWindow: true }).then((tab) =>
-    storage.get("rooms").then((r) => {
-      if (tab[0].id && isInRoom(r, tab[0].id)) {
-        browser.tabs
-          .create({ url: details.url, openerTabId: tab[0].id })
-          .then((newTab) => {
-            if (r && newTab.openerTabId && newTab.id)
-              storage.set("rooms", updateTab(newTab.openerTabId, newTab.id, r))
-          })
-        browser.webRequest.onSendHeaders.removeListener(iframeCallback)
-      }
-    })
-  )
-}
-
-browser.webRequest.onSendHeaders.addListener(iframeCallback, {
-  urls: ["<all_urls>"],
-  types: ["sub_frame"]
 })
 
 export type AppRouter = typeof appRouter
