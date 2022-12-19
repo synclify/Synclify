@@ -35,3 +35,8 @@ npm run build
 ```
 
 This should create a production bundle, ready to be zipped and published to the stores.
+
+## Sponsors
+
+### openw2g.com website
+<img src="https://www.datocms-assets.com/31049/1618983297-powered-by-vercel.svg"/>
