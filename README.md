@@ -8,7 +8,7 @@ openW2G is an ad-free open-source browser extension that syncs user's clicks in 
 
 ## How to contribute
 
-Read more about contributing to openW2G in [CONTRIBUTING.md](https://github.com/openW2G/openW2G/blob/main/CONTRIBUTING.md).
+Read more about contributing to openW2G in [CONTRIBUTING.md](https://github.com/openW2G/openW2G/blob/master/CONTRIBUTING.md).
 
 ## Getting Started
 
