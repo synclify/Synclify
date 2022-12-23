@@ -1,10 +1,10 @@
-<h2 align="center">watch2gether</h2>
+<img src="https://user-images.githubusercontent.com/25244986/209296944-cbc49344-3b1a-4010-a467-551ea9caa541.jpg"/>
 
 <h2 align="center">openW2G</h2>
 
 <p align="center">The aim of openW2G is to enable two users to sync any kind of streaming service playback by simply sharing a room code similar to how <a href="https://w2g.tv">w2g.tv</a> works.
 openW2G is an ad-free open-source browser extension that syncs user's clicks in their browser through a websocket.<br/>
-<strong>The project is currently in early development and is not intended to be used in a real world scenario</strong></p>
+<strong>The project is currently in early development so bugs are to be expected.</strong></p>
 
 ## How to contribute
 
@@ -35,6 +35,8 @@ npm run build
 ```
 
 This should create a production bundle, ready to be zipped and published to the stores.
+
+Logo branding by [Victor Adetona](https://www.behance.net/victoradetona)
 
 ## Sponsors
 
