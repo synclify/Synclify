@@ -1,8 +1,8 @@
-import type { PlasmoGetStyle, PlasmoRender } from "plasmo"
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { useEffect, useState } from "react"
 
+import type { PlasmoGetStyle } from "plasmo"
 import browser from "webextension-polyfill"
-import { createRoot } from "react-dom/client"
 import styleText from "data-text:../style.css"
 
 export const getStyle: PlasmoGetStyle = () => {
@@ -14,42 +14,45 @@ export const getStyle: PlasmoGetStyle = () => {
 const PlasmoOverlay = () => {
   const [show, setShow] = useState(false)
   const [content, setContent] = useState("")
+  const [error, setError] = useState(false)
+
   useEffect(() => {
-    browser.runtime.onMessage.addListener((msg) => {
+    const callback = (msg: {
+      to: string
+      show: boolean
+      content: string
+      error?: boolean
+    }) => {
       console.log(msg)
       if (msg.to === "toast") {
         if (msg.show) {
-          setShow(true)
+          setError(msg.error ?? false)
           setContent(msg.content)
+          setShow(true)
+          setTimeout(() => setShow(false), 1500)
         } else setShow(false)
-        return Promise.resolve(true)
+        return false
       }
-    })
+    }
+    // @ts-ignore
+    browser.runtime.onMessage.addListener(callback)
 
-    return () => {}
+    return () => {
+      // @ts-ignore
+      browser.runtime.onMessage.removeListener(callback)
+    }
   }, [])
 
   return (
     <>
-      {show ? <span className="fixed bg-amber-100 p-3">{content}</span> : null}
+      <span
+        className={`fixed right-0 translate-x-40 p-3 opacity-0 transition duration-300 ${
+          show ? "translate-x-0 opacity-100" : ""
+        } ${error ? "bg-red-500" : "bg-green-500"}`}>
+        {content}
+      </span>
     </>
   )
-}
-export const render: PlasmoRender = async (
-  {
-    anchor = { element: document.body, type: "overlay" }, // the observed anchor, OR document.body.
-    createRootContainer // This creates the default root container
-  },
-  _,
-  OverlayCSUIContainer
-) => {
-  if (createRootContainer && anchor) {
-    const rootContainer = await createRootContainer(anchor)
-    console.log("called render")
-
-    const root = createRoot(rootContainer) // Any root
-    root.render(<PlasmoOverlay />)
-  }
 }
 
 export default PlasmoOverlay
