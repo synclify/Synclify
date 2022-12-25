@@ -16,6 +16,5 @@ export enum MESSAGE_TYPE {
   VIDEO = "video",
   INIT = "init",
   EXIT = "exit",
-  DETECT_VIDEO = "detectVideo",
   CHECK_VIDEO = "checkVideo"
 }
