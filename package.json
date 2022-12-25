@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@floating-ui/react-dom-interactions": "^0.13.3",
-    "@plasmohq/storage": "^0.13.0",
+    "@plasmohq/storage": "^0.13.1",
     "@trpc/client": "10.4.3",
     "@trpc/server": "10.4.3",
     "flowbite": "^1.5.5",
@@ -43,7 +43,7 @@
     "eslint-plugin-react": "^7.31.11",
     "eslint-plugin-react-hooks": "^4.6.0",
     "jest": "^29.3.1",
-    "plasmo": "0.59.2",
+    "plasmo": "^0.60.0",
     "postcss": "^8.4.20",
     "prettier": "2.8.0",
     "prettier-plugin-tailwindcss": "^0.2.1",
