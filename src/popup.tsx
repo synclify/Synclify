@@ -63,9 +63,11 @@ function IndexPopup() {
         setStoreValue(r)
         return r
       })
+
       browser.tabs
         .sendMessage(currentTab, { type: MESSAGE_TYPE.INIT })
         .then((response: ExtResponse) => {
+          console.log(response)
           if (response.status === MESSAGE_STATUS.SUCCESS) {
             setDetected(true)
             setInRoom(true)
@@ -107,12 +109,14 @@ function IndexPopup() {
       browser.tabs
         .sendMessage(currentTab, { type: MESSAGE_TYPE.CHECK_VIDEO })
         .then((response: ExtResponse) => {
+          console.log(response)
           if (response.status === MESSAGE_STATUS.ERROR) {
             setDetected(false)
             setError(true)
             setErrorMessage(response.message as string)
           } else if (response.status === MESSAGE_STATUS.SUCCESS)
             setDetected(true)
+          setError(false)
         })
   }, [currentTab, inRoom])
 
@@ -158,7 +162,7 @@ function IndexPopup() {
               className="my-4">
               Exit
             </Button>
-            {detected || error ? null : (
+            {detected && !error ? null : (
               <p className="text-base">Detecting the video...</p>
             )}
             {error ? (
