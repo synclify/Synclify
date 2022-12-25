@@ -17,18 +17,13 @@ export const config: PlasmoContentScript = {
   all_frames: true
 }
 
-const checkIframesInPage = () => {
-  return document.getElementsByTagName("iframe").length > 0
-}
-
 const checkVideosInPage = () => {
   return document.getElementsByTagName("video").length > 0
 }
-let hasIframes = checkIframesInPage()
 let hasVideos = checkVideosInPage()
+console.log("pre check")
 
-// if we're in an iframe OR there are no IFrames AND there's a video load the content script
-if ((window != top || !hasIframes) && hasVideos) {
+const bootstrap = () => {
   let tabId: number
   let roomCode: string | undefined
   let video: HTMLVideoElement
@@ -38,15 +33,15 @@ if ((window != top || !hasIframes) && hasVideos) {
     autoConnect: false,
     transports: ["websocket", "polling"]
   })
+  const port = browser.runtime.connect(browser.runtime.id)
+
+  const chromeClient = createTRPCProxyClient<AppRouter>({
+    links: [chromeLink({ port } as ChromeLinkOptions)]
+  })
 
   const init = async () => {
-    const port = browser.runtime.connect(browser.runtime.id)
-
-    const chromeClient = createTRPCProxyClient<AppRouter>({
-      links: [chromeLink({ port } as ChromeLinkOptions)]
-    })
     tabId = await chromeClient.getTabId.query()
-    const rooms: string | undefined = await storage.get("rooms")
+    const rooms = await storage.get("rooms")
     const r = parseRooms(rooms)
     roomCode = r?.[tabId]
     if (roomCode) {
@@ -66,6 +61,7 @@ if ((window != top || !hasIframes) && hasVideos) {
   init()
 
   const videoEventHandler = (event: Event) => {
+    console.log(event)
     if (roomCode) {
       // consider throttle function if volumechange events impact performances
       socket.emit(
@@ -79,7 +75,6 @@ if ((window != top || !hasIframes) && hasVideos) {
   }
 
   const observer = new MutationObserver(() => {
-    hasIframes = checkIframesInPage()
     hasVideos = checkVideosInPage()
     if (!video) getVideo()
   })
@@ -123,46 +118,31 @@ if ((window != top || !hasIframes) && hasVideos) {
     socket.io.opts.transports = ["polling", "websocket"]
   })
 
-  browser.runtime.onMessage.addListener((request: ExtMessage) => {
-    // Promises used only to adhere to the type of addListener
+  browser.runtime.onMessage.addListener(async (request: ExtMessage) => {
+    console.log(request)
     switch (request.type) {
-      case MESSAGE_TYPE.INIT:
-        return Promise.resolve(init())
+      case MESSAGE_TYPE.INIT: {
+        console.log("init")
+        const res = await init()
+        return res
+      }
       case MESSAGE_TYPE.EXIT:
         // TODO: Remove event listeners
         socket.disconnect()
-        return Promise.resolve({
+        return {
           status: MESSAGE_STATUS.SUCCESS
-        })
+        }
       case MESSAGE_TYPE.CHECK_VIDEO:
         if (video)
-          return Promise.resolve({
+          return {
             status: MESSAGE_STATUS.SUCCESS
-          })
-        return Promise.resolve({
+          }
+        return {
           status: MESSAGE_STATUS.ERROR,
           message: "Video not found"
-        })
-      case MESSAGE_TYPE.DETECT_VIDEO: {
-        const videos = document.getElementsByTagName("video")
-        if (videos.length === 0)
-          return Promise.resolve({
-            status: MESSAGE_STATUS.ERROR,
-            message: "No videos found"
-          })
-        video = videos[0]
-        Object.values(VIDEO_EVENTS).forEach((event) =>
-          video.addEventListener(event, (e) => videoEventHandler(e))
-        )
-        return Promise.resolve({
-          status: MESSAGE_STATUS.SUCCESS
-        })
-      }
+        }
       default:
-        return Promise.resolve({
-          status: MESSAGE_STATUS.ERROR,
-          message: `Unhandled request ${request}`
-        })
+        return
     }
   })
 
@@ -198,4 +178,21 @@ const handleVideoDetectManually = (ev: Event) => {
       }
     }
   )
+}
+
+if (hasVideos) {
+  console.log("has videos")
+  bootstrap()
+} else {
+  console.log("Creating observer")
+  const observer = new MutationObserver(() => {
+    console.log("MutationObserver")
+    hasVideos = checkVideosInPage()
+    if (hasVideos) {
+      observer.disconnect()
+      bootstrap()
+    }
+  })
+  console.log("observerving")
+  observer.observe(document, { subtree: true, childList: true })
 }

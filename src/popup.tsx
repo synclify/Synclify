@@ -84,7 +84,18 @@ function IndexPopup() {
 
       browser.tabs
         .sendMessage(currentTab, { type: MESSAGE_TYPE.INIT })
-        .then((response: ExtResponse) => responseCallback(response))
+        .then((response: ExtResponse) => {
+          console.log(response)
+          if (response.status === MESSAGE_STATUS.SUCCESS) {
+            setDetected(true)
+            setInRoom(true)
+            setError(false)
+          } else if (response.status === MESSAGE_STATUS.ERROR) {
+            setDetected(false)
+            setError(true)
+            setErrorMessage(response.message as string)
+          }
+        })
     },
     [currentTab, responseCallback, setRenderValue, setStoreValue]
   )
@@ -115,8 +126,17 @@ function IndexPopup() {
     if (inRoom)
       browser.tabs
         .sendMessage(currentTab, { type: MESSAGE_TYPE.CHECK_VIDEO })
-        .then((response: ExtResponse) => responseCallback(response))
-  }, [currentTab, inRoom, responseCallback])
+        .then((response: ExtResponse) => {
+          console.log(response)
+          if (response.status === MESSAGE_STATUS.ERROR) {
+            setDetected(false)
+            setError(true)
+            setErrorMessage(response.message as string)
+          } else if (response.status === MESSAGE_STATUS.SUCCESS)
+            setDetected(true)
+          setError(false)
+        })
+  }, [currentTab, inRoom])
 
   const exitRoom = useCallback(() => {
     setRenderValue((roomsState) => {
