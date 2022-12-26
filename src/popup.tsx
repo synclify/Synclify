@@ -4,9 +4,9 @@ import { Button, TextInput } from "flowbite-react"
 import { ChromeLinkOptions, chromeLink } from "trpc-chrome/link"
 import { ExtResponse, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
-import { deleteRoom, isInRoom, parseRooms, storeRoom } from "~utils/rooms"
 
 import type { AppRouter } from "./background"
+import type { RoomsList } from "~utils/rooms"
 import Tooltip from "~components/atoms/Tooltip"
 import browser from "webextension-polyfill"
 import { createTRPCProxyClient } from "@trpc/client"
@@ -24,7 +24,7 @@ type FormData = {
 
 function IndexPopup() {
   const [rooms, , { setRenderValue, setStoreValue }] = useStorage<
-    string | undefined
+    RoomsList | undefined
   >({
     key: "rooms",
     area: "local"
@@ -56,30 +56,36 @@ function IndexPopup() {
     })
   }
 */
+
+  const responseCallback = useCallback((response: ExtResponse) => {
+    if (!response) {
+      setDetected(false)
+      setError(true)
+      setErrorMessage("Video not detected")
+    } else if (response.status === MESSAGE_STATUS.SUCCESS) {
+      setDetected(true)
+      setInRoom(true)
+      setError(false)
+    } else if (response.status === MESSAGE_STATUS.ERROR) {
+      setDetected(false)
+      setError(true)
+      setErrorMessage(response.message as string)
+    }
+  }, [])
+
   const roomCallback = useCallback(
     (newRooms: string) => {
       setRenderValue((oldRooms) => {
-        const r = storeRoom(oldRooms, { [currentTab]: newRooms })
+        const r = Object.assign(oldRooms ?? {}, { [currentTab]: newRooms })
         setStoreValue(r)
         return r
       })
 
       browser.tabs
         .sendMessage(currentTab, { type: MESSAGE_TYPE.INIT })
-        .then((response: ExtResponse) => {
-          console.log(response)
-          if (response.status === MESSAGE_STATUS.SUCCESS) {
-            setDetected(true)
-            setInRoom(true)
-            setError(false)
-          } else if (response.status === MESSAGE_STATUS.ERROR) {
-            setDetected(false)
-            setError(true)
-            setErrorMessage(response.message as string)
-          }
-        })
+        .then((response: ExtResponse) => responseCallback(response))
     },
-    [currentTab, setRenderValue, setStoreValue]
+    [currentTab, responseCallback, setRenderValue, setStoreValue]
   )
 
   const createRoom = useCallback(() => {
@@ -95,7 +101,7 @@ function IndexPopup() {
   )
 
   useEffect(() => {
-    if (rooms && isInRoom(rooms, currentTab)) setInRoom(true)
+    if (rooms && rooms[currentTab]) setInRoom(true)
   }, [currentTab, roomCallback, rooms])
 
   useEffect(() => {
@@ -108,23 +114,17 @@ function IndexPopup() {
     if (inRoom)
       browser.tabs
         .sendMessage(currentTab, { type: MESSAGE_TYPE.CHECK_VIDEO })
-        .then((response: ExtResponse) => {
-          console.log(response)
-          if (response.status === MESSAGE_STATUS.ERROR) {
-            setDetected(false)
-            setError(true)
-            setErrorMessage(response.message as string)
-          } else if (response.status === MESSAGE_STATUS.SUCCESS)
-            setDetected(true)
-          setError(false)
-        })
-  }, [currentTab, inRoom])
+        .then((response: ExtResponse) => responseCallback(response))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const exitRoom = useCallback(() => {
     setRenderValue((roomsState) => {
-      const r = deleteRoom(roomsState, currentTab)
-      setStoreValue(r)
-      return r
+      if (roomsState) {
+        delete roomsState[currentTab]
+        setStoreValue(roomsState)
+        return roomsState
+      }
     })
     setInRoom(false)
     browser.tabs.query({ active: true, currentWindow: true }).then((tabs) =>
@@ -135,7 +135,7 @@ function IndexPopup() {
   }, [currentTab, setRenderValue, setStoreValue])
 
   const getRoom = useMemo(() => {
-    return parseRooms(rooms)?.[currentTab] ?? "ERROR"
+    return rooms?.[currentTab] ?? "ERROR"
   }, [currentTab, rooms])
 
   const copyToClipboard = useCallback(() => {

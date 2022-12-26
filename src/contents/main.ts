@@ -4,12 +4,12 @@ import { SOCKET_EVENTS, SOCKET_URL } from "~types/socket"
 
 import type { AppRouter } from "../background"
 import type { PlasmoContentScript } from "plasmo"
+import type { RoomsList } from "~utils/rooms"
 import { Storage } from "@plasmohq/storage"
 import { VIDEO_EVENTS } from "~types/video"
 import browser from "webextension-polyfill"
 import { createTRPCProxyClient } from "@trpc/client"
 import { io } from "socket.io-client"
-import { parseRooms } from "~utils/rooms"
 
 export const config: PlasmoContentScript = {
   matches: ["<all_urls>"],
@@ -21,7 +21,6 @@ const checkVideosInPage = () => {
   return document.getElementsByTagName("video").length > 0
 }
 let hasVideos = checkVideosInPage()
-console.log("pre check")
 
 const bootstrap = () => {
   let tabId: number
@@ -41,9 +40,8 @@ const bootstrap = () => {
 
   const init = async () => {
     tabId = await chromeClient.getTabId.query()
-    const rooms = await storage.get("rooms")
-    const r = parseRooms(rooms)
-    roomCode = r?.[tabId]
+    const rooms = await storage.get<RoomsList>("rooms")
+    roomCode = rooms?.[tabId]
     if (roomCode) {
       if (socket.disconnected) socket.connect()
 
@@ -61,7 +59,6 @@ const bootstrap = () => {
   init()
 
   const videoEventHandler = (event: Event) => {
-    console.log(event)
     if (roomCode) {
       // consider throttle function if volumechange events impact performances
       socket.emit(
@@ -119,10 +116,8 @@ const bootstrap = () => {
   })
 
   browser.runtime.onMessage.addListener(async (request: ExtMessage) => {
-    console.log(request)
     switch (request.type) {
       case MESSAGE_TYPE.INIT: {
-        console.log("init")
         const res = await init()
         return res
       }
@@ -181,18 +176,14 @@ const handleVideoDetectManually = (ev: Event) => {
 }
 
 if (hasVideos) {
-  console.log("has videos")
   bootstrap()
 } else {
-  console.log("Creating observer")
   const observer = new MutationObserver(() => {
-    console.log("MutationObserver")
     hasVideos = checkVideosInPage()
     if (hasVideos) {
       observer.disconnect()
       bootstrap()
     }
   })
-  console.log("observerving")
   observer.observe(document, { subtree: true, childList: true })
 }
