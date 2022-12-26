@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react"
 
 import type { AppRouter } from "./background"
 import type { RoomsList } from "~utils/rooms"
+import Tooltip from "~components/atoms/Tooltip"
 import browser from "webextension-polyfill"
 import { createTRPCProxyClient } from "@trpc/client"
 import logo from "data-text:~assets/logo.svg"
@@ -84,18 +85,7 @@ function IndexPopup() {
 
       browser.tabs
         .sendMessage(currentTab, { type: MESSAGE_TYPE.INIT })
-        .then((response: ExtResponse) => {
-          console.log(response)
-          if (response.status === MESSAGE_STATUS.SUCCESS) {
-            setDetected(true)
-            setInRoom(true)
-            setError(false)
-          } else if (response.status === MESSAGE_STATUS.ERROR) {
-            setDetected(false)
-            setError(true)
-            setErrorMessage(response.message as string)
-          }
-        })
+        .then((response: ExtResponse) => responseCallback(response))
     },
     [currentTab, responseCallback, setRenderValue, setStoreValue]
   )
@@ -126,17 +116,9 @@ function IndexPopup() {
     if (inRoom)
       browser.tabs
         .sendMessage(currentTab, { type: MESSAGE_TYPE.CHECK_VIDEO })
-        .then((response: ExtResponse) => {
-          console.log(response)
-          if (response.status === MESSAGE_STATUS.ERROR) {
-            setDetected(false)
-            setError(true)
-            setErrorMessage(response.message as string)
-          } else if (response.status === MESSAGE_STATUS.SUCCESS)
-            setDetected(true)
-          setError(false)
-        })
-  }, [currentTab, inRoom])
+        .then((response: ExtResponse) => responseCallback(response))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const exitRoom = useCallback(() => {
     setRenderValue((roomsState) => {
