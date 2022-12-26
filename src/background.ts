@@ -1,8 +1,8 @@
+import type { RoomsList } from "~utils/rooms"
 import { SOCKET_URL } from "~types/socket"
 import { Storage } from "@plasmohq/storage"
 import browser from "webextension-polyfill"
 import { createChromeHandler } from "trpc-chrome/adapter"
-import { deleteRoom } from "~utils/rooms"
 import { initTRPC } from "@trpc/server"
 import { z } from "zod"
 
