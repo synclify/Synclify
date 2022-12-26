@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "plasmo dev",
     "build": "pnpm run test && plasmo build",
-    "test": "jest"
+    "test": "jest --passWithNoTests"
   },
   "dependencies": {
     "@floating-ui/react-dom-interactions": "^0.13.3",
