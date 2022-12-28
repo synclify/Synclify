@@ -44,17 +44,10 @@ const bootstrap = () => {
     roomCode = rooms?.[tabId]
     if (roomCode) {
       if (socket.disconnected) socket.connect()
-
-      chromeClient.showToast.query({
-        show: true,
-        error: false,
-        content: "test"
-      })
-
       return getVideo()
     }
   }
-  console.log("loaded")
+  console.log("openW2G: loaded")
 
   init()
 
@@ -85,9 +78,16 @@ const bootstrap = () => {
         video.addEventListener(event, (e) => videoEventHandler(e))
       )
       observer.disconnect()
+      chromeClient.showToast.query({
+        content: "Video detected"
+      })
       return { status: MESSAGE_STATUS.SUCCESS }
     }
     observer.observe(document, { subtree: true, childList: true })
+    chromeClient.showToast.query({
+      error: true,
+      content: "Video not found"
+    })
     return {
       status: MESSAGE_STATUS.ERROR,
       message: "Video not found"
@@ -132,6 +132,10 @@ const bootstrap = () => {
           return {
             status: MESSAGE_STATUS.SUCCESS
           }
+        chromeClient.showToast.query({
+          error: true,
+          content: "Video not found"
+        })
         return {
           status: MESSAGE_STATUS.ERROR,
           message: "Video not found"
