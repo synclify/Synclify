@@ -1,5 +1,10 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Mono&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;700&display=swap");
 @tailwind base;
+@layer base {
+  body {
+    font-family: Hanken Grotesk, system-ui, sans-serif;
+  }
+}
 @tailwind components;
 @tailwind utilities;
 
