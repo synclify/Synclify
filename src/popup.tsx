@@ -7,7 +7,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react"
 
 import type { AppRouter } from "./background"
 import type { RoomsList } from "~utils/rooms"
-import Tooltip from "~components/atoms/Tooltip"
 import browser from "webextension-polyfill"
 import { createTRPCProxyClient } from "@trpc/client"
 import logo from "data-text:~assets/logo.svg"
@@ -152,7 +151,7 @@ function IndexPopup() {
         {inRoom ? (
           <>
             <div className="text-base">
-              <p>Room code:</p>
+              <p>Room code (click to copy):</p>
               <div className="flex place-content-center">
                 <Tooltip
                   content={tooltipText}
