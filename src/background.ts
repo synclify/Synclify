@@ -53,4 +53,6 @@ browser.tabs.onRemoved.addListener((tabId) => {
   })
 })
 
+browser.runtime.onInstalled.addListener(() => browser.storage.local.clear())
+
 export type AppRouter = typeof appRouter
