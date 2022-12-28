@@ -1,15 +1,15 @@
 import "./style.css"
 
-import { Button, TextInput } from "flowbite-react"
+import { Button, TextInput, Tooltip } from "flowbite-react"
 import { ChromeLinkOptions, chromeLink } from "trpc-chrome/link"
 import { ExtResponse, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 
 import type { AppRouter } from "./background"
 import type { RoomsList } from "~utils/rooms"
-import Tooltip from "~components/atoms/Tooltip"
 import browser from "webextension-polyfill"
 import { createTRPCProxyClient } from "@trpc/client"
+import logo from "data-text:~assets/logo.svg"
 import { useForm } from "react-hook-form"
 import { useStorage } from "@plasmohq/storage/hook"
 
@@ -34,6 +34,7 @@ function IndexPopup() {
   const [error, setError] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
   const [currentTab, setCurrentTab] = useState<number>(0)
+  const [tooltipText, setTooltipText] = useState("Click to copy")
   const {
     register,
     handleSubmit,
@@ -140,21 +141,30 @@ function IndexPopup() {
 
   const copyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(getRoom)
+    setTooltipText("Copied!")
   }, [getRoom])
 
   return (
     <React.StrictMode>
       <div className="flex flex-col p-4">
-        <h1 className="mb-3 text-center font-['Space_Mono'] text-4xl">
-          openW2G
-        </h1>
+        <div dangerouslySetInnerHTML={{ __html: logo }} className="pb-2" />
         {inRoom ? (
           <>
             <div className="text-base">
               <p>Room code (click to copy):</p>
-              <Tooltip content="Copied!" onReferenceClick={copyToClipboard}>
-                <span className="cursor-pointer">{getRoom}</span>
-              </Tooltip>
+              <div className="flex place-content-center">
+                <Tooltip
+                  content={tooltipText}
+                  placement="right"
+                  arrow={true}
+                  style="light">
+                  <p
+                    className="cursor-pointer text-xl font-bold"
+                    onClick={copyToClipboard}>
+                    {getRoom}
+                  </p>
+                </Tooltip>
+              </div>
             </div>
             <Button
               gradientDuoTone="purpleToBlue"
