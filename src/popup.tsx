@@ -116,8 +116,7 @@ function IndexPopup() {
       browser.tabs
         .sendMessage(currentTab, { type: MESSAGE_TYPE.CHECK_VIDEO })
         .then((response: ExtResponse) => responseCallback(response))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [currentTab, inRoom, responseCallback])
 
   const exitRoom = useCallback(() => {
     setRenderValue((roomsState) => {
