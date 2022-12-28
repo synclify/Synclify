@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 
 import type { PlasmoGetStyle } from "plasmo"
 import browser from "webextension-polyfill"
+import icon from "data-base64:~assets/icon.png"
 import styleText from "data-text:../style.css"
 
 export const getStyle: PlasmoGetStyle = () => {
@@ -21,15 +22,14 @@ const PlasmoOverlay = () => {
       to: string
       show: boolean
       content: string
-      error?: boolean
+      error: boolean
     }) => {
-      console.log(msg)
       if (msg.to === "toast") {
         if (msg.show) {
-          setError(msg.error ?? false)
+          setError(msg.error)
           setContent(msg.content)
-          setShow(true)
-          setTimeout(() => setShow(false), 1500)
+          setShow(msg.show)
+          setTimeout(() => setShow(false), 2000)
         } else setShow(false)
         return false
       }
@@ -44,14 +44,15 @@ const PlasmoOverlay = () => {
   }, [])
 
   return (
-    <>
-      <span
-        className={`fixed right-0 translate-x-40 p-3 opacity-0 transition duration-300 ${
-          show ? "translate-x-0 opacity-100" : ""
-        } ${error ? "bg-red-500" : "bg-green-500"}`}>
-        {content}
-      </span>
-    </>
+    <div
+      className={`fixed right-0 flex translate-x-40 rounded-l-2xl border-y border-l bg-opacity-20 p-3 opacity-0 backdrop-blur transition duration-300 ${
+        show ? "translate-x-0 opacity-100" : ""
+      } ${
+        error ? "border-red-500 bg-red-500" : "border-green-400 bg-green-400"
+      }`}>
+      <img src={icon} alt="openW2G icon" className="mr-2 h-6 w-6" />
+      <p className="font-bold text-white">{content}</p>
+    </div>
   )
 }
 
