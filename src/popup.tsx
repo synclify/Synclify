@@ -151,7 +151,7 @@ function IndexPopup() {
         {inRoom ? (
           <>
             <div className="text-base">
-              <p>Room code (click to copy):</p>
+              <p>Room code:</p>
               <div className="flex place-content-center">
                 <Tooltip
                   content={tooltipText}
