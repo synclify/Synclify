@@ -26,9 +26,9 @@ const appRouter = t.router({
   showToast: t.procedure
     .input(
       z.object({
-        error: z.boolean().optional(),
+        error: z.boolean().optional().default(false),
         content: z.string(),
-        show: z.boolean()
+        show: z.boolean().optional().default(true)
       })
     )
     .query(async ({ input }) => {
