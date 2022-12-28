@@ -115,31 +115,33 @@ const bootstrap = () => {
     socket.io.opts.transports = ["polling", "websocket"]
   })
 
-  browser.runtime.onMessage.addListener(async (request: ExtMessage) => {
+  browser.runtime.onMessage.addListener((request: ExtMessage) => {
     switch (request.type) {
       case MESSAGE_TYPE.INIT: {
-        const res = await init()
-        return res
+        return init().then((res) => {
+          return res
+        })
       }
       case MESSAGE_TYPE.EXIT:
         // TODO: Remove event listeners
         socket.disconnect()
-        return {
+        return Promise.resolve({
           status: MESSAGE_STATUS.SUCCESS
-        }
+        })
       case MESSAGE_TYPE.CHECK_VIDEO:
-        if (video)
-          return {
+        if (video) {
+          return Promise.resolve({
             status: MESSAGE_STATUS.SUCCESS
-          }
+          })
+        }
         chromeClient.showToast.query({
           error: true,
           content: "Video not found"
         })
-        return {
+        return Promise.resolve({
           status: MESSAGE_STATUS.ERROR,
           message: "Video not found"
-        }
+        })
       default:
         return
     }
