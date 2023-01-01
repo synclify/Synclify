@@ -9,6 +9,7 @@ import { Storage } from "@plasmohq/storage"
 import { VIDEO_EVENTS } from "~types/video"
 import browser from "webextension-polyfill"
 import { createTRPCProxyClient } from "@trpc/client"
+import debounce from "lodash.debounce"
 import { io } from "socket.io-client"
 
 export const config: PlasmoContentScript = {
@@ -53,7 +54,6 @@ const bootstrap = () => {
 
   const videoEventHandler = (event: Event) => {
     if (roomCode) {
-      // consider throttle function if volumechange events impact performances
       socket.emit(
         SOCKET_EVENTS.VIDEO_EVENT,
         roomCode,
@@ -75,7 +75,10 @@ const bootstrap = () => {
     video = videos[0]
     if (video) {
       Object.values(VIDEO_EVENTS).forEach((event) =>
-        video.addEventListener(event, (e) => videoEventHandler(e))
+        video.addEventListener(
+          event,
+          debounce(videoEventHandler, 500, { leading: true, trailing: false })
+        )
       )
       observer.disconnect()
       chromeClient.showToast.query({
@@ -161,7 +164,6 @@ const handleVideoDetectManually = (ev: Event) => {
   socket.on(
     SOCKET_EVENTS.VIDEO_EVENT,
     (eventType: VIDEO_EVENTS, volumeValue: string, currentTime: string) => {
-      const time = Number.parseInt(currentTime)
       switch (eventType) {
         case VIDEO_EVENTS.PLAY:
           video.play()
@@ -172,10 +174,11 @@ const handleVideoDetectManually = (ev: Event) => {
         case VIDEO_EVENTS.VOLUMECHANGE:
           video.volume = Number.parseFloat(volumeValue)
           break
-        case VIDEO_EVENTS.SEEKED:
-          // this check avoids entering in a loop between the two clients, a better solution could be found
-          if (Math.abs(video.currentTime - time) > 1 && !video.seeking)
-            video.currentTime = time
+        case VIDEO_EVENTS.SEEKED: {
+          const time = Number.parseInt(currentTime)
+          video.currentTime = time
+          break
+        }
       }
     }
   )
