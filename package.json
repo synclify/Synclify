@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@floating-ui/react-dom-interactions": "^0.13.3",
-    "@plasmohq/storage": "^0.13.1",
+    "@plasmohq/storage": "^0.15.0",
     "@trpc/client": "^10.7.0",
     "@trpc/server": "^10.7.0",
     "flowbite": "^1.5.5",
