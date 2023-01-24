@@ -3,7 +3,7 @@ lockfileVersion: 5.4
 specifiers:
   '@floating-ui/react-dom-interactions': ^0.13.3
   '@plasmohq/prettier-plugin-sort-imports': ^3.6.1
-  '@plasmohq/storage': ^0.13.1
+  '@plasmohq/storage': ^0.15.0
   '@trpc/client': ^10.7.0
   '@trpc/server': ^10.7.0
   '@types/chrome': ^0.0.210
@@ -46,7 +46,7 @@ specifiers:
 
 dependencies:
   '@floating-ui/react-dom-interactions': 0.13.3_ib3m5ricvtkl2cll7qpr2f6lvq
-  '@plasmohq/storage': 0.13.1_react@18.2.0
+  '@plasmohq/storage': 0.15.0_react@18.2.0
   '@trpc/client': 10.7.0_@trpc+server@10.7.0
   '@trpc/server': 10.7.0
   flowbite: 1.5.5
@@ -2513,8 +2513,8 @@ packages:
       - supports-color
     dev: true
 
-  /@plasmohq/storage/0.13.1_react@18.2.0:
-    resolution: {integrity: sha512-aKab6h4nPzj7tywhjtUiiqTQGzHt5dE408Uy5mV6+JMaL9UMavgleurL4bzDr4YvyibuL1vvTYwWqof7L8TFJQ==}
+  /@plasmohq/storage/0.15.0_react@18.2.0:
+    resolution: {integrity: sha512-521NLNVEncdNTmoafLyyaN1huvISLqyJtKDdcYhiGaN2LEOZZaSMAxEeBh/S0MWq/C03IetXfIkuWKFwrXUbkw==}
     peerDependencies:
       react: ^16.8.6 || ^17 || ^18
     peerDependenciesMeta:
