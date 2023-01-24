@@ -6,7 +6,7 @@ specifiers:
   '@plasmohq/storage': ^0.13.1
   '@trpc/client': ^10.7.0
   '@trpc/server': ^10.7.0
-  '@types/chrome': ^0.0.203
+  '@types/chrome': ^0.0.210
   '@types/jest': ^29.2.4
   '@types/lodash.debounce': ^4.0.7
   '@types/node': ^18.11.18
@@ -62,7 +62,7 @@ dependencies:
 
 devDependencies:
   '@plasmohq/prettier-plugin-sort-imports': 3.6.1_prettier@2.8.1
-  '@types/chrome': 0.0.203
+  '@types/chrome': 0.0.210
   '@types/jest': 29.2.4
   '@types/lodash.debounce': 4.0.7
   '@types/node': 18.11.18
@@ -2421,8 +2421,8 @@ packages:
       '@babel/types': 7.20.7
     dev: true
 
-  /@types/chrome/0.0.203:
-    resolution: {integrity: sha512-JlQNebwpBETVc8U1Rr2inDFuOTtn0lahRAhnddx1dd0S5RrLAFJEEsyIu7AXI14mkCgSunksnuLGioH8kvBqRA==}
+  /@types/chrome/0.0.210:
+    resolution: {integrity: sha512-VSjQu1k6a/rAfuqR1Gi/oxHZj4+t6+LG+GobNI3ZWI6DQ+fmphNSF6TrLHG6BYK2bXc9Gb4c1uXFKRRVLaGl5Q==}
     dependencies:
       '@types/filesystem': 0.0.32
       '@types/har-format': 1.2.10
