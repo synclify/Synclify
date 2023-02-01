@@ -50,7 +50,7 @@ const PlasmoOverlay = () => {
       } ${
         error ? "border-red-500 bg-red-500" : "border-green-400 bg-green-400"
       }`}>
-      <img src={icon} alt="openW2G icon" className="mr-2 h-6 w-6" />
+      <img src={icon} alt="Synclify icon" className="mr-2 h-6 w-6" />
       <p className="font-bold text-white">{content}</p>
     </div>
   )

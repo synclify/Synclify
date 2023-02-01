@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1",
   "javascript": {
-    "name": "openw2g",
+    "name": "synclify",
     "rootDir": "./",
     "testEnvironment": "node",
     "testLocationStrategy": "relativeToProjectRoot",

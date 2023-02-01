@@ -1,7 +1,7 @@
 {
-  "name": "openw2g",
-  "displayName": "openW2G",
-  "version": "0.0.4",
+  "name": "synclify",
+  "displayName": "Synclify",
+  "version": "0.0.5",
   "description": "Create a watch party straight from your browser—works anywhere, ad-free.",
   "author": "andrea",
   "scripts": {
