@@ -48,7 +48,7 @@ const bootstrap = () => {
       return getVideo()
     }
   }
-  console.log("openW2G: loaded")
+  console.log("Synclify: loaded")
 
   init()
 
