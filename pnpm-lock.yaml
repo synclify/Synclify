@@ -2,10 +2,9 @@ lockfileVersion: 5.4
 
 specifiers:
   '@floating-ui/react-dom-interactions': ^0.13.3
+  '@plasmohq/messaging': ^0.0.4
   '@plasmohq/prettier-plugin-sort-imports': ^3.6.1
   '@plasmohq/storage': ^0.15.0
-  '@trpc/client': ^10.7.0
-  '@trpc/server': ^10.7.0
   '@types/chrome': ^0.0.210
   '@types/jest': ^29.2.4
   '@types/lodash.debounce': ^4.0.7
@@ -28,7 +27,7 @@ specifiers:
   flowbite-react: ^0.3.7
   jest: ^29.3.1
   lodash.debounce: ^4.0.8
-  plasmo: ^0.63.0
+  plasmo: ^0.64.5
   postcss: ^8.4.20
   preact: ^10.11.3
   prettier: ^2.8.1
@@ -38,17 +37,14 @@ specifiers:
   react-hook-form: ^7.41.1
   socket.io-client: ^4.5.4
   tailwindcss: ^3.2.4
-  trpc-chrome: ^1.0.0
   ts-jest: ^29.0.3
   typescript: ^4.9.4
   webextension-polyfill: ^0.10.0
-  zod: ^3.20.2
 
 dependencies:
   '@floating-ui/react-dom-interactions': 0.13.3_ib3m5ricvtkl2cll7qpr2f6lvq
+  '@plasmohq/messaging': 0.0.4_react@18.2.0
   '@plasmohq/storage': 0.15.0_react@18.2.0
-  '@trpc/client': 10.7.0_@trpc+server@10.7.0
-  '@trpc/server': 10.7.0
   flowbite: 1.5.5
   flowbite-react: 0.3.7_2u4tppfvni4fsjqzqqaggxutoe
   lodash.debounce: 4.0.8
@@ -57,8 +53,6 @@ dependencies:
   react-dom: 18.2.0_react@18.2.0
   react-hook-form: 7.41.1_react@18.2.0
   socket.io-client: 4.5.4
-  trpc-chrome: 1.0.0_swjpqe7jnsgxhe3xt25xrickxq
-  zod: 3.20.2
 
 devDependencies:
   '@plasmohq/prettier-plugin-sort-imports': 3.6.1_prettier@2.8.1
@@ -81,7 +75,7 @@ devDependencies:
   eslint-plugin-react: 7.31.11_eslint@8.30.0
   eslint-plugin-react-hooks: 4.6.0_eslint@8.30.0
   jest: 29.3.1_@types+node@18.11.18
-  plasmo: 0.63.0_p6gdhnxkbcuuneb73vd6o46g7y
+  plasmo: 0.64.5_p6gdhnxkbcuuneb73vd6o46g7y
   postcss: 8.4.20
   prettier: 2.8.1
   prettier-plugin-tailwindcss: 0.2.1_prettier@2.8.1
@@ -1790,7 +1784,7 @@ packages:
       '@parcel/source-map': 2.1.1
       '@parcel/utils': 2.8.3
       browserslist: 4.21.4
-      lightningcss: 1.17.1
+      lightningcss: 1.18.0
       nullthrows: 1.1.1
     transitivePeerDependencies:
       - '@parcel/core'
@@ -2202,9 +2196,22 @@ packages:
       react-dom: 18.2.0_react@18.2.0
     dev: true
 
-  /@plasmohq/init/0.5.3:
-    resolution: {integrity: sha512-LA6dfrBsLSgdOhgLJr8asBcs6gQd9ehb436DU2c1XecjYEmh5vkEr/YjxyECOg7Iz/AdtfUuBXEjH3GGS6qOMg==}
+  /@plasmohq/init/0.6.0:
+    resolution: {integrity: sha512-qoSRgQI5+IPBA3II7GDnc45bRycOZa7V7Gb/VrbE+ifXOplzyvdl7DWgH1OmUgzAoNtXcMcqUHILhhrTpX3PPw==}
     dev: true
+
+  /@plasmohq/messaging/0.0.4_react@18.2.0:
+    resolution: {integrity: sha512-tnOPxzaQmc5aueKzgAMijknoG6FgdjO/EhKf/+SCQFCoRnSW7usWeeOmIvit2AQda8f99toEqnMlb4AxXkvZQg==}
+    peerDependencies:
+      react: ^16.8.6 || ^17 || ^18
+    peerDependenciesMeta:
+      react:
+        optional: true
+    dependencies:
+      '@types/webextension-polyfill': 0.10.0
+      react: 18.2.0
+      webextension-polyfill: 0.10.0
+    dev: false
 
   /@plasmohq/parcel-bundler/0.4.6:
     resolution: {integrity: sha512-R78/uzpMm1tVw4cQvbsLsrbrs7S+kIl6GcqJ9p2xzB1kyaSwq8A7Lk/jnt+btctcB5Bcxt7NXiLLJ5/DPNTNDA==}
@@ -2219,8 +2226,8 @@ packages:
       nullthrows: 1.1.1
     dev: true
 
-  /@plasmohq/parcel-config/0.30.1_p6gdhnxkbcuuneb73vd6o46g7y:
-    resolution: {integrity: sha512-97gqlQhqmZS+pbRnW94SDYh37YXe7H4PStmp97GMfurzhc4VJhKK1XX4LlrDwIme13twl0dY1n+JsEq8mvmOeA==}
+  /@plasmohq/parcel-config/0.30.3_p6gdhnxkbcuuneb73vd6o46g7y:
+    resolution: {integrity: sha512-ntYoF/15L1etjJGM90hhcASy23fMXYHohoO55/x18VYLq31D/jp2lAmR62JVkl2n1uSl0MSVW7PovlYExnplHA==}
     dependencies:
       '@parcel/config-default': 2.8.3_ibpcabmccyrbogrukpafij5ddu
       '@parcel/core': 2.8.3
@@ -2245,12 +2252,12 @@ packages:
       '@plasmohq/parcel-namer-manifest': 0.3.4
       '@plasmohq/parcel-optimizer-es': 0.1.0
       '@plasmohq/parcel-packager': 0.6.5
-      '@plasmohq/parcel-resolver': 0.10.3
+      '@plasmohq/parcel-resolver': 0.11.0
       '@plasmohq/parcel-resolver-post': 0.1.5_postcss@8.4.20
       '@plasmohq/parcel-runtime': 0.16.1
       '@plasmohq/parcel-transformer-inject-env': 0.2.4
       '@plasmohq/parcel-transformer-inline-css': 0.3.0
-      '@plasmohq/parcel-transformer-manifest': 0.13.4
+      '@plasmohq/parcel-transformer-manifest': 0.13.5
       '@plasmohq/parcel-transformer-svelte3': 0.4.2
       '@plasmohq/parcel-transformer-vue3': 0.3.4_biqbaboplfbrettd7655fr4n2y
     transitivePeerDependencies:
@@ -2364,8 +2371,8 @@ packages:
       - ts-node
     dev: true
 
-  /@plasmohq/parcel-resolver/0.10.3:
-    resolution: {integrity: sha512-EHHsoEXTSjYeD+pm43/tfDBHELvV0+3xjVx4lS7hX6Nag1V+DGibJIANMY3aqA0J+RSvdbayiVGDyL05W0xykA==}
+  /@plasmohq/parcel-resolver/0.11.0:
+    resolution: {integrity: sha512-oMF/gZfc1/wPojd99J14xmo8X9LpKBwx3jmfUO4xKgcLP/ZnWMhU19DNkEWtQ/ye1Jf1n2iKf0okIJQx5RUf3A==}
     engines: {parcel: '>= 2.7.0'}
     dependencies:
       '@parcel/core': 2.8.3
@@ -2373,6 +2380,7 @@ packages:
       '@parcel/plugin': 2.8.3_@parcel+core@2.8.3
       '@parcel/types': 2.8.3_@parcel+core@2.8.3
       fast-glob: 3.2.12
+      fs-extra: 11.1.0
       got: 12.5.3
     dev: true
 
@@ -2405,8 +2413,8 @@ packages:
       lightningcss: 1.18.0
     dev: true
 
-  /@plasmohq/parcel-transformer-manifest/0.13.4:
-    resolution: {integrity: sha512-72uPpJobfI3oHcxcv2LicSoKtM42gQLPItO1dkFXc3zqlBPFlJ1mlPRuS3Vc0db9iEnqls54fa+Z83ZKZLzW1A==}
+  /@plasmohq/parcel-transformer-manifest/0.13.5:
+    resolution: {integrity: sha512-YBEzmbL6V12NYF3LvyCaJlWSg0a/XUrehHBvGInabhD9hZVhF+Dsp1tCRqxYXep+0PLRvaYUoJPIbAgjCnKTFQ==}
     engines: {parcel: '>= 2.7.0'}
     dependencies:
       '@mischnic/json-sourcemap': 0.1.0
@@ -2719,18 +2727,6 @@ packages:
       defer-to-connect: 2.0.1
     dev: true
 
-  /@trpc/client/10.7.0_@trpc+server@10.7.0:
-    resolution: {integrity: sha512-xCPc2hp37REJst6TXMkJvdc85CHvxpVY6YVdZIjl7uCYoQcrstwy8AWi7ElB3x7e19Cweke+9CAaUXKwAE1AKQ==}
-    peerDependencies:
-      '@trpc/server': 10.7.0
-    dependencies:
-      '@trpc/server': 10.7.0
-    dev: false
-
-  /@trpc/server/10.7.0:
-    resolution: {integrity: sha512-kFhlqhzZt5PwVRRDci8oJKMMFGjjq9189stT6bvS9xuuLjRzzwhMShRi99sm/jqhdjWmlXyO3Ncx0rnghUvH+w==}
-    dev: false
-
   /@trysound/sax/0.2.0:
     resolution: {integrity: sha512-L7z9BgrNEcYyUYtF+HaEfiS5ebkh9jXqbszz7pC0hRBPaatV0XjSD3+eHrpqFemQfgwiFF0QPIarnIihIDn7OA==}
     engines: {node: '>=10.13.0'}
@@ -2898,7 +2894,6 @@ packages:
 
   /@types/webextension-polyfill/0.10.0:
     resolution: {integrity: sha512-If4EcaHzYTqcbNMp/FdReVdRmLL/Te42ivnJII551bYjhX19bWem5m14FERCqdJA732OloGuxCRvLBvcMGsn4A==}
-    dev: true
 
   /@types/yargs-parser/21.0.0:
     resolution: {integrity: sha512-iO9ZQHkZxHn4mSakYV0vFHAVDyEOIJQrV2uZ06HxEPcx+mt8swXoZHIbaaJ2crJYFfErySgktuTZ3BeLz+XmFA==}
@@ -5156,6 +5151,15 @@ packages:
     resolution: {integrity: sha512-y6OAwoSIf7FyjMIv94u+b5rdheZEjzR63GTyZJm5qh4Bi+2YgwLCcI/fPFZkL5PSixOt6ZNKm+w+Hfp/Bciwow==}
     dev: true
 
+  /fs-extra/11.1.0:
+    resolution: {integrity: sha512-0rcTq621PD5jM/e0a3EJoGC/1TC5ZBCERW82LQuwfGnCa1V8w7dpYH1yNu+SLb6E5dkeCBzKEyLGlFrnr+dUyw==}
+    engines: {node: '>=14.14'}
+    dependencies:
+      graceful-fs: 4.2.10
+      jsonfile: 6.1.0
+      universalify: 2.0.0
+    dev: true
+
   /fs-extra/9.1.0:
     resolution: {integrity: sha512-hcg3ZmepS30/7BSFqRvoo3DOMQu7IjqxO5nCDt+zM9XWjb33Wg7ziNT+Qvqbuc3+gWpzO02JubVyk2G4Zvo1OQ==}
     engines: {node: '>=10'}
@@ -6364,7 +6368,6 @@ packages:
       universalify: 2.0.0
     optionalDependencies:
       graceful-fs: 4.2.10
-    dev: false
 
   /jsx-ast-utils/3.3.3:
     resolution: {integrity: sha512-fYQHZTZ8jSfmWZ0iyzfwiU4WDX4HpHbMCZ3gPlWYiCl3BoeOTsqKBqnTVfH2rYT7eP5c3sVbeSPHnnJOaTrWiw==}
@@ -6425,28 +6428,10 @@ packages:
       type-check: 0.4.0
     dev: true
 
-  /lightningcss-darwin-arm64/1.17.1:
-    resolution: {integrity: sha512-YTAHEy4XlzI3sMbUVjbPi9P7+N7lGcgl2JhCZhiQdRAEKnZLQch8kb5601sgESxdGXjgei7JZFqi/vVEk81wYg==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [arm64]
-    os: [darwin]
-    requiresBuild: true
-    dev: true
-    optional: true
-
   /lightningcss-darwin-arm64/1.18.0:
     resolution: {integrity: sha512-OqjydwtiNPgdH1ByIjA1YzqvDG/OMR6L3LPN6wRl1729LB0y4Mik7L06kmZaTb+pvUHr+NmDd2KCwnlrQ4zO3w==}
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
-    os: [darwin]
-    requiresBuild: true
-    dev: true
-    optional: true
-
-  /lightningcss-darwin-x64/1.17.1:
-    resolution: {integrity: sha512-UhXPUS2+yTTf5sXwUV0+8QY2x0bPGLgC/uhcknWSQMqWn1zGty4fFvH04D7f7ij0ujwSuN+Q0HtU7lgmMrPz0A==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [x64]
     os: [darwin]
     requiresBuild: true
     dev: true
@@ -6461,15 +6446,6 @@ packages:
     dev: true
     optional: true
 
-  /lightningcss-linux-arm-gnueabihf/1.17.1:
-    resolution: {integrity: sha512-alUZumuznB6K/9yZ0zuZkODXUm8uRnvs9t0CL46CXN16Y2h4gOx5ahUCMlelUb7inZEsgJIoepgLsJzBUrSsBw==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [arm]
-    os: [linux]
-    requiresBuild: true
-    dev: true
-    optional: true
-
   /lightningcss-linux-arm-gnueabihf/1.18.0:
     resolution: {integrity: sha512-S+25JjI6601HiAVoTDXW6SqH+E94a+FHA7WQqseyNHunOgVWKcAkNEc2LJvVxgwTq6z41sDIb9/M3Z9wa9lk4A==}
     engines: {node: '>= 12.0.0'}
@@ -6479,26 +6455,8 @@ packages:
     dev: true
     optional: true
 
-  /lightningcss-linux-arm64-gnu/1.17.1:
-    resolution: {integrity: sha512-/1XaH2cOjDt+ivmgfmVFUYCA0MtfNWwtC4P8qVi53zEQ7P8euyyZ1ynykZOyKXW9Q0DzrwcLTh6+hxVLcbtGBg==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [arm64]
-    os: [linux]
-    requiresBuild: true
-    dev: true
-    optional: true
-
   /lightningcss-linux-arm64-gnu/1.18.0:
     resolution: {integrity: sha512-JSqh4+21dCgBecIQUet35dtE4PhhSEMyqe3y0ZNQrAJQ5kyUPSQHiw81WXnPJcOSTTpG0TyMLiC8K//+BsFGQA==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [arm64]
-    os: [linux]
-    requiresBuild: true
-    dev: true
-    optional: true
-
-  /lightningcss-linux-arm64-musl/1.17.1:
-    resolution: {integrity: sha512-/IgE7lYWFHCCQFTMIwtt+fXLcVOha8rcrNze1JYGPWNorO6NBc6MJo5u5cwn5qMMSz9fZCCDIlBBU4mGwjQszQ==}
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [linux]
@@ -6515,26 +6473,8 @@ packages:
     dev: true
     optional: true
 
-  /lightningcss-linux-x64-gnu/1.17.1:
-    resolution: {integrity: sha512-OyE802IAp4DB9vZrHlOyWunbHLM9dN08tJIKN/HhzzLKIHizubOWX6NMzUXMZLsaUrYwVAHHdyEA+712p8mMzA==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [x64]
-    os: [linux]
-    requiresBuild: true
-    dev: true
-    optional: true
-
   /lightningcss-linux-x64-gnu/1.18.0:
     resolution: {integrity: sha512-plCPGQJtDZHcLVKVRLnQVF2XRsIC32WvuJhQ7fJ7F6BV98b/VZX0OlX05qUaOESD9dCDHjYSfxsgcvOKgCWh7A==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [x64]
-    os: [linux]
-    requiresBuild: true
-    dev: true
-    optional: true
-
-  /lightningcss-linux-x64-musl/1.17.1:
-    resolution: {integrity: sha512-ydwGgV3Usba5P53RAOqCA9MsRsbb8jFIEVhf7/BXFjpKNoIQyijVTXhwIgQr/oGwUNOHfgQ3F8ruiUjX/p2YKw==}
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [linux]
@@ -6551,15 +6491,6 @@ packages:
     dev: true
     optional: true
 
-  /lightningcss-win32-x64-msvc/1.17.1:
-    resolution: {integrity: sha512-Ngqtx9NazaiAOk71XWwSsqgAuwYF+8PO6UYsoU7hAukdrSS98kwaBMEDw1igeIiZy1XD/4kh5KVnkjNf7ZOxVQ==}
-    engines: {node: '>= 12.0.0'}
-    cpu: [x64]
-    os: [win32]
-    requiresBuild: true
-    dev: true
-    optional: true
-
   /lightningcss-win32-x64-msvc/1.18.0:
     resolution: {integrity: sha512-5qeAH4RMNy2yMNEl7e5TI6upt/7xD2ZpHWH4RkT8iJ7/6POS5mjHbXWUO9Q1hhDhqkdzGa76uAdMzEouIeCyNw==}
     engines: {node: '>= 12.0.0'}
@@ -6568,22 +6499,6 @@ packages:
     requiresBuild: true
     dev: true
     optional: true
-
-  /lightningcss/1.17.1:
-    resolution: {integrity: sha512-DwwM/YYqGwLLP3he41wzDXT/m+8jdEZ80i9ViQNLRgyhey3Vm6N7XHn+4o3PY6wSnVT23WLuaROIpbpIVTNOjg==}
-    engines: {node: '>= 12.0.0'}
-    dependencies:
-      detect-libc: 1.0.3
-    optionalDependencies:
-      lightningcss-darwin-arm64: 1.17.1
-      lightningcss-darwin-x64: 1.17.1
-      lightningcss-linux-arm-gnueabihf: 1.17.1
-      lightningcss-linux-arm64-gnu: 1.17.1
-      lightningcss-linux-arm64-musl: 1.17.1
-      lightningcss-linux-x64-gnu: 1.17.1
-      lightningcss-linux-x64-musl: 1.17.1
-      lightningcss-win32-x64-msvc: 1.17.1
-    dev: true
 
   /lightningcss/1.18.0:
     resolution: {integrity: sha512-uk10tNxi5fhZqU93vtYiQgx/8a9f0Kvtj5AXIm+VlOXY+t/DWDmCZWJEkZJmmALgvbS6aAW8or+Kq85eJ6TDTw==}
@@ -7304,8 +7219,8 @@ packages:
       find-up: 4.1.0
     dev: true
 
-  /plasmo/0.63.0_p6gdhnxkbcuuneb73vd6o46g7y:
-    resolution: {integrity: sha512-FPpWgZOVCeRYEJRrpsO1HmV4bGFeplgdxtQIQP/0qSNncHFwxHKoZn8xpxBnjZ1SluaUm6FR/P8BSQJwmF3i+g==}
+  /plasmo/0.64.5_p6gdhnxkbcuuneb73vd6o46g7y:
+    resolution: {integrity: sha512-SqGK3E+WlbdonKGla+FKBIvDFtUcEmh5uzH8uWEQm7kZ1JGdaIC+GVjXV3g1gdoaWqaLM3fjNR39K113gSohcg==}
     hasBin: true
     dependencies:
       '@expo/spawn-async': 1.7.0
@@ -7313,8 +7228,8 @@ packages:
       '@parcel/fs': 2.8.3_@parcel+core@2.8.3
       '@parcel/package-manager': 2.8.3_@parcel+core@2.8.3
       '@parcel/watcher': 2.1.0
-      '@plasmohq/init': 0.5.3
-      '@plasmohq/parcel-config': 0.30.1_p6gdhnxkbcuuneb73vd6o46g7y
+      '@plasmohq/init': 0.6.0
+      '@plasmohq/parcel-config': 0.30.3_p6gdhnxkbcuuneb73vd6o46g7y
       archiver: 5.3.1
       buffer: 6.0.3
       chalk: 5.2.0
@@ -8711,16 +8626,6 @@ packages:
     hasBin: true
     dev: true
 
-  /trpc-chrome/1.0.0_swjpqe7jnsgxhe3xt25xrickxq:
-    resolution: {integrity: sha512-lulJIFLh37dz1m8zDCliCKhKJmrZqCTZd+kVyfL084aKkqaZVbfjzm7WqWOmhXiKvP/4pWeKSh7qIN2DhwTDUA==}
-    peerDependencies:
-      '@trpc/client': ^10.0.0
-      '@trpc/server': ^10.0.0
-    dependencies:
-      '@trpc/client': 10.7.0_@trpc+server@10.7.0
-      '@trpc/server': 10.7.0
-    dev: false
-
   /ts-algebra/1.1.1:
     resolution: {integrity: sha512-W43a3/BN0Tp4SgRNERQF/QPVuY1rnHkgCr/fISLY0Ycu05P0NWPYRuViU8JFn+pFZuY6/zp9TgET1fxMzppR/Q==}
     dependencies:
@@ -8929,7 +8834,6 @@ packages:
   /universalify/2.0.0:
     resolution: {integrity: sha512-hAZsKq7Yy11Zu1DE0OzWjw7nnLZmJZYTDZZyEFHZdUhV8FkH5MCfoU1XMaxXovpyW5nq5scPqq0ZDP9Zyl04oQ==}
     engines: {node: '>= 10.0.0'}
-    dev: false
 
   /update-browserslist-db/1.0.10_browserslist@4.21.4:
     resolution: {integrity: sha512-OztqDenkfFkbSG+tRxBeAnCVPckDBcvibKd35yDONx6OU8N7sqgwc7rCbkJ/WcYtVRZ4ba68d6byhC21GFh7sQ==}
@@ -9161,7 +9065,3 @@ packages:
       compress-commons: 4.1.1
       readable-stream: 3.6.0
     dev: true
-
-  /zod/3.20.2:
-    resolution: {integrity: sha512-1MzNQdAvO+54H+EaK5YpyEy0T+Ejo/7YLHS93G3RnYWh5gaotGHwGeN/ZO687qEDU2y4CdStQYXVHIgrUl5UVQ==}
-    dev: false

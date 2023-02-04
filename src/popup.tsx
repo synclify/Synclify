@@ -1,22 +1,15 @@
 import "./style.css"
 
 import { Button, TextInput, Tooltip } from "flowbite-react"
-import { ChromeLinkOptions, chromeLink } from "trpc-chrome/link"
 import { ExtResponse, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 
-import type { AppRouter } from "./background"
 import type { RoomsList } from "~utils/rooms"
 import browser from "webextension-polyfill"
-import { createTRPCProxyClient } from "@trpc/client"
 import logo from "data-text:~assets/logo.svg"
+import { sendToBackground } from "@plasmohq/messaging"
 import { useForm } from "react-hook-form"
 import { useStorage } from "@plasmohq/storage/hook"
-
-const port = browser.runtime.connect()
-const trpc = createTRPCProxyClient<AppRouter>({
-  links: [chromeLink({ port } as ChromeLinkOptions)]
-})
 
 type FormData = {
   room: string
@@ -90,7 +83,9 @@ function IndexPopup() {
   )
 
   const createRoom = useCallback(() => {
-    trpc.createRoom.query().then((roomCode) => roomCallback(roomCode))
+    sendToBackground({ name: "createRoom" }).then((roomCode) =>
+      roomCallback(roomCode)
+    )
   }, [roomCallback])
 
   const joinRoom = useCallback(
@@ -106,7 +101,7 @@ function IndexPopup() {
   }, [currentTab, roomCallback, rooms])
 
   useEffect(() => {
-    trpc.getTabId.query().then((tabId) => {
+    sendToBackground({ name: "getTabId" }).then((tabId) => {
       setCurrentTab(tabId)
     })
   }, [])

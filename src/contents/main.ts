@@ -1,18 +1,16 @@
-import { ChromeLinkOptions, chromeLink } from "trpc-chrome/link"
 import { ExtMessage, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import { SOCKET_EVENTS, SOCKET_URL } from "~types/socket"
 
-import type { AppRouter } from "../background"
-import type { PlasmoContentScript } from "plasmo"
+import type { PlasmoCSConfig } from "plasmo"
 import type { RoomsList } from "~utils/rooms"
 import { Storage } from "@plasmohq/storage"
 import { VIDEO_EVENTS } from "~types/video"
 import browser from "webextension-polyfill"
-import { createTRPCProxyClient } from "@trpc/client"
 import debounce from "lodash.debounce"
 import { io } from "socket.io-client"
+import { sendToBackground } from "@plasmohq/messaging"
 
-export const config: PlasmoContentScript = {
+export const config: PlasmoCSConfig = {
   matches: ["<all_urls>"],
   // eslint-disable-next-line camelcase
   all_frames: true
@@ -33,14 +31,9 @@ const bootstrap = () => {
     autoConnect: false,
     transports: ["websocket", "polling"]
   })
-  const port = browser.runtime.connect(browser.runtime.id)
-
-  const chromeClient = createTRPCProxyClient<AppRouter>({
-    links: [chromeLink({ port } as ChromeLinkOptions)]
-  })
 
   const init = async () => {
-    tabId = await chromeClient.getTabId.query()
+    tabId = await sendToBackground({ name: "getTabId" })
     const rooms = await storage.get<RoomsList>("rooms")
     roomCode = rooms?.[tabId]
     if (roomCode) {
@@ -81,16 +74,18 @@ const bootstrap = () => {
         )
       )
       observer.disconnect()
-      chromeClient.showToast.query({
-        content: "Video detected"
+      sendToBackground({
+        name: "showToast",
+        body: { content: "Video detected" }
       })
       return { status: MESSAGE_STATUS.SUCCESS }
     }
     observer.observe(document, { subtree: true, childList: true })
-    chromeClient.showToast.query({
-      error: true,
-      content: "Video not found"
+    sendToBackground({
+      name: "showToast",
+      body: { error: true, content: "Video not found" }
     })
+
     return {
       status: MESSAGE_STATUS.ERROR,
       message: "Video not found"
@@ -137,9 +132,9 @@ const bootstrap = () => {
             status: MESSAGE_STATUS.SUCCESS
           })
         }
-        chromeClient.showToast.query({
-          error: true,
-          content: "Video not found"
+        sendToBackground({
+          name: "showToast",
+          body: { error: true, content: "Video not found" }
         })
         return Promise.resolve({
           status: MESSAGE_STATUS.ERROR,
