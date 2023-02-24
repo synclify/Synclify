@@ -83,27 +83,37 @@ function IndexPopup() {
   )
 
   const createRoom = useCallback(() => {
-    browser.webNavigation
-      .getAllFrames({ tabId: currentTab })
-      .then(async (frames) => {
-        const origins = frames?.flatMap((frame) =>
-          frame.url != "about:blank" ? frame.url : []
-        )
-        browser.permissions
-          .request({
-            permissions: ["activeTab"],
-            origins: origins
-          })
-          .then(async (granted) => {
-            if (granted) {
-              sendToBackground({ name: "inject" }).then(() =>
-                sendToBackground({ name: "createRoom" }).then((roomCode) =>
-                  roomCallback(roomCode)
+    sendToBackground({ name: "getTabUrl" }).then((url) =>
+      browser.permissions
+        .request({
+          permissions: ["webNavigation"],
+          origins: [url]
+        })
+        .then((granted) => {
+          if (granted)
+            browser.webNavigation
+              .getAllFrames({ tabId: currentTab })
+              .then(async (frames) => {
+                const origins = frames?.flatMap((frame) =>
+                  frame.url != "about:blank" ? frame.url : []
                 )
-              )
-            }
-          })
-      })
+                browser.permissions
+                  .request({
+                    permissions: ["activeTab"],
+                    origins: origins
+                  })
+                  .then(async (granted) => {
+                    if (granted) {
+                      sendToBackground({ name: "inject" }).then(() =>
+                        sendToBackground({ name: "createRoom" }).then(
+                          (roomCode) => roomCallback(roomCode)
+                        )
+                      )
+                    }
+                  })
+              })
+        })
+    )
   }, [currentTab, roomCallback])
 
   const joinRoom = useCallback(
