@@ -83,10 +83,28 @@ function IndexPopup() {
   )
 
   const createRoom = useCallback(() => {
-    sendToBackground({ name: "createRoom" }).then((roomCode) =>
-      roomCallback(roomCode)
-    )
-  }, [roomCallback])
+    browser.webNavigation
+      .getAllFrames({ tabId: currentTab })
+      .then(async (frames) => {
+        const origins = frames?.flatMap((frame) =>
+          frame.url != "about:blank" ? frame.url : []
+        )
+        browser.permissions
+          .request({
+            permissions: ["activeTab"],
+            origins: origins
+          })
+          .then(async (granted) => {
+            if (granted) {
+              sendToBackground({ name: "inject" }).then(() =>
+                sendToBackground({ name: "createRoom" }).then((roomCode) =>
+                  roomCallback(roomCode)
+                )
+              )
+            }
+          })
+      })
+  }, [currentTab, roomCallback])
 
   const joinRoom = useCallback(
     (data: FormData) => {

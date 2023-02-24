@@ -1,7 +1,6 @@
 import { ExtMessage, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import { SOCKET_EVENTS, SOCKET_URL } from "~types/socket"
 
-import type { PlasmoCSConfig } from "plasmo"
 import type { RoomsList } from "~utils/rooms"
 import { Storage } from "@plasmohq/storage"
 import { VIDEO_EVENTS } from "~types/video"
@@ -10,11 +9,7 @@ import debounce from "lodash.debounce"
 import { io } from "socket.io-client"
 import { sendToBackground } from "@plasmohq/messaging"
 
-export const config: PlasmoCSConfig = {
-  matches: ["<all_urls>"],
-  // eslint-disable-next-line camelcase
-  all_frames: true
-}
+console.log("injected")
 
 const checkVideosInPage = () => {
   return document.getElementsByTagName("video").length > 0
