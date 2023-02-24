@@ -5,6 +5,7 @@ import { ExtResponse, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 
 import type { RoomsList } from "~utils/rooms"
+import { Storage } from "@plasmohq/storage"
 import browser from "webextension-polyfill"
 import logo from "data-text:~assets/logo.svg"
 import { sendToBackground } from "@plasmohq/messaging"
@@ -20,7 +21,9 @@ function IndexPopup() {
     RoomsList | undefined
   >({
     key: "rooms",
-    area: "local"
+    instance: new Storage({
+      area: "local"
+    })
   })
   const [inRoom, setInRoom] = useState(false)
   const [detected, setDetected] = useState(false)
@@ -33,23 +36,6 @@ function IndexPopup() {
     handleSubmit,
     formState: { errors }
   } = useForm<FormData>()
-  /*
-  const detectVideo = () => {
-    browser.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      browser.tabs.sendMessage(
-        tabs[0].id,
-        { message: "detectVideo" },
-        function (response) {
-          if (response.status === "success") setDetected(true)
-          else if (response.status === "error") {
-            setError(true)
-            setErrorMessage(response.message)
-          }
-        }
-      )
-    })
-  }
-*/
 
   const responseCallback = useCallback((response: ExtResponse) => {
     if (!response) {
@@ -84,6 +70,7 @@ function IndexPopup() {
 
   const createRoom = useCallback(() => {
     sendToBackground({ name: "getTabUrl" }).then((url) =>
+      // get permissions for all frames host
       browser.permissions
         .request({
           permissions: ["webNavigation"],

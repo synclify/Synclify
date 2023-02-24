@@ -9,8 +9,6 @@ import debounce from "lodash.debounce"
 import { io } from "socket.io-client"
 import { sendToBackground } from "@plasmohq/messaging"
 
-console.log("injected")
-
 const checkVideosInPage = () => {
   return document.getElementsByTagName("video").length > 0
 }
@@ -174,15 +172,26 @@ const handleVideoDetectManually = (ev: Event) => {
   )
 }
 
-if (hasVideos) {
-  bootstrap()
-} else {
-  const observer = new MutationObserver(() => {
-    hasVideos = checkVideosInPage()
-    if (hasVideos) {
-      observer.disconnect()
-      bootstrap()
-    }
-  })
-  observer.observe(document, { subtree: true, childList: true })
+declare global {
+  interface Window {
+    synclify: boolean
+  }
+}
+
+// check to avoid double loading
+if (window.synclify !== true) {
+  window.synclify = true
+
+  if (hasVideos) {
+    bootstrap()
+  } else {
+    const observer = new MutationObserver(() => {
+      hasVideos = checkVideosInPage()
+      if (hasVideos) {
+        observer.disconnect()
+        bootstrap()
+      }
+    })
+    observer.observe(document, { subtree: true, childList: true })
+  }
 }
