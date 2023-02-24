@@ -11,9 +11,9 @@ browser.tabs.onRemoved.addListener((tabId) => {
   })
 })
 
-browser.runtime.onInstalled.addListener((details) => {
+browser.runtime.onInstalled.addListener(async (details) => {
   if (details.previousVersion !== browser.runtime.getManifest().version) {
-    browser.storage.local.clear()
+    await storage.clear()
     browser.runtime.reload()
   }
 })
