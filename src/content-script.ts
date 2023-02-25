@@ -19,7 +19,7 @@ const bootstrap = () => {
   let roomCode: string | undefined
   let video: HTMLVideoElement
 
-  const storage = new Storage({ area: "local" })
+  const storage = new Storage({ area: "local", allCopied: true })
   const socket = io(SOCKET_URL, {
     autoConnect: false,
     transports: ["websocket", "polling"]
