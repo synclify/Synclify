@@ -83,7 +83,7 @@ function IndexPopup() {
                 .getAllFrames({ tabId: currentTab })
                 .then(async (frames) => {
                   const origins = frames?.flatMap((frame) =>
-                    frame.url != "about:blank" ? frame.url : []
+                    ["about:blank", url].includes(frame.url) ? [] : frame.url
                   )
                   browser.permissions
                     .request({
@@ -184,7 +184,18 @@ function IndexPopup() {
               <p className="text-base">Detecting the video...</p>
             )}
             {error ? (
-              <p className="text-base text-red-700">{errorMessage}</p>
+              <>
+                <p className="text-base text-red-700">{errorMessage}</p>
+                <Button
+                  gradientDuoTone="purpleToBlue"
+                  onClick={() =>
+                    createOrJoinRoom(
+                      rooms ? { room: rooms?.[currentTab] } : undefined
+                    )
+                  }>
+                  Click to try again
+                </Button>
+              </>
             ) : null}
           </>
         ) : (
