@@ -68,47 +68,46 @@ function IndexPopup() {
     [currentTab, responseCallback, setRenderValue, setStoreValue]
   )
 
-  const createRoom = useCallback(() => {
-    sendToBackground({ name: "getTabUrl" }).then((url) =>
-      // get permissions for all frames host
-      browser.permissions
-        .request({
-          permissions: ["webNavigation"],
-          origins: [url]
-        })
-        .then((granted) => {
-          if (granted)
-            browser.webNavigation
-              .getAllFrames({ tabId: currentTab })
-              .then(async (frames) => {
-                const origins = frames?.flatMap((frame) =>
-                  frame.url != "about:blank" ? frame.url : []
-                )
-                browser.permissions
-                  .request({
-                    permissions: ["activeTab"],
-                    origins: origins
-                  })
-                  .then(async (granted) => {
-                    if (granted) {
-                      sendToBackground({ name: "inject" }).then(() =>
-                        sendToBackground({ name: "createRoom" }).then(
-                          (roomCode) => roomCallback(roomCode)
-                        )
-                      )
-                    }
-                  })
-              })
-        })
-    )
-  }, [currentTab, roomCallback])
-
-  const joinRoom = useCallback(
-    (data: FormData) => {
-      const room = data.room.toUpperCase()
-      roomCallback(room)
+  const createOrJoinRoom = useCallback(
+    (data?: FormData) => {
+      sendToBackground({ name: "getTabUrl" }).then((url) =>
+        // get permissions for all frames host
+        browser.permissions
+          .request({
+            permissions: ["webNavigation"],
+            origins: [url]
+          })
+          .then((granted) => {
+            if (granted)
+              browser.webNavigation
+                .getAllFrames({ tabId: currentTab })
+                .then(async (frames) => {
+                  const origins = frames?.flatMap((frame) =>
+                    frame.url != "about:blank" ? frame.url : []
+                  )
+                  browser.permissions
+                    .request({
+                      permissions: ["activeTab"],
+                      origins: origins
+                    })
+                    .then(async (granted) => {
+                      if (granted) {
+                        sendToBackground({ name: "inject" }).then(() => {
+                          if (data) {
+                            const room = data.room.toUpperCase()
+                            roomCallback(room)
+                          } else
+                            sendToBackground({ name: "createRoom" }).then(
+                              (roomCode) => roomCallback(roomCode)
+                            )
+                        })
+                      }
+                    })
+                })
+          })
+      )
     },
-    [roomCallback]
+    [currentTab, roomCallback]
   )
 
   useEffect(() => {
@@ -190,13 +189,15 @@ function IndexPopup() {
           </>
         ) : (
           <>
-            <Button gradientDuoTone="purpleToBlue" onClick={createRoom}>
+            <Button
+              gradientDuoTone="purpleToBlue"
+              onClick={() => createOrJoinRoom()}>
               Create room
             </Button>
             <p className="text-base">or</p>
             <p className="text-base">Join room: </p>
             <form
-              onSubmit={handleSubmit(joinRoom)}
+              onSubmit={handleSubmit(createOrJoinRoom)}
               className="flex flex-col gap-4">
               <TextInput
                 type="text"
