@@ -83,7 +83,9 @@ function IndexPopup() {
                 .getAllFrames({ tabId: currentTab })
                 .then(async (frames) => {
                   const origins = frames?.flatMap((frame) =>
-                    ["about:blank", url].includes(frame.url) ? [] : frame.url
+                    frame.url !== url && !/^about:.*/.test(frame.url)
+                      ? frame.url
+                      : []
                   )
                   browser.permissions
                     .request({
