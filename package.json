@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@plasmohq/prettier-plugin-sort-imports": "^3.6.1",
-    "@types/chrome": "^0.0.210",
+    "@types/chrome": "^0.0.224",
     "@types/jest": "^29.2.4",
     "@types/lodash.debounce": "^4.0.7",
     "@types/node": "^18.11.18",
