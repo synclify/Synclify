@@ -6,13 +6,9 @@ import { Storage } from "@plasmohq/storage"
 import { VIDEO_EVENTS } from "~types/video"
 import browser from "webextension-polyfill"
 import debounce from "lodash.debounce"
+import { hasVideos } from "~utils"
 import { io } from "socket.io-client"
 import { sendToBackground } from "@plasmohq/messaging"
-
-const checkVideosInPage = () => {
-  return document.getElementsByTagName("video").length > 0
-}
-let hasVideos = checkVideosInPage()
 
 const bootstrap = () => {
   let tabId: number
@@ -51,7 +47,6 @@ const bootstrap = () => {
   }
 
   const observer = new MutationObserver(() => {
-    hasVideos = checkVideosInPage()
     if (!video) getVideo()
   })
 
@@ -138,17 +133,6 @@ const bootstrap = () => {
     }
   })
 
-  // To be used when automatic detection doesn't work
-  /*
-const handleVideoDetectManually = (ev: Event) => {
-  const target = ev.target as Element
-  video = target.closest("video") as HTMLVideoElement
-  if (video != null) {
-    document.removeEventListener("click", handleVideoDetectManually)
-  }
-}
-*/
-
   socket.on(
     SOCKET_EVENTS.VIDEO_EVENT,
     (eventType: VIDEO_EVENTS, volumeValue: string, currentTime: string) => {
@@ -182,12 +166,11 @@ declare global {
 if (window.synclify !== true) {
   window.synclify = true
 
-  if (hasVideos) {
+  if (hasVideos()) {
     bootstrap()
   } else {
     const observer = new MutationObserver(() => {
-      hasVideos = checkVideosInPage()
-      if (hasVideos) {
+      if (hasVideos()) {
         observer.disconnect()
         bootstrap()
       }
