@@ -1,46 +1,28 @@
-import { ChromeLinkOptions, chromeLink } from "trpc-chrome/link"
 import { ExtMessage, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import { SOCKET_EVENTS, SOCKET_URL } from "~types/socket"
 
-import type { AppRouter } from "../background"
-import type { PlasmoContentScript } from "plasmo"
 import type { RoomsList } from "~utils/rooms"
 import { Storage } from "@plasmohq/storage"
 import { VIDEO_EVENTS } from "~types/video"
 import browser from "webextension-polyfill"
-import { createTRPCProxyClient } from "@trpc/client"
 import debounce from "lodash.debounce"
+import { hasVideos } from "~utils"
 import { io } from "socket.io-client"
-
-export const config: PlasmoContentScript = {
-  matches: ["<all_urls>"],
-  // eslint-disable-next-line camelcase
-  all_frames: true
-}
-
-const checkVideosInPage = () => {
-  return document.getElementsByTagName("video").length > 0
-}
-let hasVideos = checkVideosInPage()
+import { sendToBackground } from "@plasmohq/messaging"
 
 const bootstrap = () => {
   let tabId: number
   let roomCode: string | undefined
   let video: HTMLVideoElement
 
-  const storage = new Storage({ area: "local" })
+  const storage = new Storage({ area: "local", allCopied: true })
   const socket = io(SOCKET_URL, {
     autoConnect: false,
     transports: ["websocket", "polling"]
   })
-  const port = browser.runtime.connect(browser.runtime.id)
-
-  const chromeClient = createTRPCProxyClient<AppRouter>({
-    links: [chromeLink({ port } as ChromeLinkOptions)]
-  })
 
   const init = async () => {
-    tabId = await chromeClient.getTabId.query()
+    tabId = await sendToBackground({ name: "getTabId" })
     const rooms = await storage.get<RoomsList>("rooms")
     roomCode = rooms?.[tabId]
     if (roomCode) {
@@ -65,7 +47,6 @@ const bootstrap = () => {
   }
 
   const observer = new MutationObserver(() => {
-    hasVideos = checkVideosInPage()
     if (!video) getVideo()
   })
 
@@ -81,16 +62,18 @@ const bootstrap = () => {
         )
       )
       observer.disconnect()
-      chromeClient.showToast.query({
-        content: "Video detected"
+      sendToBackground({
+        name: "showToast",
+        body: { content: "Video detected" }
       })
       return { status: MESSAGE_STATUS.SUCCESS }
     }
     observer.observe(document, { subtree: true, childList: true })
-    chromeClient.showToast.query({
-      error: true,
-      content: "Video not found"
+    sendToBackground({
+      name: "showToast",
+      body: { error: true, content: "Video not found" }
     })
+
     return {
       status: MESSAGE_STATUS.ERROR,
       message: "Video not found"
@@ -137,9 +120,9 @@ const bootstrap = () => {
             status: MESSAGE_STATUS.SUCCESS
           })
         }
-        chromeClient.showToast.query({
-          error: true,
-          content: "Video not found"
+        sendToBackground({
+          name: "showToast",
+          body: { error: true, content: "Video not found" }
         })
         return Promise.resolve({
           status: MESSAGE_STATUS.ERROR,
@@ -149,17 +132,6 @@ const bootstrap = () => {
         return
     }
   })
-
-  // To be used when automatic detection doesn't work
-  /*
-const handleVideoDetectManually = (ev: Event) => {
-  const target = ev.target as Element
-  video = target.closest("video") as HTMLVideoElement
-  if (video != null) {
-    document.removeEventListener("click", handleVideoDetectManually)
-  }
-}
-*/
 
   socket.on(
     SOCKET_EVENTS.VIDEO_EVENT,
@@ -184,15 +156,25 @@ const handleVideoDetectManually = (ev: Event) => {
   )
 }
 
-if (hasVideos) {
-  bootstrap()
-} else {
-  const observer = new MutationObserver(() => {
-    hasVideos = checkVideosInPage()
-    if (hasVideos) {
-      observer.disconnect()
-      bootstrap()
-    }
-  })
-  observer.observe(document, { subtree: true, childList: true })
+declare global {
+  interface Window {
+    synclify: boolean
+  }
+}
+
+// check to avoid double loading
+if (window.synclify !== true) {
+  window.synclify = true
+
+  if (hasVideos()) {
+    bootstrap()
+  } else {
+    const observer = new MutationObserver(() => {
+      if (hasVideos()) {
+        observer.disconnect()
+        bootstrap()
+      }
+    })
+    observer.observe(document, { subtree: true, childList: true })
+  }
 }
