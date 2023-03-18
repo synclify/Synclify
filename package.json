@@ -1,7 +1,7 @@
 {
   "name": "synclify",
   "displayName": "Synclify",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "description": "Create a watch party straight from your browser—works anywhere, ad-free.",
   "author": "andrea",
   "scripts": {
