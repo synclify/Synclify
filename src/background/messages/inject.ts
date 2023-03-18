@@ -22,7 +22,6 @@ const handler: PlasmoMessaging.MessageHandler = async (_req, res) => {
       .filter((injection) => injection.result)
       .map((injection) => injection.frameId)
 
-    console.log(frameIds)
     // inject content script only in frames that have video
     await browser.scripting.executeScript({
       files: [filename],

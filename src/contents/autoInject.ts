@@ -15,9 +15,7 @@ const observer = new MutationObserver((mutations) => {
       )
     )
   ) {
-    console.log("injecting again")
     sendToBackground({ name: "shouldInject" }).then((res: boolean) => {
-      console.log("shouldInject", res)
       if (res) sendToBackground({ name: "inject" })
     })
   }

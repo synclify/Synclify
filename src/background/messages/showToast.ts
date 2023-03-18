@@ -11,7 +11,6 @@ const handler: PlasmoMessaging.MessageHandler = async (req, _res) => {
     content: req.body.content,
     show: req.body.show ?? true
   })
-  console.log("Received message")
   _res.send(null)
 }
 
