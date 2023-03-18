@@ -1,22 +1,16 @@
 import "./style.css"
 
 import { Button, TextInput, Tooltip } from "flowbite-react"
-import { ChromeLinkOptions, chromeLink } from "trpc-chrome/link"
 import { ExtResponse, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 
-import type { AppRouter } from "./background"
 import type { RoomsList } from "~utils/rooms"
+import { Storage } from "@plasmohq/storage"
 import browser from "webextension-polyfill"
-import { createTRPCProxyClient } from "@trpc/client"
 import logo from "data-text:~assets/logo.svg"
+import { sendToBackground } from "@plasmohq/messaging"
 import { useForm } from "react-hook-form"
 import { useStorage } from "@plasmohq/storage/hook"
-
-const port = browser.runtime.connect()
-const trpc = createTRPCProxyClient<AppRouter>({
-  links: [chromeLink({ port } as ChromeLinkOptions)]
-})
 
 type FormData = {
   room: string
@@ -27,7 +21,9 @@ function IndexPopup() {
     RoomsList | undefined
   >({
     key: "rooms",
-    area: "local"
+    instance: new Storage({
+      area: "local"
+    })
   })
   const [inRoom, setInRoom] = useState(false)
   const [detected, setDetected] = useState(false)
@@ -40,23 +36,6 @@ function IndexPopup() {
     handleSubmit,
     formState: { errors }
   } = useForm<FormData>()
-  /*
-  const detectVideo = () => {
-    browser.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      browser.tabs.sendMessage(
-        tabs[0].id,
-        { message: "detectVideo" },
-        function (response) {
-          if (response.status === "success") setDetected(true)
-          else if (response.status === "error") {
-            setError(true)
-            setErrorMessage(response.message)
-          }
-        }
-      )
-    })
-  }
-*/
 
   const responseCallback = useCallback((response: ExtResponse) => {
     if (!response) {
@@ -89,16 +68,48 @@ function IndexPopup() {
     [currentTab, responseCallback, setRenderValue, setStoreValue]
   )
 
-  const createRoom = useCallback(() => {
-    trpc.createRoom.query().then((roomCode) => roomCallback(roomCode))
-  }, [roomCallback])
-
-  const joinRoom = useCallback(
-    (data: FormData) => {
-      const room = data.room.toUpperCase()
-      roomCallback(room)
+  const createOrJoinRoom = useCallback(
+    (data?: FormData) => {
+      sendToBackground({ name: "getTabUrl" }).then((url) =>
+        // get permissions for all frames host
+        browser.permissions
+          .request({
+            permissions: ["webNavigation"],
+            origins: [url]
+          })
+          .then((granted) => {
+            if (granted)
+              browser.webNavigation
+                .getAllFrames({ tabId: currentTab })
+                .then(async (frames) => {
+                  const origins = frames?.flatMap((frame) =>
+                    frame.url !== url && !/^about:.*/.test(frame.url)
+                      ? frame.url
+                      : []
+                  )
+                  browser.permissions
+                    .request({
+                      permissions: ["activeTab"],
+                      origins: origins
+                    })
+                    .then(async (granted) => {
+                      if (granted) {
+                        sendToBackground({ name: "inject" }).then(() => {
+                          if (data) {
+                            const room = data.room.toUpperCase()
+                            roomCallback(room)
+                          } else
+                            sendToBackground({ name: "createRoom" }).then(
+                              (roomCode) => roomCallback(roomCode)
+                            )
+                        })
+                      }
+                    })
+                })
+          })
+      )
     },
-    [roomCallback]
+    [currentTab, roomCallback]
   )
 
   useEffect(() => {
@@ -106,7 +117,7 @@ function IndexPopup() {
   }, [currentTab, roomCallback, rooms])
 
   useEffect(() => {
-    trpc.getTabId.query().then((tabId) => {
+    sendToBackground({ name: "getTabId" }).then((tabId) => {
       setCurrentTab(tabId)
     })
   }, [])
@@ -175,18 +186,31 @@ function IndexPopup() {
               <p className="text-base">Detecting the video...</p>
             )}
             {error ? (
-              <p className="text-base text-red-700">{errorMessage}</p>
+              <>
+                <p className="text-base text-red-700">{errorMessage}</p>
+                <Button
+                  gradientDuoTone="purpleToBlue"
+                  onClick={() =>
+                    createOrJoinRoom(
+                      rooms ? { room: rooms?.[currentTab] } : undefined
+                    )
+                  }>
+                  Click to try again
+                </Button>
+              </>
             ) : null}
           </>
         ) : (
           <>
-            <Button gradientDuoTone="purpleToBlue" onClick={createRoom}>
+            <Button
+              gradientDuoTone="purpleToBlue"
+              onClick={() => createOrJoinRoom()}>
               Create room
             </Button>
             <p className="text-base">or</p>
             <p className="text-base">Join room: </p>
             <form
-              onSubmit={handleSubmit(joinRoom)}
+              onSubmit={handleSubmit(createOrJoinRoom)}
               className="flex flex-col gap-4">
               <TextInput
                 type="text"

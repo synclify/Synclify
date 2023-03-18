@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { useEffect, useState } from "react"
 
 import type { PlasmoGetStyle } from "plasmo"
@@ -18,12 +17,16 @@ const PlasmoOverlay = () => {
   const [error, setError] = useState(false)
 
   useEffect(() => {
-    const callback = (msg: {
-      to: string
-      show: boolean
-      content: string
-      error: boolean
-    }) => {
+    const callback = (
+      msg: {
+        to: string
+        show: boolean
+        content: string
+        error: boolean
+      },
+      _sender,
+      sendResponse
+    ) => {
       if (msg.to === "toast") {
         if (msg.show) {
           setError(msg.error)
@@ -31,22 +34,21 @@ const PlasmoOverlay = () => {
           setShow(msg.show)
           setTimeout(() => setShow(false), 2000)
         } else setShow(false)
-        return false
+        sendResponse(null)
+        return true
       }
     }
-    // @ts-ignore
     browser.runtime.onMessage.addListener(callback)
 
     return () => {
-      // @ts-ignore
       browser.runtime.onMessage.removeListener(callback)
     }
   }, [])
 
   return (
     <div
-      className={`fixed right-0 flex translate-x-40 rounded-l-2xl border-y border-l bg-opacity-20 p-3 opacity-0 backdrop-blur transition duration-300 ${
-        show ? "translate-x-0 opacity-100" : ""
+      className={`fixed right-0 flex rounded-l-2xl border-y border-l bg-opacity-20 p-3 opacity-0 backdrop-blur transition duration-300 ${
+        show ? "translate-x-0 opacity-100" : "translate-x-40"
       } ${
         error ? "border-red-500 bg-red-500" : "border-green-400 bg-green-400"
       }`}>
