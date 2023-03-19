@@ -62,9 +62,6 @@
     "optional_host_permissions": [
       "https://*/*"
     ],
-    "optional_permissions": [
-      "webNavigation"
-    ],
     "permissions": [
       "storage",
       "activeTab",
