@@ -70,46 +70,28 @@ function IndexPopup() {
 
   const createOrJoinRoom = useCallback(
     (data?: FormData) => {
-      sendToBackground({ name: "getTabUrl" }).then((url) =>
-        // get permissions for all frames host
-        browser.permissions
-          .request({
-            permissions: ["webNavigation"],
-            origins: [url]
-          })
-          .then((granted) => {
-            if (granted)
-              browser.webNavigation
-                .getAllFrames({ tabId: currentTab })
-                .then(async (frames) => {
-                  const origins = frames?.flatMap((frame) =>
-                    frame.url !== url && !/^about:.*/.test(frame.url)
-                      ? frame.url
-                      : []
-                  )
-                  browser.permissions
-                    .request({
-                      permissions: ["activeTab"],
-                      origins: origins
-                    })
-                    .then(async (granted) => {
-                      if (granted) {
-                        sendToBackground({ name: "inject" }).then(() => {
-                          if (data) {
-                            const room = data.room.toUpperCase()
-                            roomCallback(room)
-                          } else
-                            sendToBackground({ name: "createRoom" }).then(
-                              (roomCode) => roomCallback(roomCode)
-                            )
-                        })
-                      }
-                    })
-                })
-          })
-      )
+      // get permissions for all frames host
+      browser.permissions
+        .request({
+          permissions: ["activeTab"],
+          origins: ["https://*/*"]
+        })
+        .catch((err) => console.error(err))
+        .then((granted) => {
+          if (granted) {
+            sendToBackground({ name: "inject" }).then(() => {
+              if (data) {
+                const room = data.room.toUpperCase()
+                roomCallback(room)
+              } else
+                sendToBackground({ name: "createRoom" }).then((roomCode) =>
+                  roomCallback(roomCode)
+                )
+            })
+          }
+        })
     },
-    [currentTab, roomCallback]
+    [roomCallback]
   )
 
   useEffect(() => {
