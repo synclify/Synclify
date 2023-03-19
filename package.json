@@ -1,7 +1,7 @@
 {
   "name": "synclify",
-  "displayName": "Synclify",
-  "version": "0.1.0",
+  "displayName": "Synclify - Watch in sync with your friends",
+  "version": "0.1.1",
   "description": "Create a watch party straight from your browser—works anywhere, ad-free.",
   "author": "andrea",
   "scripts": {
@@ -63,7 +63,8 @@
       "https://*/*"
     ],
     "optional_permissions": [
-      "webNavigation"
+      "activeTab",
+      "https://*/*"
     ],
     "permissions": [
       "storage",
