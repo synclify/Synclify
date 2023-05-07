@@ -1,7 +1,11 @@
 import "./style.css"
 
 import { Button, TextInput, Tooltip } from "flowbite-react"
-import { ExtResponse, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
+import {
+  type ExtResponse,
+  MESSAGE_STATUS,
+  MESSAGE_TYPE
+} from "~types/messaging"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 
 import type { RoomsList } from "~utils/rooms"
@@ -60,10 +64,14 @@ function IndexPopup() {
         setStoreValue(r)
         return r
       })
-
+      sendToBackground({ name: "inject" }).then((response: ExtResponse) =>
+        responseCallback(response)
+      )
+      /*
       browser.tabs
         .sendMessage(currentTab, { type: MESSAGE_TYPE.INIT })
         .then((response: ExtResponse) => responseCallback(response))
+        */
     },
     [currentTab, responseCallback, setRenderValue, setStoreValue]
   )

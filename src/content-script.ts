@@ -1,4 +1,4 @@
-import { ExtMessage, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
+import { type ExtMessage, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import { SOCKET_EVENTS, SOCKET_URL } from "~types/socket"
 
 import type { RoomsList } from "~utils/rooms"
@@ -21,18 +21,18 @@ const bootstrap = () => {
     transports: ["websocket", "polling"]
   })
 
-  const init = async () => {
+  const init = async (videoId: string) => {
     tabId = await sendToBackground({ name: "getTabId" })
     const rooms = await storage.get<RoomsList>("rooms")
     roomCode = rooms?.[tabId]
     if (roomCode) {
       if (socket.disconnected) socket.connect()
-      return getVideo()
+      return getVideo(videoId)
     }
   }
   console.log("Synclify: loaded")
 
-  init()
+  //init()
 
   const videoEventHandler = (event: Event) => {
     if (roomCode) {
@@ -50,10 +50,12 @@ const bootstrap = () => {
     if (!video) getVideo()
   })
 
-  const getVideo = () => {
-    const videos = document.getElementsByTagName("video")
+  const getVideo = (videoId?: string) => {
     // TODO: Handle multiple videos
-    video = videos[0]
+    video = videoId
+      ? (document.getElementById(videoId) as HTMLVideoElement)
+      : document.getElementsByTagName("video")[0]
+
     if (video) {
       Object.values(VIDEO_EVENTS).forEach((event) =>
         video.addEventListener(
@@ -104,7 +106,7 @@ const bootstrap = () => {
   browser.runtime.onMessage.addListener((request: ExtMessage) => {
     switch (request.type) {
       case MESSAGE_TYPE.INIT: {
-        return init().then((res) => {
+        return init(request.videoId).then((res) => {
           return res
         })
       }

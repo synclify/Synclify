@@ -1,9 +1,10 @@
 import type { PlasmoCSConfig } from "plasmo"
 import { sendToBackground } from "@plasmohq/messaging"
-// this cs reinjects automatically the main logic if a room has been created and no vides were found
+// this cs reinjects automatically the main logic if a room has been created and no videos were found
 export const config: PlasmoCSConfig = {
   matches: ["<all_urls>"],
-  all_frames: true
+  all_frames: true,
+  run_at: "document_end"
 }
 
 const observer = new MutationObserver((mutations) => {
