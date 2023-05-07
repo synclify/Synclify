@@ -1,5 +1,6 @@
 export type ExtMessage = {
   type: MESSAGE_TYPE
+  videoId: string
 }
 
 export type ExtResponse = {
