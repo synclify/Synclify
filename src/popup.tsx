@@ -46,14 +46,24 @@ function IndexPopup() {
       setDetected(false)
       setError(true)
       setErrorMessage("Video not detected")
-    } else if (response.status === MESSAGE_STATUS.SUCCESS) {
-      setDetected(true)
-      setInRoom(true)
-      setError(false)
-    } else if (response.status === MESSAGE_STATUS.ERROR) {
-      setDetected(false)
-      setError(true)
-      setErrorMessage(response.message as string)
+      return
+    }
+    switch (response.status) {
+      case MESSAGE_STATUS.SUCCESS:
+        setDetected(true)
+        setInRoom(true)
+        setError(false)
+        break
+      case MESSAGE_STATUS.ERROR:
+        setDetected(false)
+        setError(true)
+        setErrorMessage(response.message as string)
+        break
+      case MESSAGE_STATUS.MULTIPLE_VIDEOS:
+        setDetected(false)
+        setError(true)
+        setErrorMessage(response.message as string)
+        break
     }
   }, [])
 
@@ -67,11 +77,6 @@ function IndexPopup() {
       sendToBackground({ name: "inject" }).then((response: ExtResponse) =>
         responseCallback(response)
       )
-      /*
-      browser.tabs
-        .sendMessage(currentTab, { type: MESSAGE_TYPE.INIT })
-        .then((response: ExtResponse) => responseCallback(response))
-        */
     },
     [currentTab, responseCallback, setRenderValue, setStoreValue]
   )
@@ -87,15 +92,13 @@ function IndexPopup() {
         .catch((err) => console.error(err))
         .then((granted) => {
           if (granted) {
-            sendToBackground({ name: "inject" }).then(() => {
-              if (data) {
-                const room = data.room.toUpperCase()
-                roomCallback(room)
-              } else
-                sendToBackground({ name: "createRoom" }).then((roomCode) =>
-                  roomCallback(roomCode)
-                )
-            })
+            if (data) {
+              const room = data.room.toUpperCase()
+              roomCallback(room)
+            } else
+              sendToBackground({ name: "createRoom" }).then((roomCode) =>
+                roomCallback(roomCode)
+              )
           }
         })
     },

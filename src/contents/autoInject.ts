@@ -7,6 +7,8 @@ export const config: PlasmoCSConfig = {
   run_at: "document_end"
 }
 
+let shouldInject = false
+
 const observer = new MutationObserver((mutations) => {
   // check to reinject only if videos or iframes are added
   if (
@@ -16,12 +18,15 @@ const observer = new MutationObserver((mutations) => {
       )
     )
   ) {
-    sendToBackground({ name: "shouldInject" }).then((res: boolean) => {
-      if (res) sendToBackground({ name: "inject" })
-    })
+    if (shouldInject) sendToBackground({ name: "inject" })
+    return true
   }
 })
 
-observer.observe(document, { subtree: true, childList: true })
+sendToBackground({ name: "shouldInject" }).then((res: boolean) => {
+  shouldInject = res
+  if (shouldInject)
+    observer.observe(document, { subtree: true, childList: true })
+})
 
 export {}
