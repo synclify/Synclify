@@ -51,7 +51,6 @@ const bootstrap = () => {
   })
 
   const getVideo = (videoId?: string) => {
-    // TODO: Handle multiple videos
     video = videoId
       ? (document.getElementById(videoId) as HTMLVideoElement)
       : document.getElementsByTagName("video")[0]
@@ -168,15 +167,5 @@ declare global {
 if (window.synclify !== true) {
   window.synclify = true
 
-  if (hasVideos()) {
-    bootstrap()
-  } else {
-    const observer = new MutationObserver(() => {
-      if (hasVideos()) {
-        observer.disconnect()
-        bootstrap()
-      }
-    })
-    observer.observe(document, { subtree: true, childList: true })
-  }
+  if (hasVideos()) bootstrap()
 }
