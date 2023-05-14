@@ -1,3 +1,4 @@
+import { MESSAGE_STATUS } from "~types/messaging"
 import type { PlasmoCSConfig } from "plasmo"
 import { sendToBackground } from "@plasmohq/messaging"
 // this cs reinjects automatically the main logic if a room has been created and no videos were found
@@ -23,10 +24,13 @@ const observer = new MutationObserver((mutations) => {
   }
 })
 
-sendToBackground({ name: "shouldInject" }).then((res: boolean) => {
+sendToBackground({ name: "shouldInject" }).then(async (res: boolean) => {
   shouldInject = res
-  if (shouldInject)
-    observer.observe(document, { subtree: true, childList: true })
+  if (shouldInject) {
+    const result = await sendToBackground({ name: "inject" })
+    if (result !== MESSAGE_STATUS.SUCCESS)
+      observer.observe(document, { subtree: true, childList: true })
+  }
 })
 
 export {}

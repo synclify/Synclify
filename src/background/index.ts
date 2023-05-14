@@ -1,13 +1,13 @@
-import type { RoomsList } from "~utils/rooms"
+import type { State } from "~types/state.type"
 import { Storage } from "@plasmohq/storage"
 import browser from "webextension-polyfill"
 
 const storage = new Storage({ area: "local" })
 
 browser.tabs.onRemoved.addListener((tabId) => {
-  storage.get<RoomsList>("rooms").then((r) => {
-    delete r[tabId]
-    if (r) storage.set("rooms", r)
+  storage.get<State>("state").then((state) => {
+    delete state[tabId]
+    if (state) storage.set("state", state)
   })
 })
 

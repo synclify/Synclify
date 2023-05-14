@@ -1,19 +1,20 @@
 import { type ExtMessage, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import { SOCKET_EVENTS, SOCKET_URL } from "~types/socket"
 
-import type { RoomsList } from "~utils/rooms"
+import type { State } from "~types/state"
 import { Storage } from "@plasmohq/storage"
 import { VIDEO_EVENTS } from "~types/video"
 import browser from "webextension-polyfill"
 import debounce from "lodash.debounce"
-import { hasVideos } from "~utils"
+import { hasVideos, setState } from "~utils"
 import { io } from "socket.io-client"
 import { sendToBackground } from "@plasmohq/messaging"
 
 const bootstrap = () => {
   let tabId: number
-  let roomCode: string | undefined
-  let video: HTMLVideoElement
+  let roomCode: string
+  let state: State
+  let video: HTMLVideoElement | null
 
   const storage = new Storage({ area: "local", allCopied: true })
   const socket = io(SOCKET_URL, {
@@ -23,8 +24,8 @@ const bootstrap = () => {
 
   const init = async (videoId: string) => {
     tabId = await sendToBackground({ name: "getTabId" })
-    const rooms = await storage.get<RoomsList>("rooms")
-    roomCode = rooms?.[tabId]
+    state = await storage.get<State>("state")
+    roomCode = state?.[tabId].roomId
     if (roomCode) {
       if (socket.disconnected) socket.connect()
       return getVideo(videoId)
@@ -32,7 +33,7 @@ const bootstrap = () => {
   }
   console.log("Synclify: loaded")
 
-  //init()
+  // init()
 
   const videoEventHandler = (event: Event) => {
     if (roomCode) {
@@ -56,8 +57,9 @@ const bootstrap = () => {
       : document.getElementsByTagName("video")[0]
 
     if (video) {
+      storage.set("state", setState(tabId, roomCode, state, true))
       Object.values(VIDEO_EVENTS).forEach((event) =>
-        video.addEventListener(
+        video?.addEventListener(
           event,
           debounce(videoEventHandler, 500, { leading: true, trailing: false })
         )
@@ -112,22 +114,9 @@ const bootstrap = () => {
       case MESSAGE_TYPE.EXIT:
         // TODO: Remove event listeners
         socket.disconnect()
+        video = null
         return Promise.resolve({
           status: MESSAGE_STATUS.SUCCESS
-        })
-      case MESSAGE_TYPE.CHECK_VIDEO:
-        if (video) {
-          return Promise.resolve({
-            status: MESSAGE_STATUS.SUCCESS
-          })
-        }
-        sendToBackground({
-          name: "showToast",
-          body: { error: true, content: "Video not found" }
-        })
-        return Promise.resolve({
-          status: MESSAGE_STATUS.ERROR,
-          message: "Video not found"
         })
       default:
         return
