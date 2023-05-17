@@ -15,6 +15,7 @@ const bootstrap = () => {
   let roomCode: string
   let state: State
   let video: HTMLVideoElement | null
+  let syntheticEvent = false
 
   const storage = new Storage({ area: "local", allCopied: true })
   const socket = io(SOCKET_URL, {
@@ -41,9 +42,18 @@ const bootstrap = () => {
         SOCKET_EVENTS.VIDEO_EVENT,
         roomCode,
         event.type,
-        video.volume,
-        video.currentTime
+        video?.volume,
+        video?.currentTime
       )
+    }
+  }
+
+  const checkVideoEvent = (event: Event) => {
+    // if event comes from javascript code, stop videoEventHandler listener from firing
+    if (syntheticEvent) {
+      event.stopImmediatePropagation()
+      // resetting flag
+      syntheticEvent = false
     }
   }
 
@@ -58,6 +68,12 @@ const bootstrap = () => {
 
     if (video) {
       storage.set("state", setState(tabId, roomCode, state, true))
+      Object.values(VIDEO_EVENTS).forEach((event) =>
+        video?.addEventListener(
+          event,
+          debounce(checkVideoEvent, 500, { leading: true, trailing: false })
+        )
+      )
       Object.values(VIDEO_EVENTS).forEach((event) =>
         video?.addEventListener(
           event,
@@ -104,6 +120,33 @@ const bootstrap = () => {
     socket.io.opts.transports = ["polling", "websocket"]
   })
 
+  socket.on(
+    SOCKET_EVENTS.VIDEO_EVENT,
+    (eventType: VIDEO_EVENTS, volumeValue: string, currentTime: string) => {
+      switch (eventType) {
+        case VIDEO_EVENTS.PLAY:
+          // flagging next event as code generated
+          syntheticEvent = true
+          video?.play()
+          break
+        case VIDEO_EVENTS.PAUSE:
+          syntheticEvent = true
+          video?.pause()
+          break
+        case VIDEO_EVENTS.VOLUMECHANGE:
+          syntheticEvent = true
+          video && (video.volume = Number.parseFloat(volumeValue))
+          break
+        case VIDEO_EVENTS.SEEKED: {
+          const time = Number.parseInt(currentTime)
+          syntheticEvent = true
+          video && (video.currentTime = time)
+          break
+        }
+      }
+    }
+  )
+
   browser.runtime.onMessage.addListener((request: ExtMessage) => {
     switch (request.type) {
       case MESSAGE_TYPE.INIT: {
@@ -122,28 +165,6 @@ const bootstrap = () => {
         return
     }
   })
-
-  socket.on(
-    SOCKET_EVENTS.VIDEO_EVENT,
-    (eventType: VIDEO_EVENTS, volumeValue: string, currentTime: string) => {
-      switch (eventType) {
-        case VIDEO_EVENTS.PLAY:
-          video.play()
-          break
-        case VIDEO_EVENTS.PAUSE:
-          video.pause()
-          break
-        case VIDEO_EVENTS.VOLUMECHANGE:
-          video.volume = Number.parseFloat(volumeValue)
-          break
-        case VIDEO_EVENTS.SEEKED: {
-          const time = Number.parseInt(currentTime)
-          video.currentTime = time
-          break
-        }
-      }
-    }
-  )
 }
 
 declare global {
