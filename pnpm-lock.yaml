@@ -27,7 +27,7 @@ specifiers:
   postcss: ^8.4.23
   preact: ^10.14.1
   prettier: ^2.8.8
-  prettier-plugin-tailwindcss: ^0.2.8
+  prettier-plugin-tailwindcss: ^0.3.0
   react: ^18.2.0
   react-dom: ^18.2.0
   react-hook-form: ^7.43.9
@@ -69,7 +69,7 @@ devDependencies:
   plasmo: 0.71.0_4ecfgzy4ghxhzhk6hanmlly3ey
   postcss: 8.4.23
   prettier: 2.8.8
-  prettier-plugin-tailwindcss: 0.2.8_prettier@2.8.8
+  prettier-plugin-tailwindcss: 0.3.0_prettier@2.8.8
   tailwindcss: 3.3.2
   typescript: 5.0.4
   webextension-polyfill: 0.10.0
@@ -6370,8 +6370,8 @@ packages:
       fast-diff: 1.2.0
     dev: true
 
-  /prettier-plugin-tailwindcss/0.2.8_prettier@2.8.8:
-    resolution: {integrity: sha512-KgPcEnJeIijlMjsA6WwYgRs5rh3/q76oInqtMXBA/EMcamrcYJpyhtRhyX1ayT9hnHlHTuO8sIifHF10WuSDKg==}
+  /prettier-plugin-tailwindcss/0.3.0_prettier@2.8.8:
+    resolution: {integrity: sha512-009/Xqdy7UmkcTBpwlq7jsViDqXAYSOMLDrHAdTMlVZOrKfM2o9Ci7EMWTMZ7SkKBFTG04UM9F9iM2+4i6boDA==}
     engines: {node: '>=12.17.0'}
     peerDependencies:
       '@ianvs/prettier-plugin-sort-imports': '*'
@@ -6384,6 +6384,7 @@ packages:
       prettier-plugin-css-order: '*'
       prettier-plugin-import-sort: '*'
       prettier-plugin-jsdoc: '*'
+      prettier-plugin-marko: '*'
       prettier-plugin-organize-attributes: '*'
       prettier-plugin-organize-imports: '*'
       prettier-plugin-style-order: '*'
@@ -6407,6 +6408,8 @@ packages:
       prettier-plugin-import-sort:
         optional: true
       prettier-plugin-jsdoc:
+        optional: true
+      prettier-plugin-marko:
         optional: true
       prettier-plugin-organize-attributes:
         optional: true
