@@ -1,19 +1,21 @@
-import { ExtMessage, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
+import { type ExtMessage, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import { SOCKET_EVENTS, SOCKET_URL } from "~types/socket"
 
-import type { RoomsList } from "~utils/rooms"
+import type { State } from "~types/state"
 import { Storage } from "@plasmohq/storage"
 import { VIDEO_EVENTS } from "~types/video"
 import browser from "webextension-polyfill"
 import debounce from "lodash.debounce"
-import { hasVideos } from "~utils"
+import { hasVideos, setState } from "~utils"
 import { io } from "socket.io-client"
 import { sendToBackground } from "@plasmohq/messaging"
 
 const bootstrap = () => {
   let tabId: number
-  let roomCode: string | undefined
-  let video: HTMLVideoElement
+  let roomCode: string
+  let state: State
+  let video: HTMLVideoElement | null
+  let syntheticEvent = false
 
   const storage = new Storage({ area: "local", allCopied: true })
   const socket = io(SOCKET_URL, {
@@ -21,18 +23,18 @@ const bootstrap = () => {
     transports: ["websocket", "polling"]
   })
 
-  const init = async () => {
+  const init = async (videoId: string) => {
     tabId = await sendToBackground({ name: "getTabId" })
-    const rooms = await storage.get<RoomsList>("rooms")
-    roomCode = rooms?.[tabId]
+    state = await storage.get<State>("state")
+    roomCode = state?.[tabId].roomId
     if (roomCode) {
       if (socket.disconnected) socket.connect()
-      return getVideo()
+      return getVideo(videoId)
     }
   }
   console.log("Synclify: loaded")
 
-  init()
+  // init()
 
   const videoEventHandler = (event: Event) => {
     if (roomCode) {
@@ -40,9 +42,18 @@ const bootstrap = () => {
         SOCKET_EVENTS.VIDEO_EVENT,
         roomCode,
         event.type,
-        video.volume,
-        video.currentTime
+        video?.volume,
+        video?.currentTime
       )
+    }
+  }
+
+  const checkVideoEvent = (event: Event) => {
+    // if event comes from javascript code, stop videoEventHandler listener from firing
+    if (syntheticEvent) {
+      event.stopImmediatePropagation()
+      // resetting flag
+      syntheticEvent = false
     }
   }
 
@@ -50,13 +61,21 @@ const bootstrap = () => {
     if (!video) getVideo()
   })
 
-  const getVideo = () => {
-    const videos = document.getElementsByTagName("video")
-    // TODO: Handle multiple videos
-    video = videos[0]
+  const getVideo = (videoId?: string) => {
+    video = videoId
+      ? (document.getElementById(videoId) as HTMLVideoElement)
+      : document.getElementsByTagName("video")[0]
+
     if (video) {
+      storage.set("state", setState(tabId, roomCode, state, true))
       Object.values(VIDEO_EVENTS).forEach((event) =>
-        video.addEventListener(
+        video?.addEventListener(
+          event,
+          debounce(checkVideoEvent, 500, { leading: true, trailing: false })
+        )
+      )
+      Object.values(VIDEO_EVENTS).forEach((event) =>
+        video?.addEventListener(
           event,
           debounce(videoEventHandler, 500, { leading: true, trailing: false })
         )
@@ -101,59 +120,51 @@ const bootstrap = () => {
     socket.io.opts.transports = ["polling", "websocket"]
   })
 
+  socket.on(
+    SOCKET_EVENTS.VIDEO_EVENT,
+    (eventType: VIDEO_EVENTS, volumeValue: string, currentTime: string) => {
+      switch (eventType) {
+        case VIDEO_EVENTS.PLAY:
+          // flagging next event as code generated
+          syntheticEvent = true
+          video?.play()
+          break
+        case VIDEO_EVENTS.PAUSE:
+          syntheticEvent = true
+          video?.pause()
+          break
+        case VIDEO_EVENTS.VOLUMECHANGE:
+          syntheticEvent = true
+          video && (video.volume = Number.parseFloat(volumeValue))
+          break
+        case VIDEO_EVENTS.SEEKED: {
+          const time = Number.parseInt(currentTime)
+          syntheticEvent = true
+          video && (video.currentTime = time)
+          break
+        }
+      }
+    }
+  )
+
   browser.runtime.onMessage.addListener((request: ExtMessage) => {
     switch (request.type) {
       case MESSAGE_TYPE.INIT: {
-        return init().then((res) => {
+        return init(request.videoId).then((res) => {
           return res
         })
       }
       case MESSAGE_TYPE.EXIT:
         // TODO: Remove event listeners
         socket.disconnect()
+        video = null
         return Promise.resolve({
           status: MESSAGE_STATUS.SUCCESS
-        })
-      case MESSAGE_TYPE.CHECK_VIDEO:
-        if (video) {
-          return Promise.resolve({
-            status: MESSAGE_STATUS.SUCCESS
-          })
-        }
-        sendToBackground({
-          name: "showToast",
-          body: { error: true, content: "Video not found" }
-        })
-        return Promise.resolve({
-          status: MESSAGE_STATUS.ERROR,
-          message: "Video not found"
         })
       default:
         return
     }
   })
-
-  socket.on(
-    SOCKET_EVENTS.VIDEO_EVENT,
-    (eventType: VIDEO_EVENTS, volumeValue: string, currentTime: string) => {
-      switch (eventType) {
-        case VIDEO_EVENTS.PLAY:
-          video.play()
-          break
-        case VIDEO_EVENTS.PAUSE:
-          video.pause()
-          break
-        case VIDEO_EVENTS.VOLUMECHANGE:
-          video.volume = Number.parseFloat(volumeValue)
-          break
-        case VIDEO_EVENTS.SEEKED: {
-          const time = Number.parseInt(currentTime)
-          video.currentTime = time
-          break
-        }
-      }
-    }
-  )
 }
 
 declare global {
@@ -166,15 +177,5 @@ declare global {
 if (window.synclify !== true) {
   window.synclify = true
 
-  if (hasVideos()) {
-    bootstrap()
-  } else {
-    const observer = new MutationObserver(() => {
-      if (hasVideos()) {
-        observer.disconnect()
-        bootstrap()
-      }
-    })
-    observer.observe(document, { subtree: true, childList: true })
-  }
+  if (hasVideos()) bootstrap()
 }
