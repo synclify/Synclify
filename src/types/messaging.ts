@@ -1,5 +1,6 @@
 export type ExtMessage = {
   type: MESSAGE_TYPE
+  videoId: string
 }
 
 export type ExtResponse = {
@@ -9,7 +10,8 @@ export type ExtResponse = {
 
 export enum MESSAGE_STATUS {
   SUCCESS = "success",
-  ERROR = "error"
+  ERROR = "error",
+  MULTIPLE_VIDEOS = "multiple"
 }
 
 export enum MESSAGE_TYPE {

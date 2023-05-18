@@ -1,32 +1,36 @@
 import "./style.css"
 
 import { Button, TextInput, Tooltip } from "flowbite-react"
-import { ExtResponse, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
+import {
+  type ExtResponse,
+  MESSAGE_STATUS,
+  MESSAGE_TYPE
+} from "~types/messaging"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 
-import type { RoomsList } from "~utils/rooms"
+import type { State } from "~types/state"
 import { Storage } from "@plasmohq/storage"
 import browser from "webextension-polyfill"
 import logo from "data-text:~assets/logo.svg"
 import { sendToBackground } from "@plasmohq/messaging"
 import { useForm } from "react-hook-form"
 import { useStorage } from "@plasmohq/storage/hook"
+import { setState } from "~utils"
 
 type FormData = {
   room: string
 }
 
 function IndexPopup() {
-  const [rooms, , { setRenderValue, setStoreValue }] = useStorage<
-    RoomsList | undefined
+  const [state, , { setRenderValue, setStoreValue }] = useStorage<
+    State | undefined
   >({
-    key: "rooms",
+    key: "state",
     instance: new Storage({
       area: "local"
     })
   })
   const [inRoom, setInRoom] = useState(false)
-  const [detected, setDetected] = useState(false)
   const [error, setError] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
   const [currentTab, setCurrentTab] = useState<number>(0)
@@ -39,31 +43,36 @@ function IndexPopup() {
 
   const responseCallback = useCallback((response: ExtResponse) => {
     if (!response) {
-      setDetected(false)
       setError(true)
-      setErrorMessage("Video not detected")
-    } else if (response.status === MESSAGE_STATUS.SUCCESS) {
-      setDetected(true)
-      setInRoom(true)
-      setError(false)
-    } else if (response.status === MESSAGE_STATUS.ERROR) {
-      setDetected(false)
-      setError(true)
-      setErrorMessage(response.message as string)
+      setErrorMessage("Video not detected yet")
+      return
+    }
+    switch (response.status) {
+      case MESSAGE_STATUS.SUCCESS:
+        setInRoom(true)
+        setError(false)
+        break
+      case MESSAGE_STATUS.ERROR:
+        setError(true)
+        setErrorMessage(response.message as string)
+        break
+      case MESSAGE_STATUS.MULTIPLE_VIDEOS:
+        setError(true)
+        setErrorMessage(response.message as string)
+        break
     }
   }, [])
 
   const roomCallback = useCallback(
-    (newRooms: string) => {
-      setRenderValue((oldRooms) => {
-        const r = Object.assign(oldRooms ?? {}, { [currentTab]: newRooms })
-        setStoreValue(r)
-        return r
+    (roomId: string) => {
+      setRenderValue((state) => {
+        const newState = setState(currentTab, roomId, state)
+        setStoreValue(newState)
+        return newState
       })
-
-      browser.tabs
-        .sendMessage(currentTab, { type: MESSAGE_TYPE.INIT })
-        .then((response: ExtResponse) => responseCallback(response))
+      sendToBackground({ name: "inject" }).then((response: ExtResponse) =>
+        responseCallback(response)
+      )
     },
     [currentTab, responseCallback, setRenderValue, setStoreValue]
   )
@@ -79,15 +88,13 @@ function IndexPopup() {
         .catch((err) => console.error(err))
         .then((granted) => {
           if (granted) {
-            sendToBackground({ name: "inject" }).then(() => {
-              if (data) {
-                const room = data.room.toUpperCase()
-                roomCallback(room)
-              } else
-                sendToBackground({ name: "createRoom" }).then((roomCode) =>
-                  roomCallback(roomCode)
-                )
-            })
+            if (data) {
+              const room = data.room.toUpperCase()
+              roomCallback(room)
+            } else
+              sendToBackground({ name: "createRoom" }).then((roomCode) =>
+                roomCallback(roomCode)
+              )
           }
         })
     },
@@ -95,28 +102,25 @@ function IndexPopup() {
   )
 
   useEffect(() => {
-    if (rooms && rooms[currentTab]) setInRoom(true)
-  }, [currentTab, roomCallback, rooms])
+    if (state && state[currentTab]) {
+      setInRoom(true)
+      if (!state[currentTab].videoFound) {
+        setError(true)
+        setErrorMessage("Video not detected yet")
+      }
+    }
+  }, [currentTab, state])
 
   useEffect(() => {
-    sendToBackground({ name: "getTabId" }).then((tabId) => {
-      setCurrentTab(tabId)
-    })
+    sendToBackground({ name: "getTabId" }).then((tabId) => setCurrentTab(tabId))
   }, [])
 
-  useEffect(() => {
-    if (inRoom)
-      browser.tabs
-        .sendMessage(currentTab, { type: MESSAGE_TYPE.CHECK_VIDEO })
-        .then((response: ExtResponse) => responseCallback(response))
-  }, [currentTab, inRoom, responseCallback])
-
   const exitRoom = useCallback(() => {
-    setRenderValue((roomsState) => {
-      if (roomsState) {
-        delete roomsState[currentTab]
-        setStoreValue(roomsState)
-        return roomsState
+    setRenderValue((state) => {
+      if (state) {
+        delete state[currentTab]
+        setStoreValue(state)
+        return state
       }
     })
     setInRoom(false)
@@ -127,9 +131,10 @@ function IndexPopup() {
     )
   }, [currentTab, setRenderValue, setStoreValue])
 
-  const getRoom = useMemo(() => {
-    return rooms?.[currentTab] ?? "ERROR"
-  }, [currentTab, rooms])
+  const getRoom = useMemo(
+    () => state?.[currentTab]?.roomId ?? "ERROR",
+    [currentTab, state]
+  )
 
   const copyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(getRoom)
@@ -164,9 +169,6 @@ function IndexPopup() {
               className="my-4">
               Exit
             </Button>
-            {detected && !error ? null : (
-              <p className="text-base">Detecting the video...</p>
-            )}
             {error ? (
               <>
                 <p className="text-base text-red-700">{errorMessage}</p>
@@ -174,7 +176,7 @@ function IndexPopup() {
                   gradientDuoTone="purpleToBlue"
                   onClick={() =>
                     createOrJoinRoom(
-                      rooms ? { room: rooms?.[currentTab] } : undefined
+                      state ? { room: state?.[currentTab].roomId } : undefined
                     )
                   }>
                   Click to try again
