@@ -4,7 +4,6 @@ specifiers:
   '@plasmohq/messaging': ^0.3.0
   '@plasmohq/prettier-plugin-sort-imports': ^3.6.4
   '@plasmohq/storage': ^1.6.0
-  '@types/lodash.debounce': ^4.0.7
   '@types/node': ^18.16.13
   '@types/react': ^18.2.6
   '@types/react-dom': ^18.2.4
@@ -22,7 +21,6 @@ specifiers:
   eslint-plugin-react-hooks: ^4.6.0
   flowbite: ^1.6.5
   flowbite-react: ^0.4.4
-  lodash.debounce: ^4.0.8
   plasmo: ^0.71.0
   postcss: ^8.4.23
   preact: ^10.14.1
@@ -41,7 +39,6 @@ dependencies:
   '@plasmohq/storage': 1.6.0_react@18.2.0
   flowbite: 1.6.5
   flowbite-react: 0.4.4_nip7fp3zovd64me3xtw7v52p2e
-  lodash.debounce: 4.0.8
   preact: 10.14.1
   react: 18.2.0
   react-dom: 18.2.0_react@18.2.0
@@ -50,7 +47,6 @@ dependencies:
 
 devDependencies:
   '@plasmohq/prettier-plugin-sort-imports': 3.6.4_prettier@2.8.8
-  '@types/lodash.debounce': 4.0.7
   '@types/node': 18.16.13
   '@types/react': 18.2.6
   '@types/react-dom': 18.2.4
@@ -2411,16 +2407,6 @@ packages:
 
   /@types/json5/0.0.29:
     resolution: {integrity: sha512-dRLjCWHYg4oaA77cxO64oO+7JwCwnIzkZPdrrC71jQmQtlhM556pwKo5bUzqvZndkVbeFLIIi+9TC40JNF5hNQ==}
-    dev: true
-
-  /@types/lodash.debounce/4.0.7:
-    resolution: {integrity: sha512-X1T4wMZ+gT000M2/91SYj0d/7JfeNZ9PeeOldSNoE/lunLeQXKvkmIumI29IaKMotU/ln/McOIvgzZcQ/3TrSA==}
-    dependencies:
-      '@types/lodash': 4.14.194
-    dev: true
-
-  /@types/lodash/4.14.194:
-    resolution: {integrity: sha512-r22s9tAS7imvBt2lyHC9B8AGwWnXaYb1tY09oyLkXDs4vArpYJzw09nj8MLx5VfciBPGIb+ZwG0ssYnEPJxn/g==}
     dev: true
 
   /@types/node/18.16.13:
@@ -5235,10 +5221,6 @@ packages:
   /lodash.clone/4.5.0:
     resolution: {integrity: sha512-GhrVeweiTD6uTmmn5hV/lzgCQhccwReIVRLHp7LT4SopOjqEZ5BbX8b5WWEtAKasjmy8hR7ZPwsYlxRCku5odg==}
     dev: true
-
-  /lodash.debounce/4.0.8:
-    resolution: {integrity: sha512-FT1yDzDYEoYWhnSGnpE/4Kj1fLZkDFyqRb7fNt6FdYOSxlUWAtp42Eh6Wb0rGIv/m9Bgo7x4GhQbm5Ys4SG5ow==}
-    dev: false
 
   /lodash.defaults/4.2.0:
     resolution: {integrity: sha512-qjxPLHd3r5DnsdGacqOMU6pb/avJzdh9tFX2ymgoZE27BmjXrNy/y4LoaiTeAb+O3gL8AfpJGtqfX/ae2leYYQ==}
