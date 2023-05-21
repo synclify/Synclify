@@ -5,7 +5,6 @@ import type { State } from "~types/state"
 import { Storage } from "@plasmohq/storage"
 import { VIDEO_EVENTS } from "~types/video"
 import browser from "webextension-polyfill"
-import debounce from "lodash.debounce"
 import { hasVideos, setState } from "~utils"
 import { io } from "socket.io-client"
 import { sendToBackground } from "@plasmohq/messaging"
@@ -69,16 +68,10 @@ const bootstrap = () => {
     if (video) {
       storage.set("state", setState(tabId, roomCode, state, true))
       Object.values(VIDEO_EVENTS).forEach((event) =>
-        video?.addEventListener(
-          event,
-          debounce(checkVideoEvent, 500, { leading: true, trailing: false })
-        )
+        video?.addEventListener(event, checkVideoEvent)
       )
       Object.values(VIDEO_EVENTS).forEach((event) =>
-        video?.addEventListener(
-          event,
-          debounce(videoEventHandler, 500, { leading: true, trailing: false })
-        )
+        video?.addEventListener(event, videoEventHandler)
       )
       observer.disconnect()
       sendToBackground({
