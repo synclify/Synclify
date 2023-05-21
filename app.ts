@@ -59,7 +59,7 @@ io.sockets.on('connection', (socket) => {
   }
 
   socket.on('videoEvent', (room, event, volume, currentTime) => {
-    log('Got video event:', room, event, 'from: ', socket.id, volume, currentTime);
+    // log('Got video event:', room, event, 'from: ', socket.id, volume, currentTime);
     socket.to(room).emit('videoEvent', event, volume, currentTime);
   });
 
