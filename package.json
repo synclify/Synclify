@@ -1,7 +1,7 @@
 {
   "name": "synclify",
   "displayName": "Synclify - Watch in sync with your friends",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Create a watch party straight from your browser—works anywhere, ad-free.",
   "author": "andrea",
   "scripts": {
@@ -13,7 +13,6 @@
     "@plasmohq/storage": "^1.6.0",
     "flowbite": "^1.6.5",
     "flowbite-react": "^0.4.4",
-    "lodash.debounce": "^4.0.8",
     "preact": "^10.14.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -22,7 +21,6 @@
   },
   "devDependencies": {
     "@plasmohq/prettier-plugin-sort-imports": "^3.6.4",
-    "@types/lodash.debounce": "^4.0.7",
     "@types/node": "^18.16.13",
     "@types/react": "^18.2.6",
     "@types/react-dom": "^18.2.4",
