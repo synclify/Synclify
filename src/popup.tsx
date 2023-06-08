@@ -228,6 +228,20 @@ function IndexPopup() {
           </>
         )}
       </div>
+      <div className="mx-3 my-2 flex justify-between">
+        <a
+          href="https://forms.gle/HN6AGyThWAXSCaXC8"
+          target="about:blank"
+          className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-500">
+          Feedback
+        </a>
+        <a
+          href="https://synclify.party"
+          target="about:blank"
+          className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-500">
+          Website
+        </a>
+      </div>
     </React.StrictMode>
   )
 }
