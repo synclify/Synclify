@@ -9,7 +9,7 @@
     "build": "plasmo build"
   },
   "dependencies": {
-    "@plasmohq/messaging": "^0.3.0",
+    "@plasmohq/messaging": "^0.4.0",
     "@plasmohq/storage": "^1.6.0",
     "flowbite": "^1.6.5",
     "flowbite-react": "^0.4.4",
