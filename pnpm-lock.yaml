@@ -1,9 +1,13 @@
 lockfileVersion: '6.0'
 
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
 dependencies:
   '@plasmohq/messaging':
-    specifier: ^0.4.0
-    version: 0.4.0(react@18.2.0)
+    specifier: ^0.5.0
+    version: 0.5.0(react@18.2.0)
   '@plasmohq/storage':
     specifier: ^1.6.1
     version: 1.6.1(react@18.2.0)
@@ -1767,8 +1771,8 @@ packages:
     resolution: {integrity: sha512-zJVtRJiyqrxCfBhd0sUaJG/M0jhXlRjXQAekyCSrbgZWUFJNT08WyAwVmeIgS9Y3NoTY5kwT0mBuJb7Kykv0ag==}
     dev: true
 
-  /@plasmohq/messaging@0.4.0(react@18.2.0):
-    resolution: {integrity: sha512-xfG1r71fh/YPrTs9amMqiNWqM+xAq8JZZl8iuU8iSq1ZDhFWZ5EfS44h8IBmrTmHaobpgnsKpw6HZVHjfWTHTg==}
+  /@plasmohq/messaging@0.5.0(react@18.2.0):
+    resolution: {integrity: sha512-cYF750rguJDvnyJls2IHVAJTPVFtCEaMHMhnRsENfGaNqcRfXVfzwBGOABPg3k1iSBWBYLySh3Ht7QvFSnB3RQ==}
     peerDependencies:
       react: ^16.8.6 || ^17 || ^18
     peerDependenciesMeta:
