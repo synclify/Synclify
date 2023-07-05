@@ -19,7 +19,7 @@ jobs:
           version: 7.11.0
           run_install: true
       - name: Use Node.js 16.x
-        uses: actions/setup-node@v3.4.1
+        uses: actions/setup-node@v3.7.0
         with:
           node-version: 16.x
           cache: "pnpm"
