@@ -30,8 +30,8 @@ dependencies:
     specifier: ^7.45.0
     version: 7.45.0(react@18.2.0)
   socket.io-client:
-    specifier: ^4.6.2
-    version: 4.6.2
+    specifier: ^4.7.2
+    version: 4.7.2
 
 devDependencies:
   '@plasmohq/prettier-plugin-sort-imports':
@@ -3776,12 +3776,12 @@ packages:
       once: 1.4.0
     dev: true
 
-  /engine.io-client@6.4.0:
-    resolution: {integrity: sha512-GyKPDyoEha+XZ7iEqam49vz6auPnNJ9ZBfy89f+rMMas8AuiMWOZ9PVzu8xb9ZC6rafUqiGHSCfu22ih66E+1g==}
+  /engine.io-client@6.5.2:
+    resolution: {integrity: sha512-CQZqbrpEYnrpGqC07a9dJDz4gePZUgTPMU3NKJPSeQOyw27Tst4Pl3FemKoFGAlHzgZmKjoRmiJvbWfhCXUlIg==}
     dependencies:
       '@socket.io/component-emitter': 3.1.0
       debug: 4.3.4
-      engine.io-parser: 5.0.7
+      engine.io-parser: 5.2.1
       ws: 8.11.0
       xmlhttprequest-ssl: 2.0.0
     transitivePeerDependencies:
@@ -3790,8 +3790,8 @@ packages:
       - utf-8-validate
     dev: false
 
-  /engine.io-parser@5.0.7:
-    resolution: {integrity: sha512-P+jDFbvK6lE3n1OL+q9KuzdOFWkkZ/cMV9gol/SbVfpyqfvrfrFTOFJ6fQm2VC3PZHlU3QPhVwmbsCnauHF2MQ==}
+  /engine.io-parser@5.2.1:
+    resolution: {integrity: sha512-9JktcM3u18nU9N2Lz3bWeBgxVgOKpw7yhRaoxQA3FUDZzzw+9WlA6p4G4u0RixNkg14fH7EfEc/RhpurtiROTQ==}
     engines: {node: '>=10.0.0'}
     dev: false
 
@@ -6990,13 +6990,13 @@ packages:
       tslib: 2.5.3
     dev: true
 
-  /socket.io-client@4.6.2:
-    resolution: {integrity: sha512-OwWrMbbA8wSqhBAR0yoPK6EdQLERQAYjXb3A0zLpgxfM1ZGLKoxHx8gVmCHA6pcclRX5oA/zvQf7bghAS11jRA==}
+  /socket.io-client@4.7.2:
+    resolution: {integrity: sha512-vtA0uD4ibrYD793SOIAwlo8cj6haOeMHrGvwPxJsxH7CeIksqJ+3Zc06RvWTIFgiSqx4A3sOnTXpfAEE2Zyz6w==}
     engines: {node: '>=10.0.0'}
     dependencies:
       '@socket.io/component-emitter': 3.1.0
       debug: 4.3.4
-      engine.io-client: 6.4.0
+      engine.io-client: 6.5.2
       socket.io-parser: 4.2.4
     transitivePeerDependencies:
       - bufferutil
