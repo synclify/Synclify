@@ -1,6 +1,7 @@
 {
   "name": "openw2g-socket",
   "version": "1.0.0",
+  "packageManager": "pnpm@8.7.6",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -13,14 +14,14 @@
   "license": "ISC",
   "dependencies": {
     "@socket.io/admin-ui": "^0.5.1",
-    "dotenv": "^16.0.3",
-    "socket.io": "^4.6.1",
+    "dotenv": "^16.3.1",
+    "socket.io": "^4.7.2",
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.25.0"
   },
   "devDependencies": {
-    "@types/node": "^20.2.1",
-    "nodemon": "^2.0.22",
-    "ts-node": "^10.9.1",
-    "typescript": "^5.0.4"
+    "@types/node": "^20.10.5",
+    "nodemon": "^3.0.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   }
 }
