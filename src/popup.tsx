@@ -235,6 +235,11 @@ function IndexPopup() {
           className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-500">
           Feedback
         </a>
+        <button
+          onClick={() => browser.runtime.openOptionsPage()}
+          className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-500">
+          Settings
+        </button>
         <a
           href="https://synclify.party"
           target="about:blank"
