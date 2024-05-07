@@ -1,6 +1,6 @@
 import "./style.css"
 
-import { Button, TextInput, Tooltip } from "flowbite-react"
+import { Tooltip } from "flowbite-react"
 import {
   type ExtResponse,
   MESSAGE_STATUS,
@@ -16,6 +16,10 @@ import { sendToBackground } from "@plasmohq/messaging"
 import { useForm } from "react-hook-form"
 import { useStorage } from "@plasmohq/storage/hook"
 import { setState } from "~utils"
+import { Button } from "~components/ui/button"
+import { Input } from "~components/ui/input"
+import { Label } from "~components/ui/label"
+import { Separator } from "~components/ui/separator"
 
 type FormData = {
   room: string
@@ -143,7 +147,7 @@ function IndexPopup() {
 
   return (
     <React.StrictMode>
-      <div className="flex flex-col p-4">
+      <div className="dark flex flex-col bg-stone-900 p-4 text-primary">
         <div dangerouslySetInnerHTML={{ __html: logo }} className="pb-2" />
         {inRoom ? (
           <>
@@ -163,17 +167,13 @@ function IndexPopup() {
                 </Tooltip>
               </div>
             </div>
-            <Button
-              gradientDuoTone="purpleToBlue"
-              onClick={exitRoom}
-              className="my-4">
+            <Button onClick={exitRoom} className="my-4">
               Exit
             </Button>
             {error ? (
               <>
                 <p className="text-base text-red-700">{errorMessage}</p>
                 <Button
-                  gradientDuoTone="purpleToBlue"
                   onClick={() =>
                     createOrJoinRoom(
                       state ? { room: state?.[currentTab].roomId } : undefined
@@ -186,20 +186,19 @@ function IndexPopup() {
           </>
         ) : (
           <>
-            <Button
-              gradientDuoTone="purpleToBlue"
-              onClick={() => createOrJoinRoom()}>
-              Create room
-            </Button>
-            <p className="text-base">or</p>
-            <p className="text-base">Join room: </p>
+            <Button onClick={() => createOrJoinRoom()}>Create room</Button>
+            <div className="flex items-center">
+              <Separator className="flex-grow dark w-auto"/>
+              <p className="flex-grow-0 text-base mx-2">or</p>
+              <Separator className="flex-grow dark w-auto"/>
+            </div>
+            <Label>Join room: </Label>
             <form
               onSubmit={handleSubmit(createOrJoinRoom)}
               className="flex flex-col gap-4">
-              <TextInput
+              <Input
                 type="text"
                 placeholder="Room code"
-                sizing="sm"
                 className="text-base"
                 {...register("room", {
                   required: {
@@ -221,31 +220,34 @@ function IndexPopup() {
                   </p>
                 </div>
               )}
-              <Button gradientDuoTone="purpleToBlue" type="submit">
-                Join!
-              </Button>
+              <Button type="submit">Join!</Button>
             </form>
           </>
         )}
       </div>
-      <div className="mx-3 my-2 flex justify-between">
-        <a
-          href="https://forms.gle/HN6AGyThWAXSCaXC8"
-          target="about:blank"
-          className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-500">
-          Feedback
-        </a>
-        <button
+      <div className="dark mx-3 my-2 flex justify-between bg-stone-900">
+        <Button variant="link" asChild>
+          <a
+            href="https://forms.gle/HN6AGyThWAXSCaXC8"
+            target="about:blank"
+            className="text-sm hover:underline">
+            Feedback
+          </a>
+        </Button>
+        <Button
+          variant="link"
           onClick={() => browser.runtime.openOptionsPage()}
-          className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-500">
+          className="text-sm hover:underline">
           Settings
-        </button>
-        <a
-          href="https://synclify.party"
-          target="about:blank"
-          className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-500">
-          Website
-        </a>
+        </Button>
+        <Button variant="link" asChild>
+          <a
+            href="https://synclify.party"
+            target="about:blank"
+            className="text-sm font-medium hover:underline">
+            Website
+          </a>
+        </Button>
       </div>
     </React.StrictMode>
   )
