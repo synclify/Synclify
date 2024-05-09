@@ -1,9 +1,15 @@
-import { useEffect, useState } from "react"
+import type {
+  PlasmoCSUIJSXContainer,
+  PlasmoGetStyle,
+  PlasmoRender
+} from "plasmo"
 
-import type { PlasmoGetStyle } from "plasmo"
+import { Toaster } from "~components/ui/sonner"
 import browser from "webextension-polyfill"
-import icon from "data-base64:~assets/icon.png"
+import { createRoot } from "react-dom/client"
 import styleText from "data-text:../style.css"
+import { toast } from "../../node_modules/sonner/dist"
+import { useEffect } from "react"
 
 export const getStyle: PlasmoGetStyle = () => {
   const style = document.createElement("style")
@@ -12,10 +18,6 @@ export const getStyle: PlasmoGetStyle = () => {
 }
 
 const PlasmoOverlay = () => {
-  const [show, setShow] = useState(false)
-  const [content, setContent] = useState("")
-  const [error, setError] = useState(false)
-
   useEffect(() => {
     const callback = (
       msg: {
@@ -29,11 +31,9 @@ const PlasmoOverlay = () => {
     ) => {
       if (msg.to === "toast") {
         if (msg.show) {
-          setError(msg.error)
-          setContent(msg.content)
-          setShow(msg.show)
-          setTimeout(() => setShow(false), 2000)
-        } else setShow(false)
+          if (msg.error) toast.error(msg.content)
+          else toast.success(msg.content)
+        } else toast.dismiss()
         sendResponse(null)
         return true
       }
@@ -46,16 +46,24 @@ const PlasmoOverlay = () => {
   }, [])
 
   return (
-    <div
-      className={`fixed right-0 flex rounded-l-2xl border-y border-l bg-opacity-20 p-3 opacity-0 backdrop-blur transition duration-300 ${
-        show ? "translate-x-0 opacity-100" : "translate-x-40"
-      } ${
-        error ? "border-red-500 bg-red-500" : "border-green-400 bg-green-400"
-      }`}>
-      <img src={icon} alt="Synclify icon" className="mr-2 h-6 w-6" />
-      <p className="font-bold text-white">{content}</p>
-    </div>
+    <Toaster />
   )
 }
 
 export default PlasmoOverlay
+
+export const render: PlasmoRender<PlasmoCSUIJSXContainer> = async ({
+  createRootContainer
+}) => {
+  if (createRootContainer) {
+    const rootContainer = await createRootContainer()
+    const root = createRoot(rootContainer)
+    root.render(<PlasmoOverlay />)
+  }
+}
+
+export const getRootContainer = () => {
+  const rootContainer = document.createElement("div")
+  document.body.appendChild(rootContainer)
+  return rootContainer
+}
