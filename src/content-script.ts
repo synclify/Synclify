@@ -8,6 +8,8 @@ import browser from "webextension-polyfill"
 import { hasVideos, setState } from "~utils"
 import { io } from "socket.io-client"
 import { sendToBackground } from "@plasmohq/messaging"
+import type { settingsSchema } from "~options"
+import { z } from "zod"
 
 const bootstrap = () => {
   let tabId: number
@@ -15,8 +17,10 @@ const bootstrap = () => {
   let state: State
   let video: HTMLVideoElement | null
   let syntheticEvent = false
+  let settings: z.infer<typeof settingsSchema>
 
   const storage = new Storage({ area: "local", allCopied: true })
+  const settingsStorage = new Storage({ area: "sync" })
   const socket = io(SOCKET_URL, {
     autoConnect: false,
     transports: ["websocket", "polling"]
@@ -25,6 +29,7 @@ const bootstrap = () => {
   const init = async (videoId: string) => {
     tabId = await sendToBackground({ name: "getTabId" })
     state = await storage.get<State>("state")
+    settings = await settingsStorage.get("settings")
     roomCode = state?.[tabId].roomId
     if (roomCode) {
       if (socket.disconnected) socket.connect()
@@ -127,6 +132,7 @@ const bootstrap = () => {
           video?.pause()
           break
         case VIDEO_EVENTS.VOLUMECHANGE:
+          if (!settings.syncAudio) break
           syntheticEvent = true
           video && (video.volume = Number.parseFloat(volumeValue))
           break
