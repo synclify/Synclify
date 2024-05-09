@@ -19,7 +19,7 @@ import { useStorage } from "@plasmohq/storage/hook"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 
-const formSchema = z.object({
+export const settingsSchema = z.object({
   syncAudio: z.boolean()
 })
 function OptionsIndex() {
@@ -33,8 +33,8 @@ function OptionsIndex() {
     (v) => (v === undefined ? { syncAudio: false } : v)
   )
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<z.infer<typeof settingsSchema>>({
+    resolver: zodResolver(settingsSchema),
     values: settings
   })
 
@@ -43,7 +43,7 @@ function OptionsIndex() {
   }, [settings, form])
 
   // 2. Define a submit handler.
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  function onSubmit(values: z.infer<typeof settingsSchema>) {
     // Do something with the form values.
     // ✅ This will be type-safe and validated.
     setSettings({ syncAudio: values.syncAudio }).then((v) => {
