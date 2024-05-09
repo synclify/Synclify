@@ -1,4 +1,4 @@
-import type { State } from "~types/state.type"
+import type { State } from "~types/state"
 import { Storage } from "@plasmohq/storage"
 import browser from "webextension-polyfill"
 

@@ -21,11 +21,13 @@
     "clsx": "^2.1.1",
     "flowbite": "^2.3.0",
     "flowbite-react": "^0.7.8",
+    "next-themes": "^0.3.0",
     "preact": "^10.21.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.51.4",
     "socket.io-client": "^4.7.5",
+    "sonner": "^1.4.41",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.23.6"
