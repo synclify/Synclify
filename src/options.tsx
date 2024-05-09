@@ -13,6 +13,8 @@ import {
 import { Button } from "~/components/ui/button"
 import { Storage } from "@plasmohq/storage"
 import { Switch } from "~components/ui/switch"
+import { Toaster } from "~components/ui/sonner"
+import { toast } from "../node_modules/sonner/dist"
 import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { useStorage } from "@plasmohq/storage/hook"
@@ -23,7 +25,7 @@ export const settingsSchema = z.object({
   syncAudio: z.boolean()
 })
 function OptionsIndex() {
-  const [settings, setSettings] = useStorage<{syncAudio: boolean}>(
+  const [settings, setSettings] = useStorage<{ syncAudio: boolean }>(
     {
       key: "settings",
       instance: new Storage({
@@ -39,20 +41,24 @@ function OptionsIndex() {
   })
 
   useEffect(() => {
-    console.log(settings, form)
+    document.documentElement.classList.add("dark")
   }, [settings, form])
 
-  // 2. Define a submit handler.
   function onSubmit(values: z.infer<typeof settingsSchema>) {
-    // Do something with the form values.
-    // ✅ This will be type-safe and validated.
-    setSettings({ syncAudio: values.syncAudio }).then((v) => {
-      console.log(settings, v)
-    })
+    setSettings({ syncAudio: values.syncAudio })
+      .then((v) => {
+        console.log(settings, v)
+        toast.success("Settings saved")
+      })
+      .catch((e) => {
+        console.error(e)
+        toast.error("Failed to save settings", { description: e })
+      })
   }
 
   return (
     <div>
+      <Toaster />
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="w-96 space-y-6">
           <div>
