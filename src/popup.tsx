@@ -1,6 +1,12 @@
 import "./style.css"
 
-import { Tooltip } from "flowbite-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  TooltipArrow
+} from "~components/ui/tooltip"
 import {
   type ExtResponse,
   MESSAGE_STATUS,
@@ -39,6 +45,7 @@ function IndexPopup() {
   const [errorMessage, setErrorMessage] = useState("")
   const [currentTab, setCurrentTab] = useState<number>(0)
   const [tooltipText, setTooltipText] = useState("Click to copy")
+  const [openTooltip, setOpenTooltip] = useState(false)
   const {
     register,
     handleSubmit,
@@ -154,17 +161,27 @@ function IndexPopup() {
             <div className="text-base">
               <p>Room code:</p>
               <div className="flex place-content-center">
-                <Tooltip
-                  content={tooltipText}
-                  placement="right"
-                  arrow={true}
-                  style="light">
-                  <p
-                    className="cursor-pointer text-xl font-bold"
-                    onClick={copyToClipboard}>
-                    {getRoom}
-                  </p>
-                </Tooltip>
+                <TooltipProvider>
+                  <Tooltip open={openTooltip}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="cursor-pointer text-xl font-bold"
+                        onMouseOver={() => {
+                          setOpenTooltip(true)
+                          setTooltipText("Click to copy")
+                        }}
+                        onMouseLeave={() => setOpenTooltip(false)}
+                        onClick={copyToClipboard}>
+                        {getRoom}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      {tooltipText}
+                      <TooltipArrow />
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
             <Button onClick={exitRoom} className="my-4">
@@ -188,9 +205,9 @@ function IndexPopup() {
           <>
             <Button onClick={() => createOrJoinRoom()}>Create room</Button>
             <div className="flex items-center">
-              <Separator className="flex-grow dark w-auto"/>
-              <p className="flex-grow-0 text-base mx-2">or</p>
-              <Separator className="flex-grow dark w-auto"/>
+              <Separator className="dark w-auto flex-grow" />
+              <p className="mx-2 flex-grow-0 text-base">or</p>
+              <Separator className="dark w-auto flex-grow" />
             </div>
             <Label>Join room: </Label>
             <form
@@ -224,12 +241,6 @@ function IndexPopup() {
             </form>
           </>
         )}
-        <Button onClick={() => {
-                sendToBackground({
-                  name: "showToast",
-                  body: { content: "Video detected" }
-                })
-        }}>show toast</Button>
       </div>
       <div className="dark mx-3 my-2 flex justify-between bg-stone-900">
         <Button variant="link" asChild>
