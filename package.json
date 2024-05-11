@@ -6,7 +6,10 @@
   "author": "andrea",
   "scripts": {
     "dev": "plasmo dev",
-    "build": "plasmo build"
+    "build": "plasmo build",
+    "build:firefox": "plasmo build --target=firefox-mv3 --zip",
+    "deploy": "plasmo build",
+    "deploy:firefox": "plasmo build --target=firefox-mv3 --zip"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
