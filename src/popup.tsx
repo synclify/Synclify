@@ -11,7 +11,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react"
 import type { State } from "~types/state"
 import { Storage } from "@plasmohq/storage"
 import browser from "webextension-polyfill"
-import logo from "data-text:~assets/logo.svg"
+import logo from "data-text:../assets/logo.svg"
 import { sendToBackground } from "@plasmohq/messaging"
 import { useForm } from "react-hook-form"
 import { useStorage } from "@plasmohq/storage/hook"
@@ -224,6 +224,12 @@ function IndexPopup() {
             </form>
           </>
         )}
+        <Button onClick={() => {
+                sendToBackground({
+                  name: "showToast",
+                  body: { content: "Video detected" }
+                })
+        }}>show toast</Button>
       </div>
       <div className="dark mx-3 my-2 flex justify-between bg-stone-900">
         <Button variant="link" asChild>
