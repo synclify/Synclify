@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 
 import type { PlasmoGetStyle } from "plasmo"
 import browser from "webextension-polyfill"
-import icon from "data-base64:~assets/icon.png"
+import icon from "data-base64:../../assets/icon.png"
 import { sendToBackground } from "@plasmohq/messaging"
 import styleText from "data-text:../style.css"
 
