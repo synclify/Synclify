@@ -187,7 +187,21 @@ function IndexPopup() {
             <Button onClick={exitRoom} className="my-4">
               Exit
             </Button>
-            {error ? (
+            {state && !error && (
+              <div className="flex flex-col justify-between">
+                <p>Video not in sync?</p>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    createOrJoinRoom(
+                      state ? { room: state?.[currentTab].roomId } : undefined
+                    )
+                  }>
+                  Click to try again
+                </Button>
+              </div>
+            )}
+            {error && (
               <>
                 <p className="text-base text-red-700">{errorMessage}</p>
                 <Button
@@ -199,7 +213,7 @@ function IndexPopup() {
                   Click to try again
                 </Button>
               </>
-            ) : null}
+            )}
           </>
         ) : (
           <>
