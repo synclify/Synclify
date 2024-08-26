@@ -1,19 +1,9 @@
-import * as dotenv from 'dotenv'
-
+import "./instrument"
 import { App } from "uWebSockets.js";
 import { Server } from 'socket.io';
 import crypto from "crypto"
 import { instrument } from "@socket.io/admin-ui"
-import * as Sentry from "@sentry/node"
 
-
-dotenv.config()
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-
-  // Tracing
-  tracesSampleRate: 1.0, //  Capture 100% of the transactions
-});
 const app = App();
 
 
@@ -21,9 +11,6 @@ const io = new Server({ cors: { origin: true, credentials: true, methods: ["GET"
 io.attachApp(app)
 const random = () => crypto.randomBytes(20).toString('hex').slice(0, 5).toUpperCase();
 
-app.get('/', (res, req) => {
-  res.end('Hello World!')
-})
 
 // Creates a room code and checks that it's empty
 app.get("/create", (res, req) => {

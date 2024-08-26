@@ -1,18 +1,20 @@
 {
   "name": "openw2g-socket",
   "version": "1.0.0",
-  "packageManager": "pnpm@8.7.6",
+  "packageManager": "pnpm@9.8.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "npx tsc",
+    "build": "npx tsc && pnpm sentry:sourcemaps",
     "start": "node dist/app.js",
-    "dev": "npx nodemon ./app.ts"
+    "dev": "npx nodemon ./app.ts",
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org synclify --project synclify-server-c2 ./dist && sentry-cli sourcemaps upload --org synclify --project synclify-server-c2 ./dist"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@sentry/cli": "^2.33.1",
     "@sentry/node": "^8.26.0",
     "@socket.io/admin-ui": "^0.5.1",
     "dotenv": "^16.4.5",
