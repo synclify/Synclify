@@ -13,15 +13,16 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@sentry/node": "^8.26.0",
     "@socket.io/admin-ui": "^0.5.1",
-    "dotenv": "^16.3.1",
-    "socket.io": "^4.7.2",
+    "dotenv": "^16.4.5",
+    "socket.io": "^4.7.5",
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.25.0"
   },
   "devDependencies": {
-    "@types/node": "^20.10.5",
-    "nodemon": "^3.0.2",
+    "@types/node": "^20.12.11",
+    "nodemon": "^3.1.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.4.5"
   }
 }

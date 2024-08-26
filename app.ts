@@ -4,10 +4,18 @@ import { App } from "uWebSockets.js";
 import { Server } from 'socket.io';
 import crypto from "crypto"
 import { instrument } from "@socket.io/admin-ui"
+import * as Sentry from "@sentry/node"
+
 
 dotenv.config()
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
 
+  // Tracing
+  tracesSampleRate: 1.0, //  Capture 100% of the transactions
+});
 const app = App();
+
 
 const io = new Server({ cors: { origin: true, credentials: true, methods: ["GET"] } });
 io.attachApp(app)
