@@ -1,6 +1,5 @@
 import { type ExtMessage, MESSAGE_STATUS, MESSAGE_TYPE } from "~types/messaging"
 import { SOCKET_EVENTS, SOCKET_URL } from "~types/socket"
-
 import type { State } from "~types/state"
 import { Storage } from "@plasmohq/storage"
 import { VIDEO_EVENTS } from "~types/video"
@@ -10,6 +9,33 @@ import { io } from "socket.io-client"
 import { sendToBackground } from "@plasmohq/messaging"
 import type { settingsSchema } from "~options"
 import { z } from "zod"
+import {
+  BrowserClient,
+  captureMessage,
+  defaultStackParser,
+  getDefaultIntegrations,
+  makeFetchTransport,
+  Scope
+} from "@sentry/browser"
+
+const integrations = getDefaultIntegrations({}).filter((defaultIntegration) => {
+  return !["BrowserApiErrors", "Breadcrumbs", "GlobalHandlers"].includes(
+    defaultIntegration.name
+  )
+})
+
+const client = new BrowserClient({
+  dsn: process.env.PLASMO_PUBLIC_SENTRY_DSN,
+  tunnel: `${SOCKET_URL}/t`,
+  transport: makeFetchTransport,
+  stackParser: defaultStackParser,
+  integrations: integrations
+})
+
+const scope = new Scope()
+scope.setClient(client)
+
+client.init()
 
 const bootstrap = () => {
   let tabId: number
@@ -17,7 +43,7 @@ const bootstrap = () => {
   let state: State
   let video: HTMLVideoElement | null
   let syntheticEvent = false
-  let settings: z.infer<typeof settingsSchema>
+  let settings: z.infer<typeof settingsSchema> | undefined
 
   const storage = new Storage({ area: "local", allCopied: true })
   const settingsStorage = new Storage({ area: "sync" })
@@ -28,17 +54,23 @@ const bootstrap = () => {
 
   const init = async (videoId: string) => {
     tabId = await sendToBackground({ name: "getTabId" })
-    state = await storage.get<State>("state")
+    const savedState = await storage.get<State>("state")
+
+    if (savedState === undefined) {
+      const e = new Error("Stored state is undefined")
+      scope.captureException(e)
+      throw e
+    }
+    state = savedState
+
     settings = await settingsStorage.get("settings")
-    roomCode = state?.[tabId].roomId
+    roomCode = state[tabId].roomId
     if (roomCode) {
       if (socket.disconnected) socket.connect()
       return getVideo(videoId)
     }
   }
-  console.log("Synclify: loaded")
-
-  // init()
+  // console.log("Synclify: loaded")
 
   const videoEventHandler = (event: Event) => {
     if (roomCode) {
@@ -58,7 +90,7 @@ const bootstrap = () => {
       event.stopImmediatePropagation()
       // resetting flag
       syntheticEvent = false
-    }
+    } else videoEventHandler(event)
   }
 
   const observer = new MutationObserver(() => {
@@ -67,17 +99,20 @@ const bootstrap = () => {
 
   const getVideo = (videoId?: string) => {
     video = videoId
-      ? (document.getElementById(videoId) as HTMLVideoElement)
+      ? (document.querySelectorAll(
+          `[data-synclify-id="${videoId}"]`
+        )[0] as HTMLVideoElement)
       : document.getElementsByTagName("video")[0]
+    captureMessage(
+      "videoId is null, using first element returned by document.getElementsByTagName",
+      "warning"
+    )
 
-    if (video) {
+    if (video !== null) {
       storage.set("state", setState(tabId, roomCode, state, true))
-      Object.values(VIDEO_EVENTS).forEach((event) =>
-        video?.addEventListener(event, checkVideoEvent)
-      )
-      Object.values(VIDEO_EVENTS).forEach((event) =>
-        video?.addEventListener(event, videoEventHandler)
-      )
+      for (const event of Object.values(VIDEO_EVENTS)) {
+        video.addEventListener(event, checkVideoEvent)
+      }
       observer.disconnect()
       sendToBackground({
         name: "showToast",
@@ -90,7 +125,7 @@ const bootstrap = () => {
       name: "showToast",
       body: { error: true, content: "Video not found" }
     })
-
+    captureMessage(`No video found in ${window.location.href}`, "info")
     return {
       status: MESSAGE_STATUS.ERROR,
       message: "Video not found"
@@ -98,48 +133,76 @@ const bootstrap = () => {
   }
 
   const joinRoom = () => {
+    if (!roomCode) {
+      const e = new Error("Invalid room code: " + roomCode)
+      scope.captureException(e)
+      throw e
+    }
     socket.emit(SOCKET_EVENTS.JOIN, roomCode)
   }
 
   socket.on("reconnect", () => {
-    if (roomCode) joinRoom()
+    joinRoom()
   })
 
   socket.on("connect", () => {
-    if (roomCode) joinRoom()
+    joinRoom()
   })
 
   socket.on(SOCKET_EVENTS.FULL, (room) => {
-    // TODO: Handle full room
+    const e = new Error("Room is full: " + room)
+    scope.captureException(e)
+    throw e
   })
 
   socket.on("connect_error", () => {
     // revert to classic upgrade
+    captureMessage("Socket connection error, allowing polling", "info")
     socket.io.opts.transports = ["polling", "websocket"]
   })
 
   socket.on(
     SOCKET_EVENTS.VIDEO_EVENT,
     (eventType: VIDEO_EVENTS, volumeValue: string, currentTime: string) => {
+      if (video === null) {
+        const e = new Error("Video is null in socket video event handler")
+        scope.captureException(e)
+        throw e
+      }
       switch (eventType) {
         case VIDEO_EVENTS.PLAY:
-          // flagging next event as code generated
+          // flagging next event as generated by synclify
           syntheticEvent = true
-          video?.play()
+          video.play().catch((e) => {
+            console.error(e)
+
+            if (e.name === "NotAllowedError") {
+              sendToBackground({
+                name: "showToast",
+                body: {
+                  error: true,
+                  content:
+                    "Video is not allowed to play! Interact with the page first."
+                }
+              })
+            } else {
+              scope.captureException(e)
+            }
+          })
           break
         case VIDEO_EVENTS.PAUSE:
           syntheticEvent = true
-          video?.pause()
+          video.pause()
           break
         case VIDEO_EVENTS.VOLUMECHANGE:
-          if (!settings.syncAudio) break
+          if (!settings?.syncAudio) break
           syntheticEvent = true
-          video && (video.volume = Number.parseFloat(volumeValue))
+          video.volume = Number.parseFloat(volumeValue)
           break
         case VIDEO_EVENTS.SEEKED: {
           const time = Number.parseInt(currentTime)
           syntheticEvent = true
-          video && (video.currentTime = time)
+          video.currentTime = time
           break
         }
       }
@@ -154,8 +217,11 @@ const bootstrap = () => {
         })
       }
       case MESSAGE_TYPE.EXIT:
-        // TODO: Remove event listeners
+        for (const event of Object.values(VIDEO_EVENTS)) {
+          video?.removeEventListener(event, checkVideoEvent)
+        }
         socket.disconnect()
+        observer.disconnect()
         video = null
         return Promise.resolve({
           status: MESSAGE_STATUS.SUCCESS

@@ -47,7 +47,6 @@ function OptionsIndex() {
   function onSubmit(values: z.infer<typeof settingsSchema>) {
     setSettings({ syncAudio: values.syncAudio })
       .then((v) => {
-        console.log(settings, v)
         toast.success("Settings saved")
       })
       .catch((e) => {
