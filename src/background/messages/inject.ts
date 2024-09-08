@@ -9,6 +9,7 @@ interface Video {
   width: number
   height: number
   title: string
+  id: string
 }
 
 export type RequestBody =
@@ -28,7 +29,10 @@ const handler: PlasmoMessaging.MessageHandler<RequestBody> = async (
 ) => {
   const tabs = await browser.tabs.query({ active: true, currentWindow: true })
   const tabId = tabs[0].id
+  console.warn(req.body)
+
   let frameIds = req.body ? req.body.frameIds : null
+  let videoId = null
   if (!tabId) throw new Error("Tab id is undefined")
 
   if (!frameIds) {
@@ -41,7 +45,11 @@ const handler: PlasmoMessaging.MessageHandler<RequestBody> = async (
           // skip empty videos
           if (video.src === "" && video.children.length === 0) return
           // assign id to videos
-          if (video.id === "") video.id = Math.random().toString(36).slice(2, 7)
+          if (
+            video.dataset.synclifyId === "" ||
+            video.dataset.synclifyId === undefined
+          )
+            video.dataset.synclifyId = Math.random().toString(36).slice(2, 7)
           return {
             src:
               video.src === ""
@@ -55,7 +63,7 @@ const handler: PlasmoMessaging.MessageHandler<RequestBody> = async (
             width: video.videoWidth,
             height: video.videoHeight,
             title: document.title,
-            id: video.id
+            id: video.dataset.synclifyId
           }
         })
       },
@@ -88,6 +96,7 @@ const handler: PlasmoMessaging.MessageHandler<RequestBody> = async (
       return
     } else if (videos.length === 1) {
       frameIds = [videos[0].frameId]
+      videoId = videos[0].id
     } else {
       res.send(null)
       return
@@ -105,7 +114,7 @@ const handler: PlasmoMessaging.MessageHandler<RequestBody> = async (
 
   browser.tabs.sendMessage(tabId, {
     type: MESSAGE_TYPE.INIT,
-    videoId: req.body ? req.body.videoId : null
+    videoId: req.body ? req.body.videoId : videoId
   })
 
   res.send({ status: MESSAGE_STATUS.SUCCESS })

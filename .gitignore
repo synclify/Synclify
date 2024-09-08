@@ -39,3 +39,5 @@ keys.json
 .tsbuildinfo
 
 .vscode/
+# Sentry Config File
+.sentryclirc
