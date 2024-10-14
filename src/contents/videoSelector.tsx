@@ -52,7 +52,7 @@ const VideoSelector = () => {
   return (
     <div
       className={`fixed right-0 flex  flex-col overflow-y-auto rounded-l-2xl border-y border-l bg-opacity-20 bg-gradient-to-br from-orange-400 to-violet-900 p-3  backdrop-blur-xl transition duration-300 ${
-        show ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
+        show ? "translate-x-0 opacity-100" : "translate-x-full opacity-0 select-none"
       } `}>
       <div className="flex">
         <h1 className="text-xl font-bold">Choose a video to sync</h1>
