@@ -17,8 +17,6 @@ import logo from "~/assets/logo.svg?raw"
 import { useForm } from "react-hook-form"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
-import { Label } from "~/components/ui/label"
-import { Separator } from "~/components/ui/separator"
 
 type FormData = {
   room: string
@@ -38,7 +36,6 @@ function App() {
     formState: { errors }
   } = useForm<FormData>()
 
-  // Load state from storage
   useEffect(() => {
     const storage = browser.storage.local
     storage.get("state").then((result) => {
@@ -46,7 +43,6 @@ function App() {
         setState(result.state as State)
       }
     })
-    // Listen for storage changes
     const listener = (
       changes: Record<string, browser.Storage.StorageChange>
     ) => {
@@ -167,130 +163,181 @@ function App() {
   }, [getRoom])
 
   return (
-    <div className="dark flex flex-col bg-stone-900 p-4 text-primary">
-      <div dangerouslySetInnerHTML={{ __html: logo }} className="pb-2" />
-      {inRoom ? (
-        <>
-          <div className="text-base">
-            <p>Room code:</p>
-            <div className="flex place-content-center">
-              <TooltipProvider>
-                <Tooltip open={openTooltip}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="cursor-pointer text-xl font-bold"
-                      onMouseOver={() => {
-                        setOpenTooltip(true)
-                        setTooltipText("Click to copy")
-                      }}
-                      onMouseLeave={() => setOpenTooltip(false)}
-                      onClick={copyToClipboard}>
-                      {getRoom}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    {tooltipText}
-                    <TooltipArrow />
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+    <div className="dark relative flex min-h-[320px] flex-col bg-background">
+      {/* Ambient top glow */}
+      <div
+        className="pointer-events-none absolute -top-20 left-1/2 h-40 w-60 -translate-x-1/2 rounded-full opacity-20 blur-3xl"
+        style={{ background: "hsl(38 92% 55%)" }}
+      />
+
+      {/* Header */}
+      <div className="animate-fade-in-up relative z-10 px-5 pb-3 pt-5">
+        <div
+          dangerouslySetInnerHTML={{ __html: logo }}
+          className="mx-auto w-36 opacity-90"
+        />
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10 flex flex-1 flex-col px-5 pb-3">
+        {inRoom ? (
+          <div className="flex flex-1 flex-col">
+            {/* Room code ticket */}
+            <div className="animate-fade-in-up stagger-1 mb-4">
+              <p className="mb-1.5 text-center text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                Room Code
+              </p>
+              <div className="flex justify-center">
+                <TooltipProvider>
+                  <Tooltip open={openTooltip}>
+                    <TooltipTrigger asChild>
+                      <button
+                        className="animate-pulse-glow group relative cursor-pointer rounded-lg border border-[hsl(38_92%_55%/0.2)] bg-[hsl(38_92%_55%/0.06)] px-6 py-3 transition-all hover:border-[hsl(38_92%_55%/0.4)] hover:bg-[hsl(38_92%_55%/0.1)]"
+                        onMouseOver={() => {
+                          setOpenTooltip(true)
+                          setTooltipText("Click to copy")
+                        }}
+                        onMouseLeave={() => setOpenTooltip(false)}
+                        onClick={copyToClipboard}>
+                        <span
+                          className="text-glow block text-2xl font-bold tracking-[0.3em] text-[hsl(38_92%_55%)]"
+                          style={{
+                            fontFamily: "'DM Mono', monospace"
+                          }}>
+                          {getRoom}
+                        </span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="bottom"
+                      className="border-border bg-popover text-xs text-popover-foreground">
+                      {tooltipText}
+                      <TooltipArrow />
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </div>
-          </div>
-          <Button onClick={exitRoom} className="my-4">
-            Exit
-          </Button>
-          {state && !error && (
-            <div className="flex flex-col justify-between">
-              <p>Video not in sync?</p>
-              <Button
-                variant="outline"
-                onClick={() =>
-                  createOrJoinRoom(
-                    state ? { room: state?.[currentTab].roomId } : undefined
-                  )
-                }>
-                Click to try again
-              </Button>
-            </div>
-          )}
-          {error && (
-            <>
-              <p className="text-base text-red-700">{errorMessage}</p>
-              <Button
-                onClick={() =>
-                  createOrJoinRoom(
-                    state ? { room: state?.[currentTab].roomId } : undefined
-                  )
-                }>
-                Click to try again
-              </Button>
-            </>
-          )}
-        </>
-      ) : (
-        <>
-          <Button onClick={() => createOrJoinRoom()}>Create room</Button>
-          <div className="flex items-center">
-            <Separator className="dark w-auto flex-grow" />
-            <p className="mx-2 flex-grow-0 text-base">or</p>
-            <Separator className="dark w-auto flex-grow" />
-          </div>
-          <Label>Join room: </Label>
-          <form
-            onSubmit={handleSubmit(createOrJoinRoom)}
-            className="flex flex-col gap-4">
-            <Input
-              type="text"
-              placeholder="Room code"
-              className="text-base"
-              {...register("room", {
-                required: {
-                  value: true,
-                  message: "Room code can't be empty."
-                },
-                maxLength: { value: 5, message: "Room code too long." },
-                minLength: { value: 5, message: "Room code too short" },
-                pattern: {
-                  value: /^[a-zA-Z0-9]*$/,
-                  message: "Room code format incorrect"
-                }
-              })}
-            />
-            {errors.room && (
-              <div>
-                <p className="text-base text-red-700" role="alert">
-                  {errors.room?.message}
-                </p>
+
+            {/* Status indicator */}
+            {!error && (
+              <div className="animate-fade-in-up stagger-2 mb-4 flex items-center justify-center gap-2">
+                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                <span className="text-xs text-emerald-400/80">
+                  Connected & syncing
+                </span>
               </div>
             )}
-            <Button type="submit">Join!</Button>
-          </form>
-        </>
-      )}
-      <div className="mx-3 my-2 flex justify-between">
-        <Button variant="link" asChild>
-          <a
-            href="https://forms.gle/HN6AGyThWAXSCaXC8"
-            target="about:blank"
-            className="text-sm hover:underline">
-            Feedback
-          </a>
-        </Button>
-        <Button
-          variant="link"
+
+            {error && (
+              <div className="animate-fade-in-up stagger-2 mb-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-xs text-destructive">
+                {errorMessage}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="animate-fade-in-up stagger-3 mt-auto flex flex-col gap-2">
+              {(error || (state && !error)) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-border text-xs text-secondary-foreground hover:border-[hsl(38_92%_55%/0.4)] hover:text-foreground"
+                  onClick={() =>
+                    createOrJoinRoom(
+                      state ? { room: state?.[currentTab].roomId } : undefined
+                    )
+                  }>
+                  Retry sync
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-xs text-secondary-foreground hover:text-destructive"
+                onClick={exitRoom}>
+                Leave room
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-1 flex-col">
+            {/* Create room CTA */}
+            <div className="animate-fade-in-up stagger-1 mb-4">
+              <Button
+                onClick={() => createOrJoinRoom()}
+                className="relative w-full overflow-hidden rounded-lg bg-[hsl(38_92%_55%)] py-5 text-sm font-semibold tracking-wide text-[hsl(220_20%_6%)] shadow-lg shadow-[hsl(38_92%_55%/0.2)] transition-all hover:bg-[hsl(38_80%_50%)] hover:shadow-[hsl(38_92%_55%/0.3)]">
+                Create Room
+              </Button>
+            </div>
+
+            {/* Divider */}
+            <div className="animate-fade-in-up stagger-2 mb-4 flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-[10px] font-medium uppercase tracking-[0.25em] text-secondary-foreground">
+                or join
+              </span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            {/* Join form */}
+            <form
+              onSubmit={handleSubmit(createOrJoinRoom)}
+              className="animate-fade-in-up stagger-3 flex flex-col gap-2.5">
+              <Input
+                type="text"
+                placeholder="Enter room code"
+                className="h-10 rounded-lg border-border bg-card text-center text-sm uppercase tracking-[0.15em] text-foreground placeholder:normal-case placeholder:tracking-normal placeholder:text-muted-foreground focus-visible:border-[hsl(38_92%_55%/0.4)] focus-visible:ring-[hsl(38_92%_55%/0.2)]"
+                style={{ fontFamily: "'DM Mono', monospace" }}
+                {...register("room", {
+                  required: {
+                    value: true,
+                    message: "Room code can't be empty."
+                  },
+                  maxLength: { value: 5, message: "Room code too long." },
+                  minLength: { value: 5, message: "Room code too short" },
+                  pattern: {
+                    value: /^[a-zA-Z0-9]*$/,
+                    message: "Room code format incorrect"
+                  }
+                })}
+              />
+              {errors.room && (
+                <p
+                  className="text-center text-[11px] text-destructive"
+                  role="alert">
+                  {errors.room?.message}
+                </p>
+              )}
+              <Button
+                type="submit"
+                variant="outline"
+                className="h-10 rounded-lg border-border text-sm font-medium text-foreground transition-all hover:border-[hsl(38_92%_55%/0.4)] hover:text-foreground">
+                Join Room
+              </Button>
+            </form>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="animate-fade-in stagger-4 relative z-10 flex justify-center gap-4 border-t border-border/50 px-5 py-2.5">
+        <a
+          href="https://forms.gle/HN6AGyThWAXSCaXC8"
+          target="about:blank"
+          className="text-[11px] text-muted-foreground transition-colors hover:text-[hsl(38_92%_55%)]">
+          Feedback
+        </a>
+        <button
           onClick={() => browser.runtime.openOptionsPage()}
-          className="text-sm hover:underline">
+          className="text-[11px] text-muted-foreground transition-colors hover:text-[hsl(38_92%_55%)]">
           Settings
-        </Button>
-        <Button variant="link" asChild>
-          <a
-            href="https://synclify.party"
-            target="about:blank"
-            className="text-sm font-medium hover:underline">
-            Website
-          </a>
-        </Button>
+        </button>
+        <a
+          href="https://synclify.party"
+          target="about:blank"
+          className="text-[11px] text-muted-foreground transition-colors hover:text-[hsl(38_92%_55%)]">
+          Website
+        </a>
       </div>
     </div>
   )

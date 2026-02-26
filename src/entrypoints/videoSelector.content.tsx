@@ -15,6 +15,13 @@ type VideoElement = {
   id: string
 }
 
+function formatDuration(seconds: number | null | undefined): string {
+  if (!seconds || isNaN(seconds)) return "unknown"
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m}:${s.toString().padStart(2, "0")}`
+}
+
 const VideoSelector = () => {
   const [show, setShow] = useState(false)
   const [videos, setVideos] = useState<VideoElement[]>()
@@ -44,41 +51,135 @@ const VideoSelector = () => {
 
   return (
     <div
-      className={`fixed right-0 flex flex-col overflow-y-auto rounded-l-2xl border-y border-l bg-opacity-20 bg-gradient-to-br from-orange-400 to-violet-900 p-3 backdrop-blur-xl transition duration-300 ${
-        show
-          ? "translate-x-0 opacity-100"
-          : "translate-x-full select-none opacity-0"
-      } `}>
-      <div className="flex">
-        <h1 className="text-xl font-bold">Choose a video to sync</h1>
-        <img src={iconUrl} alt="Synclify icon" className="mr-2 h-6 w-6" />
-      </div>
-      {videos?.map((video, i) => (
+      style={{
+        position: "fixed",
+        top: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 2147483647,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        padding: "16px",
+        pointerEvents: show ? "auto" : "none",
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+        transition: "opacity 0.3s ease, transform 0.3s ease",
+        opacity: show ? 1 : 0,
+        transform: show ? "translateX(0)" : "translateX(16px)"
+      }}>
+      {/* Panel */}
+      <div
+        style={{
+          background: "rgba(12, 14, 20, 0.92)",
+          backdropFilter: "blur(24px)",
+          border: "1px solid rgba(210, 160, 60, 0.15)",
+          borderRadius: "16px",
+          padding: "20px",
+          maxHeight: "80vh",
+          overflowY: "auto",
+          maxWidth: "360px",
+          boxShadow:
+            "0 0 0 1px rgba(210,160,60,0.08), 0 24px 48px rgba(0,0,0,0.5)"
+        }}>
+        {/* Header */}
         <div
-          onClick={() => {
-            browser.runtime.sendMessage({
-              action: "inject",
-              body: { frameIds: [video.frameId], videoId: video.id }
-            })
-            setShow(false)
-          }}
-          key={i}
-          className="mb-2 flex cursor-pointer flex-col items-center rounded-lg border border-gray-200 bg-white shadow hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 md:max-w-xl md:flex-row">
-          <video
-            className="h-96 w-full rounded-t-lg object-cover md:h-auto md:w-48 md:rounded-none md:rounded-l-lg"
-            src={video.src}></video>
-
-          <div className="flex flex-col justify-between p-4 leading-normal">
-            <h5 className="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-              {video.title}
-            </h5>
-            <p className="mb-3 font-normal text-gray-700 dark:text-gray-400">
-              Duration: {video.duration ?? "unknown"} Resolution: {video.width}x
-              {video.height}
-            </p>
-          </div>
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            marginBottom: "16px"
+          }}>
+          <img
+            src={iconUrl}
+            alt="Synclify"
+            style={{ width: "22px", height: "22px" }}
+          />
+          <span
+            style={{
+              fontSize: "13px",
+              fontWeight: 600,
+              color: "rgba(210, 160, 60, 0.9)",
+              letterSpacing: "0.05em"
+            }}>
+            Choose a video to sync
+          </span>
         </div>
-      ))}
+
+        {/* Video list */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {videos?.map((video, i) => (
+            <div
+              key={i}
+              onClick={() => {
+                browser.runtime.sendMessage({
+                  action: "inject",
+                  body: { frameIds: [video.frameId], videoId: video.id }
+                })
+                setShow(false)
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                padding: "10px 12px",
+                borderRadius: "10px",
+                border: "1px solid rgba(255,255,255,0.06)",
+                background: "rgba(255,255,255,0.03)",
+                cursor: "pointer",
+                transition: "background 0.15s ease, border-color 0.15s ease"
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = "rgba(210,160,60,0.08)"
+                e.currentTarget.style.borderColor = "rgba(210,160,60,0.2)"
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.03)"
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"
+              }}>
+              {/* Thumbnail */}
+              <video
+                src={video.src}
+                style={{
+                  width: "80px",
+                  height: "50px",
+                  objectFit: "cover",
+                  borderRadius: "6px",
+                  background: "#000",
+                  flexShrink: 0
+                }}
+              />
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    color: "rgba(255,255,255,0.85)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    margin: 0,
+                    lineHeight: 1.4
+                  }}>
+                  {video.title}
+                </p>
+                <p
+                  style={{
+                    fontSize: "11px",
+                    color: "rgba(255,255,255,0.35)",
+                    margin: "2px 0 0 0",
+                    fontFamily: "'DM Mono', monospace",
+                    lineHeight: 1.4
+                  }}>
+                  {formatDuration(video.duration)} &middot; {video.width}x
+                  {video.height}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
