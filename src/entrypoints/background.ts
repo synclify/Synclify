@@ -77,6 +77,9 @@ export default defineBackground(() => {
   }
 
   async function handleInject(body?: { frameIds: number[]; videoId: string }) {
+    const wait = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms))
+
     const tabs = await browser.tabs.query({
       active: true,
       currentWindow: true
@@ -88,48 +91,59 @@ export default defineBackground(() => {
     let videoId: string | null = null
 
     if (!frameIds) {
-      const result = await browser.scripting.executeScript({
-        func: () => {
-          const videos = document.getElementsByTagName("video")
-          return Array.from(videos).map((video) => {
-            if (video.src === "" && video.children.length === 0) return
-            if (
-              video.dataset.synclifyId === "" ||
-              video.dataset.synclifyId === undefined
-            )
-              video.dataset.synclifyId = Math.random().toString(36).slice(2, 7)
-            return {
-              src:
-                video.src === ""
-                  ? (
-                      Array.from(video.children).find(
-                        (child) => child.tagName === "SOURCE"
-                      ) as HTMLSourceElement
-                    ).src
-                  : video.src,
-              duration: video.duration,
-              width: video.videoWidth,
-              height: video.videoHeight,
-              title: document.title,
-              id: video.dataset.synclifyId
-            }
-          })
-        },
-        target: { tabId: tabId, allFrames: true }
-      })
+      let videos: Array<Video & { frameId: number }> = []
+      for (let attempt = 0; attempt < 3 && videos.length === 0; attempt++) {
+        const result = await browser.scripting.executeScript({
+          func: () => {
+            const videos = document.getElementsByTagName("video")
+            return Array.from(videos)
+              .map((video) => {
+                const sourceChild = video.querySelector(
+                  "source"
+                ) as HTMLSourceElement | null
+                const src = video.currentSrc || video.src || sourceChild?.src || ""
+                const hasPlayableData =
+                  video.srcObject !== null ||
+                  src !== "" ||
+                  video.videoWidth > 0 ||
+                  video.readyState > 0
+                if (!hasPlayableData) return null
+                if (!video.dataset.synclifyId)
+                  video.dataset.synclifyId = Math.random()
+                    .toString(36)
+                    .slice(2, 7)
+                return {
+                  src,
+                  duration: video.duration,
+                  width: video.videoWidth,
+                  height: video.videoHeight,
+                  title: document.title,
+                  id: video.dataset.synclifyId
+                }
+              })
+              .filter((video) => video !== null)
+          },
+          target: { tabId: tabId, allFrames: true }
+        })
 
-      const videos = result
-        .filter((injection) => injection.result && injection.result.length != 0)
-        .flatMap((injection) =>
-          Array.from(injection.result as Video[])
-            .filter((video) => video != null)
-            .map((video) => {
+        videos = result
+          .filter(
+            (injection) =>
+              Array.isArray(injection.result) && injection.result.length !== 0
+          )
+          .flatMap((injection) =>
+            Array.from(injection.result as Video[]).map((video) => {
               return {
                 ...video,
                 frameId: injection.frameId
               }
             })
-        )
+          )
+
+        if (videos.length === 0 && attempt < 2) {
+          await wait(700)
+        }
+      }
 
       if (videos.length > 1) {
         browser.tabs.sendMessage(tabId, {
@@ -154,10 +168,27 @@ export default defineBackground(() => {
       target: { tabId: tabId, frameIds: frameIds }
     })
 
-    browser.tabs.sendMessage(tabId, {
+    const initPayload = {
       type: MESSAGE_TYPE.INIT,
       videoId: body ? body.videoId : videoId
-    })
+    }
+    let initSucceeded = false
+    for (let attempt = 0; attempt < 4 && !initSucceeded; attempt++) {
+      try {
+        await browser.tabs.sendMessage(tabId, initPayload, {
+          frameId: frameIds[0]
+        })
+        initSucceeded = true
+      } catch {
+        await wait(150)
+      }
+    }
+    if (!initSucceeded) {
+      return {
+        status: MESSAGE_STATUS.ERROR,
+        message: "Injected script not ready yet, retry sync"
+      }
+    }
 
     return { status: MESSAGE_STATUS.SUCCESS }
   }

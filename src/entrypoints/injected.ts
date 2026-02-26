@@ -16,7 +16,16 @@ import {
   Scope
 } from "@sentry/browser"
 
+declare global {
+  interface Window {
+    __synclifyInjected?: boolean
+  }
+}
+
 export default defineUnlistedScript(() => {
+  if (window.__synclifyInjected) return
+  window.__synclifyInjected = true
+
   const integrations = getDefaultIntegrations({}).filter(
     (defaultIntegration) => {
       return !["BrowserApiErrors", "Breadcrumbs", "GlobalHandlers"].includes(
@@ -40,9 +49,15 @@ export default defineUnlistedScript(() => {
   let tabId: number
   let roomCode: string
   let state: State
-  let video: HTMLVideoElement | null
-  let syntheticEvent = false
+  let video: HTMLVideoElement | null | undefined
+  let boundVideo: HTMLVideoElement | null = null
+  let suppressEventsUntil = 0
+  let joinedRoom: string | null = null
   let settings: { syncAudio: boolean } | undefined
+  const SYNTHETIC_SUPPRESSION_MS = 150
+  const suppressOutboundEvents = () => {
+    suppressEventsUntil = Date.now() + SYNTHETIC_SUPPRESSION_MS
+  }
 
   const socket = io(SOCKET_URL, {
     autoConnect: false,
@@ -86,9 +101,8 @@ export default defineUnlistedScript(() => {
   }
 
   const checkVideoEvent = (event: Event) => {
-    if (syntheticEvent) {
+    if (Date.now() < suppressEventsUntil) {
       event.stopImmediatePropagation()
-      syntheticEvent = false
     } else videoEventHandler(event)
   }
 
@@ -98,16 +112,18 @@ export default defineUnlistedScript(() => {
 
   const getVideo = (videoId?: string) => {
     video = videoId
-      ? (document.querySelectorAll(
+      ? (document.querySelector(
           `[data-synclify-id="${videoId}"]`
-        )[0] as HTMLVideoElement)
-      : document.getElementsByTagName("video")[0]
-    captureMessage(
-      "videoId is null, using first element returned by document.getElementsByTagName",
-      "warning"
-    )
+        ) as HTMLVideoElement | null)
+      : document.querySelector("video")
+    if (!videoId) {
+      captureMessage(
+        "videoId is null, using first element returned by document.querySelector",
+        "warning"
+      )
+    }
 
-    if (video !== null) {
+    if (video != null) {
       const newState = Object.assign(state ?? {}, {
         [tabId]: {
           roomId: roomCode,
@@ -115,8 +131,14 @@ export default defineUnlistedScript(() => {
         }
       })
       browser.storage.local.set({ state: newState })
+      if (boundVideo) {
+        for (const event of Object.values(VIDEO_EVENTS)) {
+          boundVideo.removeEventListener(event, checkVideoEvent)
+        }
+      }
+      boundVideo = video
       for (const event of Object.values(VIDEO_EVENTS)) {
-        video.addEventListener(event, checkVideoEvent)
+        boundVideo.addEventListener(event, checkVideoEvent)
       }
       observer.disconnect()
       browser.runtime.sendMessage({
@@ -143,14 +165,18 @@ export default defineUnlistedScript(() => {
       scope.captureException(e)
       throw e
     }
+    if (!socket.connected) return
+    if (joinedRoom === roomCode) return
     socket.emit(SOCKET_EVENTS.JOIN, roomCode)
+    joinedRoom = roomCode
   }
 
-  socket.on("reconnect", () => {
-    joinRoom()
+  socket.on("disconnect", () => {
+    joinedRoom = null
   })
 
   socket.on("connect", () => {
+    joinedRoom = null
     joinRoom()
   })
 
@@ -168,14 +194,14 @@ export default defineUnlistedScript(() => {
   socket.on(
     SOCKET_EVENTS.VIDEO_EVENT,
     (eventType: VIDEO_EVENTS, volumeValue: string, currentTime: string) => {
-      if (video === null) {
+      if (video == null) {
         const e = new Error("Video is null in socket video event handler")
         scope.captureException(e)
         throw e
       }
       switch (eventType) {
         case VIDEO_EVENTS.PLAY:
-          syntheticEvent = true
+          suppressOutboundEvents()
           video.play().catch((e) => {
             console.error(e)
             if (e.name === "NotAllowedError") {
@@ -193,17 +219,17 @@ export default defineUnlistedScript(() => {
           })
           break
         case VIDEO_EVENTS.PAUSE:
-          syntheticEvent = true
+          suppressOutboundEvents()
           video.pause()
           break
         case VIDEO_EVENTS.VOLUMECHANGE:
           if (!settings?.syncAudio) break
-          syntheticEvent = true
+          suppressOutboundEvents()
           video.volume = Number.parseFloat(volumeValue)
           break
         case VIDEO_EVENTS.SEEKED: {
-          const time = Number.parseInt(currentTime)
-          syntheticEvent = true
+          const time = Number.parseFloat(currentTime)
+          suppressOutboundEvents()
           video.currentTime = time
           break
         }
@@ -220,11 +246,13 @@ export default defineUnlistedScript(() => {
       }
       case MESSAGE_TYPE.EXIT:
         for (const event of Object.values(VIDEO_EVENTS)) {
-          video?.removeEventListener(event, checkVideoEvent)
+          boundVideo?.removeEventListener(event, checkVideoEvent)
         }
         socket.disconnect()
+        joinedRoom = null
         observer.disconnect()
         video = null
+        boundVideo = null
         return Promise.resolve({
           status: MESSAGE_STATUS.SUCCESS
         })

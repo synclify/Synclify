@@ -14,7 +14,9 @@ export default defineContentScript({
       if (
         mutations.some((mut) =>
           Array.from(mut.addedNodes).some((node) =>
-            ["VIDEO", "IFRAME"].includes(node.nodeName)
+            node.nodeName === "VIDEO" ||
+            node.nodeName === "IFRAME" ||
+            (node instanceof Element && node.querySelector("video, iframe"))
           )
         )
       ) {
@@ -31,7 +33,10 @@ export default defineContentScript({
           const result = await browser.runtime.sendMessage({
             action: "inject"
           })
-          if (result !== MESSAGE_STATUS.SUCCESS)
+          if (
+            result?.status !== MESSAGE_STATUS.SUCCESS &&
+            result?.status !== MESSAGE_STATUS.MULTIPLE_VIDEOS
+          )
             observer.observe(document, { subtree: true, childList: true })
         }
       })
