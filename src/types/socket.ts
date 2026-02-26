@@ -1,7 +1,5 @@
 export const SOCKET_URL =
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:3000"
-    : (process.env.PLASMO_PUBLIC_SOCKET_ENDPOINT as string)
+  (import.meta.env.WXT_SOCKET_ENDPOINT as string) || "http://localhost:3001"
 
 export enum SOCKET_EVENTS {
   CREATE = "create",

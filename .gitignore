@@ -29,8 +29,9 @@ out/
 build/
 dist/
 
-# plasmo - https://www.plasmo.com
-.plasmo
+# wxt - https://wxt.dev
+.wxt
+.output
 
 # bpp - http://bpp.browser.market/
 keys.json
