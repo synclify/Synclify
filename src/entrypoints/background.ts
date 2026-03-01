@@ -11,6 +11,20 @@ export default defineBackground(() => {
     tunnel: `${SOCKET_URL}/t`
   })
 
+  // --- Persistent rooms: re-inject on full page navigation ---
+  browser.webNavigation.onCompleted.addListener(async (details) => {
+    if (details.frameId !== 0) return // only top-level navigations
+    const result = await browser.storage.local.get("state")
+    const state = result.state as State | undefined
+    if (state && state[details.tabId]) {
+      try {
+        await reinjectTab(details.tabId)
+      } catch {
+        // Tab may not be ready yet, ignore
+      }
+    }
+  })
+
   // --- Tab lifecycle ---
   browser.tabs.onRemoved.addListener((tabId) => {
     browser.storage.local.get("state").then((result) => {
@@ -212,8 +226,82 @@ export default defineBackground(() => {
     return null
   }
 
+  async function reinjectTab(tabId: number) {
+    const wait = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms))
+
+    // Find a video in the tab's frames
+    let videos: Array<{ id: string; frameId: number }> = []
+    for (let attempt = 0; attempt < 3 && videos.length === 0; attempt++) {
+      const result = await browser.scripting.executeScript({
+        func: () => {
+          const videos = document.getElementsByTagName("video")
+          return Array.from(videos)
+            .map((video) => {
+              const sourceChild = video.querySelector(
+                "source"
+              ) as HTMLSourceElement | null
+              const src =
+                video.currentSrc || video.src || sourceChild?.src || ""
+              const hasPlayableData =
+                video.srcObject !== null ||
+                src !== "" ||
+                video.videoWidth > 0 ||
+                video.readyState > 0
+              if (!hasPlayableData) return null
+              if (!video.dataset.synclifyId)
+                video.dataset.synclifyId = Math.random()
+                  .toString(36)
+                  .slice(2, 7)
+              return { id: video.dataset.synclifyId }
+            })
+            .filter((v) => v !== null)
+        },
+        target: { tabId, allFrames: true }
+      })
+      videos = result
+        .filter(
+          (injection) =>
+            Array.isArray(injection.result) && injection.result.length !== 0
+        )
+        .flatMap((injection) =>
+          (injection.result as Array<{ id: string }>).map((v) => ({
+            ...v,
+            frameId: injection.frameId
+          }))
+        )
+      if (videos.length === 0 && attempt < 2) await wait(700)
+    }
+    if (videos.length === 0) return
+
+    const frameIds = [videos[0].frameId]
+    const videoId = videos[0].id
+
+    await browser.scripting.executeScript({
+      files: ["injected.js"],
+      target: { tabId, frameIds }
+    })
+
+    const initPayload = {
+      type: MESSAGE_TYPE.INIT,
+      videoId
+    }
+    const wait150 = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms))
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        await browser.tabs.sendMessage(tabId, initPayload, {
+          frameId: frameIds[0]
+        })
+        return
+      } catch {
+        await wait150(150)
+      }
+    }
+  }
+
   // Central message router
-  browser.runtime.onMessage.addListener((message, _sender) => {
+  browser.runtime.onMessage.addListener((message, sender) => {
     switch (message.action) {
       case "getTabId":
         return handleGetTabId()
@@ -225,6 +313,55 @@ export default defineBackground(() => {
         return handleInject(message.body)
       case "showToast":
         return handleShowToast(message.body)
+      case "chatMessage": {
+        // Relay from chat content script -> injected script
+        const chatTabId = sender.tab?.id
+        if (chatTabId) {
+          browser.tabs.sendMessage(chatTabId, {
+            type: MESSAGE_TYPE.CHAT,
+            text: message.body.text
+          })
+        }
+        return Promise.resolve(null)
+      }
+      case "reaction": {
+        // Relay from reactions content script -> injected script
+        const reactionTabId = sender.tab?.id
+        if (reactionTabId) {
+          browser.tabs.sendMessage(reactionTabId, {
+            type: MESSAGE_TYPE.REACTION,
+            emoji: message.body.emoji
+          })
+        }
+        return Promise.resolve(null)
+      }
+      case "forwardToChat": {
+        // Relay from injected script -> chat content script
+        const fwdChatTabId = sender.tab?.id
+        if (fwdChatTabId) {
+          browser.tabs.sendMessage(fwdChatTabId, {
+            to: "chat",
+            type: "incoming",
+            nickname: message.nickname,
+            text: message.text,
+            timestamp: message.timestamp,
+            self: message.self
+          })
+        }
+        return Promise.resolve(null)
+      }
+      case "forwardToReaction": {
+        // Relay from injected script -> reactions content script
+        const fwdReactionTabId = sender.tab?.id
+        if (fwdReactionTabId) {
+          browser.tabs.sendMessage(fwdReactionTabId, {
+            to: "reaction",
+            emoji: message.emoji,
+            nickname: message.nickname
+          })
+        }
+        return Promise.resolve(null)
+      }
       default:
         return undefined
     }

@@ -6,5 +6,9 @@ export enum SOCKET_EVENTS {
   JOIN = "join",
   FULL = "full",
   LOG = "log",
-  VIDEO_EVENT = "videoEvent"
+  VIDEO_EVENT = "videoEvent",
+  CHAT_MESSAGE = "chatMessage",
+  REACTION = "reaction",
+  SYNC_PING = "syncPing",
+  SYNC_PONG = "syncPong"
 }

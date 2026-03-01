@@ -1,3 +1,9 @@
+export type ChatMessage = {
+  nickname: string
+  text: string
+  timestamp: number
+}
+
 export type ExtMessage = {
   type: MESSAGE_TYPE
   videoId: string
@@ -18,5 +24,7 @@ export enum MESSAGE_TYPE {
   VIDEO = "video",
   INIT = "init",
   EXIT = "exit",
-  CHECK_VIDEO = "checkVideo"
+  CHECK_VIDEO = "checkVideo",
+  CHAT = "chat",
+  REACTION = "reaction"
 }

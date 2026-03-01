@@ -20,6 +20,7 @@ import { Input } from "~/components/ui/input"
 
 type FormData = {
   room: string
+  nickname?: string
 }
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
   const [currentTab, setCurrentTab] = useState<number>(0)
   const [tooltipText, setTooltipText] = useState("Click to copy")
   const [openTooltip, setOpenTooltip] = useState(false)
+  const [nickname, setNickname] = useState("")
   const {
     register,
     handleSubmit,
@@ -42,6 +44,9 @@ function App() {
       if (result.state) {
         setState(result.state as State)
       }
+    })
+    storage.get("nickname").then((result) => {
+      if (result.nickname) setNickname(result.nickname as string)
     })
     const listener = (
       changes: Record<string, browser.Storage.StorageChange>
@@ -85,10 +90,13 @@ function App() {
 
   const roomCallback = useCallback(
     (roomId: string) => {
+      const nick = nickname.trim() || "Anonymous"
+      browser.storage.local.set({ nickname: nick })
       const newState = Object.assign(state ?? {}, {
         [currentTab]: {
           roomId: roomId,
-          videoFound: state?.[currentTab]?.videoFound ?? false
+          videoFound: state?.[currentTab]?.videoFound ?? false,
+          nickname: nick
         }
       })
       setStoredState(newState)
@@ -96,7 +104,7 @@ function App() {
         .sendMessage({ action: "inject" })
         .then((response: ExtResponse) => responseCallback(response))
     },
-    [currentTab, responseCallback, state, setStoredState]
+    [currentTab, responseCallback, state, setStoredState, nickname]
   )
 
   const createOrJoinRoom = useCallback(
@@ -261,6 +269,18 @@ function App() {
           </div>
         ) : (
           <div className="flex flex-1 flex-col">
+            {/* Nickname input */}
+            <div className="animate-fade-in-up mb-3">
+              <Input
+                type="text"
+                placeholder="Nickname (optional)"
+                value={nickname}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNickname(e.target.value)}
+                maxLength={20}
+                className="h-9 rounded-lg border-border bg-card text-center text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-[hsl(38_92%_55%/0.4)] focus-visible:ring-[hsl(38_92%_55%/0.2)]"
+              />
+            </div>
+
             {/* Create room CTA */}
             <div className="animate-fade-in-up stagger-1 mb-4">
               <Button

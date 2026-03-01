@@ -1,6 +1,6 @@
 import { defineUnlistedScript } from "wxt/utils/define-unlisted-script"
 import { MESSAGE_STATUS, MESSAGE_TYPE } from "~/types/messaging"
-import type { ExtMessage } from "~/types/messaging"
+import type { ExtMessage, ChatMessage } from "~/types/messaging"
 import { SOCKET_EVENTS, SOCKET_URL } from "~/types/socket"
 import type { State } from "~/types/state"
 import { VIDEO_EVENTS } from "~/types/video"
@@ -83,18 +83,27 @@ export default defineUnlistedScript(() => {
     settings = settingsResult.settings as { syncAudio: boolean } | undefined
     roomCode = state[tabId].roomId
     if (roomCode) {
+      // Idempotent: reuse existing connection, just re-join and re-bind video
       if (socket.disconnected) socket.connect()
+      else if (joinedRoom !== roomCode) {
+        joinedRoom = null
+        joinRoom()
+      }
       return getVideo(videoId)
     }
   }
 
   const videoEventHandler = (event: Event) => {
     if (roomCode) {
+      const volumeOrRate =
+        event.type === VIDEO_EVENTS.RATECHANGE
+          ? video?.playbackRate
+          : video?.volume
       socket.emit(
         SOCKET_EVENTS.VIDEO_EVENT,
         roomCode,
         event.type,
-        video?.volume,
+        volumeOrRate,
         video?.currentTime
       )
     }
@@ -126,6 +135,7 @@ export default defineUnlistedScript(() => {
     if (video != null) {
       const newState = Object.assign(state ?? {}, {
         [tabId]: {
+          ...state?.[tabId],
           roomId: roomCode,
           videoFound: true
         }
@@ -178,6 +188,24 @@ export default defineUnlistedScript(() => {
   socket.on("connect", () => {
     joinedRoom = null
     joinRoom()
+    // Measure latency on connect and periodically
+    measureLatency()
+    const latencyInterval = setInterval(() => {
+      if (socket.connected) measureLatency()
+      else clearInterval(latencyInterval)
+    }, 30000)
+    // Drift correction every 10s
+    if (driftInterval) clearInterval(driftInterval)
+    driftInterval = setInterval(() => {
+      if (!video || !socket.connected || lastPeerLocalTimestamp === 0) return
+      const expectedTime =
+        lastPeerCurrentTime + (Date.now() - lastPeerLocalTimestamp) / 1000
+      const drift = Math.abs(video.currentTime - expectedTime)
+      if (drift > 2) {
+        suppressOutboundEvents()
+        video.currentTime = expectedTime
+      }
+    }, 10000)
   })
 
   socket.on(SOCKET_EVENTS.FULL, (room) => {
@@ -191,17 +219,89 @@ export default defineUnlistedScript(() => {
     socket.io.opts.transports = ["polling", "websocket"]
   })
 
+  // --- Chat message handling ---
+  socket.on(SOCKET_EVENTS.CHAT_MESSAGE, (message: ChatMessage) => {
+    // Forward to chat content script via background relay
+    browser.runtime.sendMessage({
+      action: "forwardToChat",
+      nickname: message.nickname,
+      text: message.text,
+      timestamp: message.timestamp
+    })
+  })
+
+  // --- Reaction handling ---
+  socket.on(
+    SOCKET_EVENTS.REACTION,
+    (data: { emoji: string; nickname: string }) => {
+      // Forward to reactions content script via background relay
+      browser.runtime.sendMessage({
+        action: "forwardToReaction",
+        emoji: data.emoji,
+        nickname: data.nickname
+      })
+    }
+  )
+
+  // --- Latency compensation ---
+  let estimatedRttMs = 0
+  let estimatedClockOffsetMs = 0
+  let lastPeerCurrentTime = 0
+  let lastPeerLocalTimestamp = 0
+  let driftInterval: ReturnType<typeof setInterval> | null = null
+
+  const measureLatency = async () => {
+    const samples: Array<{ rtt: number; offset: number }> = []
+    for (let i = 0; i < 5; i++) {
+      const t0 = Date.now()
+      const pong = await new Promise<{ clientSendTs: number; serverTs: number }>(
+        (resolve) => {
+          socket.once(SOCKET_EVENTS.SYNC_PONG, resolve)
+          socket.emit(SOCKET_EVENTS.SYNC_PING, { clientSendTs: t0 })
+        }
+      )
+      const t2 = Date.now()
+      const rtt = t2 - t0
+      const offset = pong.serverTs - t0 - rtt / 2
+      samples.push({ rtt, offset })
+    }
+    // Discard highest and lowest RTT, average the rest
+    samples.sort((a, b) => a.rtt - b.rtt)
+    const trimmed = samples.slice(1, -1)
+    estimatedRttMs = trimmed.reduce((s, v) => s + v.rtt, 0) / trimmed.length
+    estimatedClockOffsetMs =
+      trimmed.reduce((s, v) => s + v.offset, 0) / trimmed.length
+  }
+
   socket.on(
     SOCKET_EVENTS.VIDEO_EVENT,
-    (eventType: VIDEO_EVENTS, volumeValue: string, currentTime: string) => {
+    (
+      eventType: VIDEO_EVENTS,
+      volumeValue: string,
+      currentTime: string,
+      serverTimestamp?: number
+    ) => {
       if (video == null) {
         const e = new Error("Video is null in socket video event handler")
         scope.captureException(e)
         throw e
       }
+
+      // Latency-compensated time adjustment
+      const adjustTime = (rawTime: number): number => {
+        if (!serverTimestamp) return rawTime
+        const localEventTime = serverTimestamp - estimatedClockOffsetMs
+        const elapsed = (Date.now() - localEventTime) / 1000
+        return rawTime + elapsed
+      }
+
       switch (eventType) {
-        case VIDEO_EVENTS.PLAY:
+        case VIDEO_EVENTS.PLAY: {
           suppressOutboundEvents()
+          const adjustedTime = adjustTime(Number.parseFloat(currentTime))
+          video.currentTime = adjustedTime
+          lastPeerCurrentTime = adjustedTime
+          lastPeerLocalTimestamp = Date.now()
           video.play().catch((e) => {
             console.error(e)
             if (e.name === "NotAllowedError") {
@@ -218,9 +318,12 @@ export default defineUnlistedScript(() => {
             }
           })
           break
+        }
         case VIDEO_EVENTS.PAUSE:
           suppressOutboundEvents()
           video.pause()
+          lastPeerCurrentTime = Number.parseFloat(currentTime)
+          lastPeerLocalTimestamp = Date.now()
           break
         case VIDEO_EVENTS.VOLUMECHANGE:
           if (!settings?.syncAudio) break
@@ -228,36 +331,78 @@ export default defineUnlistedScript(() => {
           video.volume = Number.parseFloat(volumeValue)
           break
         case VIDEO_EVENTS.SEEKED: {
-          const time = Number.parseFloat(currentTime)
+          const adjustedTime = adjustTime(Number.parseFloat(currentTime))
           suppressOutboundEvents()
-          video.currentTime = time
+          video.currentTime = adjustedTime
+          lastPeerCurrentTime = adjustedTime
+          lastPeerLocalTimestamp = Date.now()
           break
         }
+        case VIDEO_EVENTS.RATECHANGE:
+          suppressOutboundEvents()
+          video.playbackRate = Number.parseFloat(volumeValue)
+          break
       }
     }
   )
 
-  browser.runtime.onMessage.addListener((request: ExtMessage) => {
-    switch (request.type) {
-      case MESSAGE_TYPE.INIT: {
-        return init(request.videoId).then((res) => {
-          return res
-        })
-      }
-      case MESSAGE_TYPE.EXIT:
-        for (const event of Object.values(VIDEO_EVENTS)) {
-          boundVideo?.removeEventListener(event, checkVideoEvent)
+  browser.runtime.onMessage.addListener(
+    (request: ExtMessage & { type: MESSAGE_TYPE; text?: string; emoji?: string }) => {
+      switch (request.type) {
+        case MESSAGE_TYPE.INIT: {
+          return init(request.videoId).then((res) => {
+            return res
+          })
         }
-        socket.disconnect()
-        joinedRoom = null
-        observer.disconnect()
-        video = null
-        boundVideo = null
-        return Promise.resolve({
-          status: MESSAGE_STATUS.SUCCESS
-        })
-      default:
-        return
+        case MESSAGE_TYPE.EXIT:
+          for (const event of Object.values(VIDEO_EVENTS)) {
+            boundVideo?.removeEventListener(event, checkVideoEvent)
+          }
+          socket.disconnect()
+          joinedRoom = null
+          if (driftInterval) clearInterval(driftInterval)
+          observer.disconnect()
+          video = null
+          boundVideo = null
+          return Promise.resolve({
+            status: MESSAGE_STATUS.SUCCESS
+          })
+        case MESSAGE_TYPE.CHAT: {
+          // Outbound chat message from content script via background
+          const nickname = state?.[tabId]?.nickname || "Anonymous"
+          const msg: ChatMessage = {
+            nickname,
+            text: request.text || "",
+            timestamp: Date.now()
+          }
+          socket.emit(SOCKET_EVENTS.CHAT_MESSAGE, roomCode, msg)
+          // Echo back to own chat UI via background relay
+          browser.runtime.sendMessage({
+            action: "forwardToChat",
+            nickname: msg.nickname,
+            text: msg.text,
+            timestamp: msg.timestamp,
+            self: true
+          })
+          return Promise.resolve(null)
+        }
+        case MESSAGE_TYPE.REACTION: {
+          const nickname = state?.[tabId]?.nickname || "Anonymous"
+          socket.emit(SOCKET_EVENTS.REACTION, roomCode, {
+            emoji: request.emoji,
+            nickname
+          })
+          // Echo back to own reaction UI via background relay
+          browser.runtime.sendMessage({
+            action: "forwardToReaction",
+            emoji: request.emoji,
+            nickname
+          })
+          return Promise.resolve(null)
+        }
+        default:
+          return
+      }
     }
-  })
+  )
 })

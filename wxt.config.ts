@@ -15,7 +15,7 @@ export default defineConfig({
     ],
     optional_host_permissions: ["https://*/*"],
     optional_permissions: ["activeTab", "https://*/*"],
-    permissions: ["storage", "activeTab", "scripting"],
+    permissions: ["storage", "activeTab", "scripting", "webNavigation"],
     browser_specific_settings: {
       gecko: {
         id: "{eb8f96ca-d31a-4f74-89ad-c25045497adb}"

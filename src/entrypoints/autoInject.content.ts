@@ -19,6 +19,24 @@ export default defineContentScript({
       }, 500)
     }
 
+    // Persistent rooms: detect SPA navigations and re-inject
+    let lastUrl = location.href
+    const urlObserver = new MutationObserver(() => {
+      if (location.href !== lastUrl) {
+        lastUrl = location.href
+        // Re-check if we should inject (room may still be active for this tab)
+        browser.runtime
+          .sendMessage({ action: "shouldInject" })
+          .then((res: boolean) => {
+            if (res) {
+              shouldInject = true
+              triggerInject()
+            }
+          })
+      }
+    })
+    urlObserver.observe(document, { subtree: true, childList: true })
+
     const observer = new MutationObserver((mutations) => {
       for (const mut of mutations) {
         // Case 1: New nodes added that are or contain video/iframe

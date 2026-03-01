@@ -1,3 +1,7 @@
 export type State = {
-  [tabId: number]: { roomId: string; videoFound?: boolean }
+  [tabId: number]: {
+    roomId: string
+    videoFound?: boolean
+    nickname?: string
+  }
 }
