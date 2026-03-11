@@ -68,17 +68,21 @@ export default defineBackground(() => {
     return code
   }
 
-  async function handleShouldInject(): Promise<boolean> {
-    const tabs = await browser.tabs.query({
-      active: true,
-      currentWindow: true
-    })
+  async function handleShouldInject(
+    senderTabId?: number
+  ): Promise<boolean> {
+    let tabId = senderTabId
+    if (tabId === undefined) {
+      const tabs = await browser.tabs.query({
+        active: true,
+        currentWindow: true
+      })
+      tabId = tabs[0]?.id
+    }
+    if (!tabId) return false
     const result = await browser.storage.local.get("state")
     const rooms = result.state as State | undefined
-    if (rooms && tabs[0].id && rooms[tabs[0].id]) {
-      return true
-    }
-    return false
+    return !!(rooms && rooms[tabId])
   }
 
   interface Video {
@@ -204,6 +208,22 @@ export default defineBackground(() => {
       }
     }
 
+    // Notify the video player content script to attach custom controls
+    const selectedVideoId = body ? body.videoId : videoId
+    if (selectedVideoId) {
+      // Small delay to let content script UI mount and register listeners
+      setTimeout(() => {
+        browser.tabs
+          .sendMessage(tabId, {
+            to: "videoPlayer",
+            videoId: selectedVideoId
+          })
+          .catch(() => {
+            /* videoPlayer content script may not be ready yet */
+          })
+      }, 300)
+    }
+
     return { status: MESSAGE_STATUS.SUCCESS }
   }
 
@@ -293,6 +313,10 @@ export default defineBackground(() => {
         await browser.tabs.sendMessage(tabId, initPayload, {
           frameId: frameIds[0]
         })
+        // Notify video player content script
+        browser.tabs
+          .sendMessage(tabId, { to: "videoPlayer", videoId })
+          .catch(() => {})
         return
       } catch {
         await wait150(150)
@@ -308,7 +332,7 @@ export default defineBackground(() => {
       case "createRoom":
         return handleCreateRoom()
       case "shouldInject":
-        return handleShouldInject()
+        return handleShouldInject(sender.tab?.id)
       case "inject":
         return handleInject(message.body)
       case "showToast":

@@ -1,0 +1,88 @@
+import { defineContentScript } from "wxt/utils/define-content-script"
+
+const TAG = "[synclify/fullscreen]"
+const FULLSCREEN_EVENT = "__synclify_fs_enter__"
+const WRAPPER_ATTR = "data-synclify-fs-wrapper"
+
+export default defineContentScript({
+  matches: ["<all_urls>"],
+  allFrames: true,
+  runAt: "document_start",
+  world: "MAIN",
+
+  main() {
+    const origRequestFS = Element.prototype.requestFullscreen
+    if (typeof origRequestFS !== "function") {
+      console.warn(TAG, "Element.prototype.requestFullscreen is not a function")
+      return
+    }
+
+    console.debug(TAG, "main-world patch installed")
+
+    function wrapVideo(video: HTMLVideoElement): HTMLDivElement {
+      const wrapper = document.createElement("div")
+      wrapper.setAttribute(WRAPPER_ATTR, "")
+      wrapper.style.cssText = `position:relative;width:${video.offsetWidth}px;height:${video.offsetHeight}px;background:#000`
+      video.parentNode!.insertBefore(wrapper, video)
+      wrapper.appendChild(video)
+      video.style.width = "100%"
+      video.style.height = "100%"
+      return wrapper
+    }
+
+    function unwrapVideo(wrapper: Element): void {
+      const video = wrapper.querySelector("video")
+      if (video && wrapper.parentNode) {
+        video.style.width = ""
+        video.style.height = ""
+        wrapper.parentNode.insertBefore(video, wrapper)
+        wrapper.remove()
+      }
+    }
+
+    Element.prototype.requestFullscreen = function (
+      ...args: Parameters<typeof origRequestFS>
+    ) {
+      const el = this
+
+      if (el instanceof HTMLVideoElement) {
+        console.debug(TAG, "requestFullscreen called on VIDEO — wrapping", el)
+
+        const wrapper = wrapVideo(el)
+
+        return origRequestFS.apply(wrapper, args).then(
+          (v) => {
+            console.info(TAG, "wrapped VIDEO fullscreen resolved")
+            document.dispatchEvent(new CustomEvent(FULLSCREEN_EVENT))
+            return v
+          },
+          (err) => {
+            console.warn(TAG, "wrapped VIDEO fullscreen rejected, unwrapping", err)
+            unwrapVideo(wrapper)
+            throw err
+          }
+        )
+      }
+
+      return origRequestFS.apply(el, args).then(
+        (v) => {
+          document.dispatchEvent(new CustomEvent(FULLSCREEN_EVENT))
+          return v
+        },
+        (err) => {
+          console.warn(TAG, "requestFullscreen rejected", err)
+          throw err
+        }
+      )
+    }
+
+    document.addEventListener("fullscreenchange", () => {
+      if (!document.fullscreenElement) {
+        console.debug(TAG, "fullscreen exited — unwrapping any wrappers")
+        document
+          .querySelectorAll(`[${WRAPPER_ATTR}]`)
+          .forEach((w) => unwrapVideo(w))
+      }
+    })
+  }
+})

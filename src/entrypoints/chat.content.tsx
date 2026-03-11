@@ -3,6 +3,7 @@ import { createShadowRootUi } from "wxt/utils/content-script-ui/shadow-root"
 import ReactDOM from "react-dom/client"
 import { useCallback, useEffect, useRef, useState } from "react"
 import browser from "webextension-polyfill"
+import { watchFullscreen } from "~/lib/fullscreen"
 
 type ChatMsg = {
   nickname: string
@@ -15,6 +16,8 @@ const BUBBLE_SIZE = 48
 const EDGE_MARGIN = 12
 
 function ChatApp() {
+  const [visible, setVisible] = useState(false)
+  const [settingEnabled, setSettingEnabled] = useState(true)
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [unread, setUnread] = useState(0)
@@ -25,6 +28,44 @@ function ChatApp() {
   const dragStart = useRef({ x: 0, y: 0, bx: 0, by: 0, moved: false })
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Check if in a room
+  useEffect(() => {
+    const check = () => {
+      browser.runtime
+        .sendMessage({ action: "shouldInject" })
+        .then((res: boolean) => setVisible(res))
+    }
+    check()
+    const listener = (
+      changes: Record<string, browser.Storage.StorageChange>
+    ) => {
+      if (changes.state) check()
+    }
+    browser.storage.onChanged.addListener(listener)
+    return () => browser.storage.onChanged.removeListener(listener)
+  }, [])
+
+  // Read showChat setting and watch for changes
+  useEffect(() => {
+    browser.storage.sync.get("settings").then((result) => {
+      const settings = result.settings as { showChat?: boolean } | undefined
+      if (settings?.showChat === false) setSettingEnabled(false)
+    })
+    const listener = (
+      changes: Record<string, browser.Storage.StorageChange>,
+      area: string
+    ) => {
+      if (area === "sync" && changes.settings) {
+        const newSettings = changes.settings.newValue as
+          | { showChat?: boolean }
+          | undefined
+        setSettingEnabled(newSettings?.showChat !== false)
+      }
+    }
+    browser.storage.onChanged.addListener(listener)
+    return () => browser.storage.onChanged.removeListener(listener)
+  }, [])
 
   // Load saved position
   useEffect(() => {
@@ -170,7 +211,7 @@ function ChatApp() {
   const bubbleOnRight =
     bubblePos.x + BUBBLE_SIZE / 2 > window.innerWidth / 2
 
-  if (bubblePos.x < 0) return null // Not loaded yet
+  if (!visible || !settingEnabled || bubblePos.x < 0) return null
 
   const formatTime = (ts: number) => {
     const d = new Date(ts)
@@ -473,5 +514,6 @@ export default defineContentScript({
     })
 
     ui.mount()
+    ctx.onInvalidated(watchFullscreen(ui.shadowHost))
   }
 })

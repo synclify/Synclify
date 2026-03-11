@@ -17,13 +17,15 @@ import browser from "webextension-polyfill"
 import logo from "~/assets/logo.svg?raw"
 
 export const settingsSchema = z.object({
-  syncAudio: z.boolean()
+  syncAudio: z.boolean(),
+  showChat: z.boolean(),
+  showReactions: z.boolean()
 })
 
 function App() {
   const form = useForm<z.infer<typeof settingsSchema>>({
     resolver: zodResolver(settingsSchema),
-    defaultValues: { syncAudio: false }
+    defaultValues: { syncAudio: false, showChat: true, showReactions: true }
   })
 
   useEffect(() => {
@@ -37,7 +39,13 @@ function App() {
 
   function onSubmit(values: z.infer<typeof settingsSchema>) {
     browser.storage.sync
-      .set({ settings: { syncAudio: values.syncAudio } })
+      .set({
+        settings: {
+          syncAudio: values.syncAudio,
+          showChat: values.showChat,
+          showReactions: values.showReactions
+        }
+      })
       .then(() => {
         toast.success("Settings saved")
       })
@@ -85,6 +93,56 @@ function App() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Sync volume with the other viewer
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="data-[state=checked]:bg-[hsl(38_92%_55%)]"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="showChat"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-xl border border-border bg-card/50 px-4 py-4 transition-colors hover:border-[hsl(38_92%_55%/0.25)]">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium text-foreground">
+                        Chat
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Show the chat bubble overlay
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="data-[state=checked]:bg-[hsl(38_92%_55%)]"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="showReactions"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-xl border border-border bg-card/50 px-4 py-4 transition-colors hover:border-[hsl(38_92%_55%/0.25)]">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium text-foreground">
+                        Reactions
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Show the emoji reaction bar
                       </p>
                     </div>
                     <FormControl>

@@ -4,6 +4,7 @@ import ReactDOM from "react-dom/client"
 import { useEffect, useState } from "react"
 import browser from "webextension-polyfill"
 import iconUrl from "~/assets/icon.png"
+import { watchFullscreen } from "~/lib/fullscreen"
 
 type VideoElement = {
   title: string
@@ -202,5 +203,6 @@ export default defineContentScript({
     })
 
     ui.mount()
+    ctx.onInvalidated(watchFullscreen(ui.wrapper))
   }
 })

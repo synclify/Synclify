@@ -5,6 +5,7 @@ import { Toaster } from "~/components/ui/sonner"
 import { toast } from "sonner"
 import { useEffect } from "react"
 import browser from "webextension-polyfill"
+import { watchFullscreen } from "~/lib/fullscreen"
 
 const ToastOverlay = () => {
   useEffect(() => {
@@ -55,5 +56,6 @@ export default defineContentScript({
     })
 
     ui.mount()
+    ctx.onInvalidated(watchFullscreen(ui.wrapper))
   }
 })
