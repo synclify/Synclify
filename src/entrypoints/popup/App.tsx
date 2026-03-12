@@ -17,6 +17,7 @@ import logo from "~/assets/logo.svg?raw"
 import { useForm } from "react-hook-form"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
+import { usePostHog } from "@posthog/react"
 
 type FormData = {
   room: string
@@ -24,6 +25,7 @@ type FormData = {
 }
 
 function App() {
+  const posthog = usePostHog()
   const [state, setState] = useState<State | undefined>()
   const [inRoom, setInRoom] = useState(false)
   const [error, setError] = useState(false)
@@ -32,6 +34,9 @@ function App() {
   const [tooltipText, setTooltipText] = useState("Click to copy")
   const [openTooltip, setOpenTooltip] = useState(false)
   const [nickname, setNickname] = useState("")
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportDetails, setReportDetails] = useState("")
+  const [reportSent, setReportSent] = useState(false)
   const {
     register,
     handleSubmit,
@@ -169,6 +174,25 @@ function App() {
     navigator.clipboard.writeText(getRoom)
     setTooltipText("Copied!")
   }, [getRoom])
+
+  const submitReport = useCallback(async () => {
+    const tabs = await browser.tabs.query({
+      active: true,
+      currentWindow: true
+    })
+    const url = tabs[0]?.url || "unknown"
+    posthog.capture("website_reported", {
+      reported_url: url,
+      details: reportDetails.trim(),
+      page_title: tabs[0]?.title || ""
+    })
+    setReportSent(true)
+    setReportDetails("")
+    setTimeout(() => {
+      setReportSent(false)
+      setReportOpen(false)
+    }, 2000)
+  }, [posthog, reportDetails])
 
   return (
     <div className="dark relative flex min-h-[320px] flex-col bg-background">
@@ -339,14 +363,57 @@ function App() {
         )}
       </div>
 
+      {/* Report panel */}
+      {reportOpen && (
+        <div className="relative z-10 border-t border-border/50 px-5 py-3">
+          {reportSent ? (
+            <p className="text-center text-xs text-emerald-400">
+              Thanks for reporting!
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <p className="text-[11px] font-medium text-muted-foreground">
+                Report this website as not working
+              </p>
+              <textarea
+                value={reportDetails}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                  setReportDetails(e.target.value)
+                }
+                placeholder="What went wrong? (optional)"
+                rows={2}
+                className="resize-none rounded-md border border-border bg-card px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-[hsl(38_92%_55%/0.4)] focus:outline-none"
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 flex-1 text-[11px]"
+                  onClick={() => setReportOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-7 flex-1 bg-[hsl(38_92%_55%)] text-[11px] text-[hsl(220_20%_6%)] hover:bg-[hsl(38_80%_50%)]"
+                  onClick={submitReport}>
+                  Send Report
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Footer */}
       <div className="animate-fade-in stagger-4 relative z-10 flex justify-center gap-4 border-t border-border/50 px-5 py-2.5">
-        <a
-          href="https://forms.gle/HN6AGyThWAXSCaXC8"
-          target="about:blank"
+        <button
+          onClick={() => {
+            setReportOpen(!reportOpen)
+            setReportSent(false)
+          }}
           className="text-[11px] text-muted-foreground transition-colors hover:text-[hsl(38_92%_55%)]">
-          Feedback
-        </a>
+          Report issue
+        </button>
         <button
           onClick={() => browser.runtime.openOptionsPage()}
           className="text-[11px] text-muted-foreground transition-colors hover:text-[hsl(38_92%_55%)]">

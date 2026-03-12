@@ -1,6 +1,7 @@
 import { PostHog } from "posthog-js/dist/module.no-external"
 import "posthog-js/dist/exception-autocapture"
 import browser from "webextension-polyfill"
+import { SOCKET_URL } from "~/types/socket"
 
 const POSTHOG_KEY = import.meta.env.WXT_PUBLIC_POSTHOG_KEY as string
 const POSTHOG_HOST =
@@ -22,7 +23,8 @@ export async function createPostHog(context: PostHogContext): Promise<PostHog> {
   const posthog = new PostHog()
 
   const shared = {
-    api_host: POSTHOG_HOST,
+    api_host: `${SOCKET_URL}/m`,
+    ui_host: POSTHOG_HOST,
     disable_external_dependency_loading: true,
     bootstrap: { distinctID: distinctId },
     error_tracking: { captureExtensionExceptions: true }
