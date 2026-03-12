@@ -19,13 +19,14 @@ import logo from "~/assets/logo.svg?raw"
 export const settingsSchema = z.object({
   syncAudio: z.boolean(),
   showChat: z.boolean(),
-  showReactions: z.boolean()
+  showReactions: z.boolean(),
+  showPlayer: z.boolean()
 })
 
 function App() {
   const form = useForm<z.infer<typeof settingsSchema>>({
     resolver: zodResolver(settingsSchema),
-    defaultValues: { syncAudio: false, showChat: true, showReactions: true }
+    defaultValues: { syncAudio: false, showChat: true, showReactions: true, showPlayer: true }
   })
 
   useEffect(() => {
@@ -43,7 +44,8 @@ function App() {
         settings: {
           syncAudio: values.syncAudio,
           showChat: values.showChat,
-          showReactions: values.showReactions
+          showReactions: values.showReactions,
+          showPlayer: values.showPlayer
         }
       })
       .then(() => {
@@ -143,6 +145,31 @@ function App() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Show the emoji reaction bar
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="data-[state=checked]:bg-[hsl(38_92%_55%)]"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="showPlayer"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-xl border border-border bg-card/50 px-4 py-4 transition-colors hover:border-[hsl(38_92%_55%/0.25)]">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium text-foreground">
+                        Custom player
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Replace native video controls with Synclify UI
                       </p>
                     </div>
                     <FormControl>

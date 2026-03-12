@@ -770,12 +770,28 @@ function PlayerManager() {
   const [video, setVideo] = useState<HTMLVideoElement | null>(null)
   const [wrapper, setWrapper] = useState<HTMLDivElement | null>(null)
   const [enabled, setEnabled] = useState(true)
+  const [settingEnabled, setSettingEnabled] = useState(true)
   const [disabledVideo, setDisabledVideo] = useState<HTMLVideoElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
 
   videoRef.current = video
   wrapperRef.current = wrapper
+
+  useEffect(() => {
+    browser.storage.sync.get("settings").then((result) => {
+      if (result.settings && typeof result.settings.showPlayer === "boolean") {
+        setSettingEnabled(result.settings.showPlayer)
+      }
+    })
+    const onChange = (changes: Record<string, browser.Storage.StorageChange>) => {
+      if (changes.settings?.newValue && typeof changes.settings.newValue.showPlayer === "boolean") {
+        setSettingEnabled(changes.settings.newValue.showPlayer)
+      }
+    }
+    browser.storage.onChanged.addListener(onChange)
+    return () => browser.storage.onChanged.removeListener(onChange)
+  }, [])
 
   const attachToVideo = useCallback((el: HTMLVideoElement) => {
     const existingWrapper = el.closest(
@@ -885,7 +901,7 @@ function PlayerManager() {
     ) => {
       console.debug(TAG, "onMessage received", msg)
       if (msg.to === "videoPlayer" && msg.videoId) {
-        if (!enabled) {
+        if (!enabled || !settingEnabled) {
           console.debug(TAG, "player disabled, ignoring attach")
           sendResponse(null)
           return true
@@ -909,11 +925,11 @@ function PlayerManager() {
     }
     browser.runtime.onMessage.addListener(handler)
     return () => browser.runtime.onMessage.removeListener(handler)
-  }, [enabled, attachToVideo, detach])
+  }, [enabled, settingEnabled, attachToVideo, detach])
 
   // Auto-attach when a video is detected (storage state change)
   useEffect(() => {
-    if (!enabled) return // disabled or still loading
+    if (!enabled || !settingEnabled) return
     console.debug(TAG, "registering storage listener")
     const listener = (
       changes: Record<string, browser.Storage.StorageChange>
@@ -942,7 +958,17 @@ function PlayerManager() {
     }
     browser.storage.onChanged.addListener(listener)
     return () => browser.storage.onChanged.removeListener(listener)
-  }, [enabled, attachToVideo])
+  }, [enabled, settingEnabled, attachToVideo])
+
+  useEffect(() => {
+    if (!settingEnabled) {
+      detach()
+      setDisabledVideo(null)
+      setEnabled(true)
+    }
+  }, [settingEnabled, detach])
+
+  if (!settingEnabled) return null
 
   if (!enabled && disabledVideo && disabledVideo.isConnected) {
     return <ReEnableBadge videoEl={disabledVideo} onEnable={handleReEnable} />
