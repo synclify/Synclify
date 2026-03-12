@@ -1,15 +1,15 @@
 import { defineBackground } from "wxt/utils/define-background"
 import browser from "webextension-polyfill"
-import * as Sentry from "@sentry/browser"
 import { SOCKET_URL, SOCKET_EVENTS } from "~/types/socket"
 import { MESSAGE_STATUS, MESSAGE_TYPE } from "~/types/messaging"
 import type { State } from "~/types/state"
+import { createPostHog } from "~/lib/posthog"
+import type { PostHog } from "posthog-js/dist/module.no-external"
 
-export default defineBackground(() => {
-  Sentry.init({
-    dsn: import.meta.env.WXT_SENTRY_DSN,
-    tunnel: `${SOCKET_URL}/t`
-  })
+let posthog: PostHog
+
+export default defineBackground(async () => {
+  posthog = await createPostHog("background")
 
   // --- Persistent rooms: re-inject on full page navigation ---
   browser.webNavigation.onCompleted.addListener(async (details) => {
@@ -63,7 +63,7 @@ export default defineBackground(() => {
       const e = new Error(
         `Failed to fetch room code from socket server: ${JSON.stringify({ code: res.status, statusText: res.statusText, body: code })}`
       )
-      Sentry.captureException(e)
+      posthog.captureException(e)
     }
     return code
   }

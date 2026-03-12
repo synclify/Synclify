@@ -2,7 +2,6 @@
   "env": {
     "browser": true,
     "es2021": true,
-    "jest": true,
     "webextensions": true
   },
   "extends": [
@@ -22,10 +21,10 @@
   "plugins": ["react", "@typescript-eslint", "react-hooks", "prettier"],
   "rules": {
     "react/react-in-jsx-scope": "off",
-    "camelcase": "error",
-    "spaced-comment": "error",
-    "quotes": ["warn", "double"],
-    "no-duplicate-imports": "error",
+    "camelcase": ["error", { "properties": "never", "ignoreDestructuring": true }],
+    "spaced-comment": ["error", "always", { "markers": ["/"] }],
+    "no-duplicate-imports": "off",
+    "import/no-duplicates": "error",
     "no-unused-vars": "off",
     "@typescript-eslint/no-unused-vars": [
       "warn",
@@ -35,6 +34,7 @@
         "caughtErrorsIgnorePattern": "^_"
       }
     ],
+    "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "warn"
   },
   "settings": {

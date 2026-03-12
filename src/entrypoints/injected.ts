@@ -7,14 +7,8 @@ import { VIDEO_EVENTS } from "~/types/video"
 import browser from "webextension-polyfill"
 import { io } from "socket.io-client"
 import { z } from "zod"
-import {
-  BrowserClient,
-  captureMessage,
-  defaultStackParser,
-  getDefaultIntegrations,
-  makeFetchTransport,
-  Scope
-} from "@sentry/browser"
+import { createPostHog } from "~/lib/posthog"
+import type { PostHog } from "posthog-js/dist/module.no-external"
 
 declare global {
   interface Window {
@@ -22,29 +16,11 @@ declare global {
   }
 }
 
-export default defineUnlistedScript(() => {
+export default defineUnlistedScript(async () => {
   if (window.__synclifyInjected) return
   window.__synclifyInjected = true
 
-  const integrations = getDefaultIntegrations({}).filter(
-    (defaultIntegration) => {
-      return !["BrowserApiErrors", "Breadcrumbs", "GlobalHandlers"].includes(
-        defaultIntegration.name
-      )
-    }
-  )
-
-  const client = new BrowserClient({
-    dsn: import.meta.env.WXT_SENTRY_DSN,
-    tunnel: `${SOCKET_URL}/t`,
-    transport: makeFetchTransport,
-    stackParser: defaultStackParser,
-    integrations: integrations
-  })
-
-  const scope = new Scope()
-  scope.setClient(client)
-  client.init()
+  const posthog = await createPostHog("injected")
 
   let tabId: number
   let roomCode: string
@@ -74,7 +50,7 @@ export default defineUnlistedScript(() => {
 
     if (savedState === undefined) {
       const e = new Error("Stored state is undefined")
-      scope.captureException(e)
+      posthog.captureException(e)
       throw e
     }
     state = savedState
@@ -126,10 +102,9 @@ export default defineUnlistedScript(() => {
         ) as HTMLVideoElement | null)
       : document.querySelector("video")
     if (!videoId) {
-      captureMessage(
-        "videoId is null, using first element returned by document.querySelector",
-        "warning"
-      )
+      posthog.capture("video_id_null_fallback", {
+        message: "videoId is null, using first element returned by document.querySelector"
+      })
     }
 
     if (video != null) {
@@ -162,7 +137,9 @@ export default defineUnlistedScript(() => {
       action: "showToast",
       body: { error: true, content: "Video not found" }
     })
-    captureMessage(`No video found in ${window.location.href}`, "info")
+    posthog.capture("no_video_found", {
+      message: `No video found in ${window.location.href}`
+    })
     return {
       status: MESSAGE_STATUS.ERROR,
       message: "Video not found"
@@ -172,7 +149,7 @@ export default defineUnlistedScript(() => {
   const joinRoom = () => {
     if (!roomCode) {
       const e = new Error("Invalid room code: " + roomCode)
-      scope.captureException(e)
+      posthog.captureException(e)
       throw e
     }
     if (!socket.connected) return
@@ -215,7 +192,9 @@ export default defineUnlistedScript(() => {
   })
 
   socket.on("connect_error", () => {
-    captureMessage("Socket connection error, allowing polling", "info")
+    posthog.capture("socket_connection_error", {
+      message: "Socket connection error, allowing polling"
+    })
     socket.io.opts.transports = ["polling", "websocket"]
   })
 
@@ -283,7 +262,7 @@ export default defineUnlistedScript(() => {
     ) => {
       if (video == null) {
         const e = new Error("Video is null in socket video event handler")
-        scope.captureException(e)
+        posthog.captureException(e)
         throw e
       }
 
@@ -314,7 +293,7 @@ export default defineUnlistedScript(() => {
                 }
               })
             } else {
-              scope.captureException(e)
+              posthog.captureException(e)
             }
           })
           break

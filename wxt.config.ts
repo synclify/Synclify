@@ -10,12 +10,23 @@ export default defineConfig({
     host_permissions: [
       ...new Set([
         `${import.meta.env.WXT_SOCKET_ENDPOINT || "http://localhost:3001"}/*`,
-        "http://localhost:3001/*"
+        "http://localhost:3001/*",
+        `${import.meta.env.WXT_PUBLIC_POSTHOG_HOST || "https://eu.i.posthog.com"}/*`
       ])
     ],
     optional_host_permissions: ["https://*/*"],
     optional_permissions: ["activeTab", "https://*/*"],
     permissions: ["storage", "activeTab", "scripting", "webNavigation"],
+    content_security_policy: {
+      extension_pages: [
+        "script-src 'self';",
+        "object-src 'self';",
+        `connect-src 'self' https://*.posthog.com https://eu.i.posthog.com http://localhost:3000 http://localhost:3001 ws://localhost:3000 ws://localhost:3001 ${import.meta.env.WXT_SOCKET_ENDPOINT || ""};`
+      ]
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim()
+    },
     browser_specific_settings: {
       gecko: {
         id: "{eb8f96ca-d31a-4f74-89ad-c25045497adb}"
@@ -38,6 +49,12 @@ export default defineConfig({
         react: "preact/compat",
         "react-dom": "preact/compat"
       }
+    },
+    build: {
+      target: "esnext"
+    },
+    esbuild: {
+      charset: "ascii"
     }
   })
 })
