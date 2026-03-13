@@ -12,13 +12,13 @@ export default defineBackground(async () => {
   posthog = await createPostHog("background")
 
   // --- Persistent rooms: re-inject on full page navigation ---
-  browser.webNavigation.onCompleted.addListener(async (details) => {
-    if (details.frameId !== 0) return // only top-level navigations
+  browser.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+    if (changeInfo.status !== "complete") return
     const result = await browser.storage.local.get("state")
     const state = result.state as State | undefined
-    if (state && state[details.tabId]) {
+    if (state && state[tabId]) {
       try {
-        await reinjectTab(details.tabId)
+        await reinjectTab(tabId)
       } catch {
         // Tab may not be ready yet, ignore
       }

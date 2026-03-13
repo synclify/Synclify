@@ -16,7 +16,7 @@ export default defineConfig({
     ],
     optional_host_permissions: ["https://*/*"],
     optional_permissions: ["activeTab", "https://*/*"],
-    permissions: ["storage", "activeTab", "scripting", "webNavigation"],
+    permissions: ["storage", "activeTab", "scripting"],
     content_security_policy: {
       extension_pages: [
         "script-src 'self';",
