@@ -14,6 +14,7 @@ type VideoElement = {
   height: number
   frameId: number
   id: string
+  needsCustomPlayer: boolean
 }
 
 function formatDuration(seconds: number | null | undefined): string {
@@ -114,7 +115,11 @@ const VideoSelector = () => {
               onClick={() => {
                 browser.runtime.sendMessage({
                   action: "inject",
-                  body: { frameIds: [video.frameId], videoId: video.id }
+                  body: {
+                    frameIds: [video.frameId],
+                    videoId: video.id,
+                    needsCustomPlayer: video.needsCustomPlayer
+                  }
                 })
                 setShow(false)
               }}

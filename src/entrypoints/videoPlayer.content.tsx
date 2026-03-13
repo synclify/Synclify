@@ -4,6 +4,7 @@ import ReactDOM from "react-dom/client"
 import { createPortal } from "react-dom"
 import { useCallback, useEffect, useRef, useState } from "react"
 import browser from "webextension-polyfill"
+import { shouldShowCustomPlayer } from "~/lib/video-detection"
 
 const TAG = "[synclify/player]"
 const WRAPPER_ATTR = "data-synclify-player-wrapper"
@@ -794,6 +795,8 @@ function PlayerManager() {
   }, [])
 
   const attachToVideo = useCallback((el: HTMLVideoElement) => {
+    if (!shouldShowCustomPlayer(el)) return
+
     const existingWrapper = el.closest(
       `[${WRAPPER_ATTR}]`
     ) as HTMLDivElement | null

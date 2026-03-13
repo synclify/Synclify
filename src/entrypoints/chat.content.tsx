@@ -71,7 +71,11 @@ function ChatApp() {
   useEffect(() => {
     browser.storage.local.get("chatBubblePos").then((result) => {
       if (result.chatBubblePos) {
-        setBubblePos(result.chatBubblePos as { x: number; y: number })
+        const saved = result.chatBubblePos as { x: number; y: number }
+        setBubblePos({
+          x: Math.max(EDGE_MARGIN, Math.min(saved.x, window.innerWidth - BUBBLE_SIZE - EDGE_MARGIN)),
+          y: Math.max(EDGE_MARGIN, Math.min(saved.y, window.innerHeight - BUBBLE_SIZE - EDGE_MARGIN))
+        })
       } else {
         setBubblePos({
           x: window.innerWidth - BUBBLE_SIZE - EDGE_MARGIN,
@@ -80,6 +84,38 @@ function ChatApp() {
       }
     })
   }, [])
+
+  // Keep bubble in bounds on window resize
+  const initialized = bubblePos.x >= 0
+  const prevSize = useRef({ w: window.innerWidth, h: window.innerHeight })
+  useEffect(() => {
+    if (!initialized) return
+    const onResize = () => {
+      const oldW = prevSize.current.w
+      const oldH = prevSize.current.h
+      const newW = window.innerWidth
+      const newH = window.innerHeight
+      prevSize.current = { w: newW, h: newH }
+
+      setBubblePos((prev) => {
+        const wasOnRight = prev.x > oldW / 2
+        const x = wasOnRight
+          ? newW - BUBBLE_SIZE - EDGE_MARGIN
+          : EDGE_MARGIN
+
+        const ratio = oldH > 0 ? prev.y / oldH : 0.5
+        const y = Math.max(EDGE_MARGIN, Math.min(
+          Math.round(ratio * newH),
+          newH - BUBBLE_SIZE - EDGE_MARGIN
+        ))
+
+        if (x === prev.x && y === prev.y) return prev
+        return { x, y }
+      })
+    }
+    window.addEventListener("resize", onResize)
+    return () => window.removeEventListener("resize", onResize)
+  }, [initialized])
 
   // Listen for incoming chat messages
   useEffect(() => {

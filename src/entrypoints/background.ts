@@ -47,6 +47,79 @@ export default defineBackground(async () => {
 
   // --- Message handlers (replaces Plasmo background/messages/) ---
 
+  // Self-contained function injected into page context via executeScript.
+  // Must not reference any outer scope — it gets serialized and run in the page.
+  function detectPageVideos() {
+    const COMMERCIAL_PLAYER_SELECTORS = [
+      ".html5-video-player",
+      ".video-player",
+      ".jw-wrapper",
+      ".vjs-player",
+      ".plyr",
+      ".mejs__container",
+      ".flowplayer",
+      ".video-js",
+      "[data-player]",
+      ".bitmovin-player",
+      ".bmpui-ui-uicontainer",
+      ".bmpui-container",
+      ".shaka-video-container",
+      ".theoplayer-container",
+      ".fp-player",
+      "[class*='brightcove']",
+      ".avp-player",
+      ".html5-main-video",
+      "#movie_player",
+      ".watch-video--player-view",
+      "[data-uia='video-canvas']"
+    ]
+
+    const videos = document.getElementsByTagName("video")
+    return Array.from(videos)
+      .map((video) => {
+        const sourceChild = video.querySelector(
+          "source"
+        ) as HTMLSourceElement | null
+        const src = video.currentSrc || video.src || sourceChild?.src || ""
+        const hasPlayableData =
+          video.srcObject !== null ||
+          src !== "" ||
+          video.videoWidth > 0 ||
+          video.readyState > 0
+        if (!hasPlayableData) return null
+        if (!video.dataset.synclifyId)
+          video.dataset.synclifyId = Math.random()
+            .toString(36)
+            .slice(2, 7)
+
+        const hasNativeControls = video.hasAttribute("controls")
+        const isNotLooping = !video.loop
+        const isVisible = video.videoWidth > 0
+        const isLongEnough = video.duration > 10 || isNaN(video.duration)
+        const insideCommercialPlayer = COMMERCIAL_PLAYER_SELECTORS.some(
+          (sel) => video.closest(sel) !== null
+        )
+
+        const needsCustomPlayer =
+          hasNativeControls &&
+          isNotLooping &&
+          isVisible &&
+          isLongEnough &&
+          !insideCommercialPlayer
+
+        return {
+          src,
+          duration: video.duration,
+          width: video.videoWidth,
+          height: video.videoHeight,
+          title: document.title,
+          id: video.dataset.synclifyId,
+          needsCustomPlayer
+        }
+      })
+      .filter((video) => video !== null)
+  }
+
   async function handleGetTabId(): Promise<number> {
     const tabs = await browser.tabs.query({
       active: true,
@@ -92,9 +165,10 @@ export default defineBackground(async () => {
     height: number
     title: string
     id: string
+    needsCustomPlayer: boolean
   }
 
-  async function handleInject(body?: { frameIds: number[]; videoId: string }) {
+  async function handleInject(body?: { frameIds: number[]; videoId: string; needsCustomPlayer?: boolean }) {
     const wait = (ms: number) =>
       new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -107,40 +181,13 @@ export default defineBackground(async () => {
 
     let frameIds = body ? body.frameIds : null
     let videoId: string | null = null
+    let needsCustomPlayer = true
 
     if (!frameIds) {
       let videos: Array<Video & { frameId: number }> = []
       for (let attempt = 0; attempt < 3 && videos.length === 0; attempt++) {
         const result = await browser.scripting.executeScript({
-          func: () => {
-            const videos = document.getElementsByTagName("video")
-            return Array.from(videos)
-              .map((video) => {
-                const sourceChild = video.querySelector(
-                  "source"
-                ) as HTMLSourceElement | null
-                const src = video.currentSrc || video.src || sourceChild?.src || ""
-                const hasPlayableData =
-                  video.srcObject !== null ||
-                  src !== "" ||
-                  video.videoWidth > 0 ||
-                  video.readyState > 0
-                if (!hasPlayableData) return null
-                if (!video.dataset.synclifyId)
-                  video.dataset.synclifyId = Math.random()
-                    .toString(36)
-                    .slice(2, 7)
-                return {
-                  src,
-                  duration: video.duration,
-                  width: video.videoWidth,
-                  height: video.videoHeight,
-                  title: document.title,
-                  id: video.dataset.synclifyId
-                }
-              })
-              .filter((video) => video !== null)
-          },
+          func: detectPageVideos,
           target: { tabId: tabId, allFrames: true }
         })
 
@@ -175,6 +222,7 @@ export default defineBackground(async () => {
       } else if (videos.length === 1) {
         frameIds = [videos[0].frameId]
         videoId = videos[0].id
+        needsCustomPlayer = videos[0].needsCustomPlayer
       } else {
         return null
       }
@@ -209,9 +257,10 @@ export default defineBackground(async () => {
     }
 
     // Notify the video player content script to attach custom controls
+    // Only show custom player for native videos not inside commercial players
     const selectedVideoId = body ? body.videoId : videoId
-    if (selectedVideoId) {
-      // Small delay to let content script UI mount and register listeners
+    const showCustomPlayer = body ? (body.needsCustomPlayer ?? needsCustomPlayer) : needsCustomPlayer
+    if (selectedVideoId && showCustomPlayer) {
       setTimeout(() => {
         browser.tabs
           .sendMessage(tabId, {
@@ -227,16 +276,22 @@ export default defineBackground(async () => {
     return { status: MESSAGE_STATUS.SUCCESS }
   }
 
-  async function handleShowToast(body: {
-    error?: boolean
-    content: string
-    show?: boolean
-  }) {
-    const tabs = await browser.tabs.query({
-      active: true,
-      currentWindow: true
-    })
-    const id = tabs[0].id as number
+  async function handleShowToast(
+    body: {
+      error?: boolean
+      content: string
+      show?: boolean
+    },
+    senderTabId?: number
+  ) {
+    let id = senderTabId
+    if (!id) {
+      const tabs = await browser.tabs.query({
+        active: true,
+        currentWindow: true
+      })
+      id = tabs[0].id as number
+    }
     browser.tabs.sendMessage(id, {
       to: "toast",
       error: body.error,
@@ -251,32 +306,10 @@ export default defineBackground(async () => {
       new Promise((resolve) => setTimeout(resolve, ms))
 
     // Find a video in the tab's frames
-    let videos: Array<{ id: string; frameId: number }> = []
+    let videos: Array<{ id: string; frameId: number; needsCustomPlayer: boolean }> = []
     for (let attempt = 0; attempt < 3 && videos.length === 0; attempt++) {
       const result = await browser.scripting.executeScript({
-        func: () => {
-          const videos = document.getElementsByTagName("video")
-          return Array.from(videos)
-            .map((video) => {
-              const sourceChild = video.querySelector(
-                "source"
-              ) as HTMLSourceElement | null
-              const src =
-                video.currentSrc || video.src || sourceChild?.src || ""
-              const hasPlayableData =
-                video.srcObject !== null ||
-                src !== "" ||
-                video.videoWidth > 0 ||
-                video.readyState > 0
-              if (!hasPlayableData) return null
-              if (!video.dataset.synclifyId)
-                video.dataset.synclifyId = Math.random()
-                  .toString(36)
-                  .slice(2, 7)
-              return { id: video.dataset.synclifyId }
-            })
-            .filter((v) => v !== null)
-        },
+        func: detectPageVideos,
         target: { tabId, allFrames: true }
       })
       videos = result
@@ -285,7 +318,7 @@ export default defineBackground(async () => {
             Array.isArray(injection.result) && injection.result.length !== 0
         )
         .flatMap((injection) =>
-          (injection.result as Array<{ id: string }>).map((v) => ({
+          (injection.result as Array<{ id: string; needsCustomPlayer: boolean }>).map((v) => ({
             ...v,
             frameId: injection.frameId
           }))
@@ -296,6 +329,7 @@ export default defineBackground(async () => {
 
     const frameIds = [videos[0].frameId]
     const videoId = videos[0].id
+    const needsCustomPlayer = videos[0].needsCustomPlayer
 
     await browser.scripting.executeScript({
       files: ["injected.js"],
@@ -313,10 +347,12 @@ export default defineBackground(async () => {
         await browser.tabs.sendMessage(tabId, initPayload, {
           frameId: frameIds[0]
         })
-        // Notify video player content script
-        browser.tabs
-          .sendMessage(tabId, { to: "videoPlayer", videoId })
-          .catch(() => {})
+        // Notify video player content script only for native videos
+        if (needsCustomPlayer) {
+          browser.tabs
+            .sendMessage(tabId, { to: "videoPlayer", videoId })
+            .catch(() => {})
+        }
         return
       } catch {
         await wait150(150)
@@ -336,7 +372,7 @@ export default defineBackground(async () => {
       case "inject":
         return handleInject(message.body)
       case "showToast":
-        return handleShowToast(message.body)
+        return handleShowToast(message.body, sender.tab?.id)
       case "chatMessage": {
         // Relay from chat content script -> injected script
         const chatTabId = sender.tab?.id

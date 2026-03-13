@@ -295,6 +295,9 @@ function App() {
           <div className="flex flex-1 flex-col">
             {/* Nickname input */}
             <div className="animate-fade-in-up mb-3">
+              <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+                Chat nickname
+              </label>
               <Input
                 type="text"
                 placeholder="Nickname (optional)"

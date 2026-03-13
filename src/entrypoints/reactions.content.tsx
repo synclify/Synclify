@@ -62,9 +62,14 @@ function clamp(val: number, min: number, max: number): number {
 function ReactionsApp() {
   const [visible, setVisible] = useState(false)
   const [settingEnabled, setSettingEnabled] = useState(true)
+  const [dismissed, setDismissed] = useState(false)
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingEmoji[]>([])
   const [container, setContainer] = useState<HTMLElement | null>(null)
   const [scale, setScale] = useState(1)
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const isDragging = useRef(false)
+  const dragStart = useRef<{ mx: number; my: number; ox: number; oy: number }>({ mx: 0, my: 0, ox: 0, oy: 0 })
+  const barRef = useRef<HTMLDivElement>(null)
   const timeoutsRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(
     new Map()
   )
@@ -195,6 +200,31 @@ function ReactionsApp() {
     })
   }, [])
 
+  // Reset dismissed state when leaving/joining a room
+  useEffect(() => {
+    if (visible) setDismissed(false)
+  }, [visible])
+
+  // Drag handlers
+  const onDragStart = useCallback((e: React.PointerEvent) => {
+    e.preventDefault()
+    isDragging.current = true
+    dragStart.current = { mx: e.clientX, my: e.clientY, ox: dragOffset.x, oy: dragOffset.y }
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+  }, [dragOffset])
+
+  const onDragMove = useCallback((e: React.PointerEvent) => {
+    if (!isDragging.current) return
+    setDragOffset({
+      x: dragStart.current.ox + (e.clientX - dragStart.current.mx),
+      y: dragStart.current.oy + (e.clientY - dragStart.current.my)
+    })
+  }, [])
+
+  const onDragEnd = useCallback(() => {
+    isDragging.current = false
+  }, [])
+
   if (!visible || !settingEnabled) return null
 
   const inContainer = container !== null
@@ -214,23 +244,52 @@ function ReactionsApp() {
   const floatTravel = Math.round(200 * s)
   const btnRadius = Math.round(8 * s)
 
-  const pickerBar = (
+  const handleSize = Math.round(16 * s)
+  const closeSize = Math.round(14 * s)
+
+  const pickerBar = dismissed ? null : (
     <div
+      ref={barRef}
+      onPointerMove={onDragMove}
+      onPointerUp={onDragEnd}
       style={{
         position: inContainer ? "absolute" : "fixed",
         bottom: barBottom,
         left: "50%",
-        transform: "translateX(-50%)",
+        transform: `translateX(-50%) translate(${dragOffset.x}px, ${dragOffset.y}px)`,
         display: "flex",
+        alignItems: "center",
         gap: barGap,
         padding: `${barPadV}px ${barPadH}px`,
         borderRadius: barRadius,
         background: "rgba(12, 14, 20, 0.85)",
         backdropFilter: "blur(12px)",
         border: "1px solid rgba(255,255,255,0.08)",
-        zIndex: 2147483645,
-        boxShadow: "0 4px 16px rgba(0,0,0,0.3)"
+        zIndex: 2147483648,
+        boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+        pointerEvents: "auto",
+        userSelect: "none"
       }}>
+      {/* Drag handle */}
+      <div
+        onPointerDown={onDragStart}
+        style={{
+          cursor: isDragging.current ? "grabbing" : "grab",
+          display: "flex",
+          alignItems: "center",
+          padding: `0 ${Math.round(2 * s)}px`,
+          color: "rgba(255,255,255,0.35)",
+          touchAction: "none"
+        }}>
+        <svg width={handleSize} height={handleSize} viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="5" cy="3" r="1.2" />
+          <circle cx="11" cy="3" r="1.2" />
+          <circle cx="5" cy="8" r="1.2" />
+          <circle cx="11" cy="8" r="1.2" />
+          <circle cx="5" cy="13" r="1.2" />
+          <circle cx="11" cy="13" r="1.2" />
+        </svg>
+      </div>
       {PRESET_EMOJIS.map((emoji) => (
         <button
           key={emoji}
@@ -256,6 +315,30 @@ function ReactionsApp() {
           {emoji}
         </button>
       ))}
+      {/* Close button */}
+      <button
+        onClick={() => setDismissed(true)}
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          padding: `0 ${Math.round(2 * s)}px`,
+          color: "rgba(255,255,255,0.35)",
+          transition: "color 0.15s"
+        }}
+        onMouseOver={(e) => {
+          e.currentTarget.style.color = "rgba(255,255,255,0.8)"
+        }}
+        onMouseOut={(e) => {
+          e.currentTarget.style.color = "rgba(255,255,255,0.35)"
+        }}>
+        <svg width={closeSize} height={closeSize} viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+          <line x1="2" y1="2" x2="12" y2="12" />
+          <line x1="12" y1="2" x2="2" y2="12" />
+        </svg>
+      </button>
     </div>
   )
 
