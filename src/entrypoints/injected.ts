@@ -4,11 +4,11 @@ import type { ExtMessage, ChatMessage } from "~/types/messaging"
 import { SOCKET_EVENTS, SOCKET_URL } from "~/types/socket"
 import type { State } from "~/types/state"
 import { VIDEO_EVENTS } from "~/types/video"
+import { findSiteVideo, detectStreamingSite } from "~/lib/video-detection"
 import browser from "webextension-polyfill"
 import { io } from "socket.io-client"
 import { z } from "zod"
 import { createPostHog } from "~/lib/posthog"
-import type { PostHog } from "posthog-js/dist/module.no-external"
 
 declare global {
   interface Window {
@@ -96,14 +96,33 @@ export default defineUnlistedScript(async () => {
   })
 
   const getVideo = (videoId?: string) => {
-    video = videoId
-      ? (document.querySelector(
-          `[data-synclify-id="${videoId}"]`
-        ) as HTMLVideoElement | null)
-      : document.querySelector("video")
-    if (!videoId) {
+    // First try by synclify-id if provided
+    if (videoId) {
+      video = document.querySelector(
+        `[data-synclify-id="${videoId}"]`
+      ) as HTMLVideoElement | null
+    }
+
+    // If no videoId or element not found, use site-specific detection
+    if (!video) {
+      const site = detectStreamingSite()
+      if (site !== "unknown") {
+        video = findSiteVideo()
+        if (video) {
+          // Ensure it has a synclify-id for future lookups
+          if (!video.dataset.synclifyId) {
+            video.dataset.synclifyId = Math.random().toString(36).slice(2, 7)
+          }
+        }
+      }
+    }
+
+    // Final fallback: first video on the page
+    if (!video) {
+      video = document.querySelector("video")
       posthog.capture("video_id_null_fallback", {
-        message: "videoId is null, using first element returned by document.querySelector"
+        message:
+          "videoId is null, using first element returned by document.querySelector"
       })
     }
 
@@ -233,12 +252,13 @@ export default defineUnlistedScript(async () => {
     const samples: Array<{ rtt: number; offset: number }> = []
     for (let i = 0; i < 5; i++) {
       const t0 = Date.now()
-      const pong = await new Promise<{ clientSendTs: number; serverTs: number }>(
-        (resolve) => {
-          socket.once(SOCKET_EVENTS.SYNC_PONG, resolve)
-          socket.emit(SOCKET_EVENTS.SYNC_PING, { clientSendTs: t0 })
-        }
-      )
+      const pong = await new Promise<{
+        clientSendTs: number
+        serverTs: number
+      }>((resolve) => {
+        socket.once(SOCKET_EVENTS.SYNC_PONG, resolve)
+        socket.emit(SOCKET_EVENTS.SYNC_PING, { clientSendTs: t0 })
+      })
       const t2 = Date.now()
       const rtt = t2 - t0
       const offset = pong.serverTs - t0 - rtt / 2
@@ -326,7 +346,13 @@ export default defineUnlistedScript(async () => {
   )
 
   browser.runtime.onMessage.addListener(
-    (request: ExtMessage & { type: MESSAGE_TYPE; text?: string; emoji?: string }) => {
+    (
+      request: ExtMessage & {
+        type: MESSAGE_TYPE
+        text?: string
+        emoji?: string
+      }
+    ) => {
       switch (request.type) {
         case MESSAGE_TYPE.INIT: {
           return init(request.videoId).then((res) => {

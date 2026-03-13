@@ -50,7 +50,105 @@ export default defineBackground(async () => {
   // Self-contained function injected into page context via executeScript.
   // Must not reference any outer scope — it gets serialized and run in the page.
   function detectPageVideos() {
+    const SITE_VIDEO_SELECTORS: Record<
+      string,
+      {
+        hostPatterns: RegExp[]
+        videoSelector: string
+        playerContainer: string
+        excludeSelector?: string
+        watchPageTest?: () => boolean
+      }
+    > = {
+      netflix: {
+        hostPatterns: [/netflix\.com$/],
+        videoSelector: ".watch-video--player-view video",
+        playerContainer: ".watch-video--player-view",
+        watchPageTest: () => location.pathname.includes("/watch")
+      },
+      youtube: {
+        hostPatterns: [/youtube\.com$/, /youtu\.be$/],
+        videoSelector: "#movie_player video.html5-main-video",
+        playerContainer: "#movie_player",
+        watchPageTest: () => location.pathname.includes("/watch"),
+        excludeSelector: ".ytp-ad-overlay-container video"
+      },
+      primevideo: {
+        hostPatterns: [
+          /primevideo\.com$/,
+          /amazon\.(com|co\.\w+|de|fr|it|es|in|jp|br|ca|com\.au)$/
+        ],
+        videoSelector: ".dv-player-fullscreen video",
+        playerContainer: ".dv-player-fullscreen",
+        watchPageTest: () => !!document.querySelector(".dv-player-fullscreen")
+      },
+      disneyplus: {
+        hostPatterns: [/disneyplus\.com$/],
+        videoSelector: "#hudson-wrapper video",
+        playerContainer: "#hudson-wrapper",
+        watchPageTest: () => {
+          const url = location.href
+          return (
+            url.includes("video") ||
+            url.includes("/watch") ||
+            url.includes("/play")
+          )
+        }
+      },
+      max: {
+        hostPatterns: [/play\.max\.com$/, /play\.hbomax\.com$/],
+        videoSelector:
+          '[data-testid="playerContainer"] video:not([class^="mmn-screenVideo"])',
+        playerContainer: '[data-testid="playerContainer"]',
+        watchPageTest: () => location.href.includes("video/watch"),
+        excludeSelector: '[class^="mmn-screenVideo"]'
+      },
+      hulu: {
+        hostPatterns: [/hulu\.com$/],
+        videoSelector: ".ContentPlayer video",
+        playerContainer: ".ContentPlayer",
+        watchPageTest: () => location.href.includes("watch"),
+        excludeSelector: "#ad-video-player, #intro-video-player"
+      },
+      appletv: {
+        hostPatterns: [/tv\.apple\.com$/],
+        videoSelector: "#hudson-wrapper video",
+        playerContainer: "#hudson-wrapper"
+      },
+      peacock: {
+        hostPatterns: [/peacocktv\.com$/],
+        videoSelector: "#hudson-wrapper video",
+        playerContainer: "#hudson-wrapper"
+      },
+      crunchyroll: {
+        hostPatterns: [/crunchyroll\.com$/],
+        videoSelector: "#hudson-wrapper video",
+        playerContainer: "#hudson-wrapper"
+      },
+      paramountplus: {
+        hostPatterns: [/paramountplus\.com$/],
+        videoSelector: "video",
+        playerContainer: "body"
+      },
+      hotstar: {
+        hostPatterns: [/hotstar\.com$/],
+        videoSelector: "video",
+        playerContainer: ".player-base"
+      },
+      mubi: {
+        hostPatterns: [/mubi\.com$/],
+        videoSelector: "video",
+        playerContainer: ".player"
+      }
+    }
+
     const COMMERCIAL_PLAYER_SELECTORS = [
+      ".watch-video--player-view",
+      "#movie_player",
+      ".dv-player-fullscreen",
+      "#hudson-wrapper",
+      '[data-testid="playerContainer"]',
+      ".ContentPlayer",
       ".html5-video-player",
       ".video-player",
       ".jw-wrapper",
@@ -69,43 +167,89 @@ export default defineBackground(async () => {
       "[class*='brightcove']",
       ".avp-player",
       ".html5-main-video",
-      "#movie_player",
-      ".watch-video--player-view",
       "[data-uia='video-canvas']"
     ]
 
-    const videos = document.getElementsByTagName("video")
-    return Array.from(videos)
+    /* Detect which streaming site we are on */
+    const host = location.hostname
+    let siteConfig: (typeof SITE_VIDEO_SELECTORS)[string] | null = null
+    let detectedSite = "unknown"
+    for (const [site, config] of Object.entries(SITE_VIDEO_SELECTORS)) {
+      if (config.hostPatterns.some((p) => p.test(host))) {
+        siteConfig = config
+        detectedSite = site
+        break
+      }
+    }
+
+    /* If on a known site, skip watch-page test failures */
+    if (siteConfig?.watchPageTest && !siteConfig.watchPageTest()) {
+      return []
+    }
+
+    /* Helper: does a video have playable content? */
+    const isPlayable = (video: HTMLVideoElement) => {
+      const sourceChild = video.querySelector(
+        "source"
+      ) as HTMLSourceElement | null
+      const src = video.currentSrc || video.src || sourceChild?.src || ""
+      return (
+        video.srcObject !== null ||
+        src !== "" ||
+        video.videoWidth > 0 ||
+        video.readyState > 0
+      )
+    }
+
+    /* Find candidate videos */
+    let candidates: HTMLVideoElement[]
+    if (siteConfig) {
+      // Use site-specific selector for more precise matching
+      candidates = Array.from(
+        document.querySelectorAll<HTMLVideoElement>(siteConfig.videoSelector)
+      )
+      // Filter out excluded elements (ads, overlays, etc.)
+      if (siteConfig.excludeSelector) {
+        const excludeSel = siteConfig.excludeSelector
+        candidates = candidates.filter((v) => !v.matches(excludeSel))
+      }
+      // If site-specific selector returned nothing, fall back to all videos
+      if (candidates.length === 0) {
+        candidates = Array.from(document.getElementsByTagName("video"))
+      }
+    } else {
+      candidates = Array.from(document.getElementsByTagName("video"))
+    }
+
+    return candidates
       .map((video) => {
+        if (!isPlayable(video)) return null
+        if (!video.dataset.synclifyId)
+          video.dataset.synclifyId = Math.random().toString(36).slice(2, 7)
+
         const sourceChild = video.querySelector(
           "source"
         ) as HTMLSourceElement | null
         const src = video.currentSrc || video.src || sourceChild?.src || ""
-        const hasPlayableData =
-          video.srcObject !== null ||
-          src !== "" ||
-          video.videoWidth > 0 ||
-          video.readyState > 0
-        if (!hasPlayableData) return null
-        if (!video.dataset.synclifyId)
-          video.dataset.synclifyId = Math.random()
-            .toString(36)
-            .slice(2, 7)
 
-        const hasNativeControls = video.hasAttribute("controls")
-        const isNotLooping = !video.loop
-        const isVisible = video.videoWidth > 0
-        const isLongEnough = video.duration > 10 || isNaN(video.duration)
-        const insideCommercialPlayer = COMMERCIAL_PLAYER_SELECTORS.some(
-          (sel) => video.closest(sel) !== null
-        )
-
-        const needsCustomPlayer =
-          hasNativeControls &&
-          isNotLooping &&
-          isVisible &&
-          isLongEnough &&
-          !insideCommercialPlayer
+        /* Decide whether Synclify should show its own player controls.
+           On known streaming sites, always false (their UI is better). */
+        let needsCustomPlayer = false
+        if (detectedSite === "unknown") {
+          const hasNativeControls = video.hasAttribute("controls")
+          const isNotLooping = !video.loop
+          const isVisible = video.videoWidth > 0
+          const isLongEnough = video.duration > 10 || isNaN(video.duration)
+          const insideCommercialPlayer = COMMERCIAL_PLAYER_SELECTORS.some(
+            (sel) => video.closest(sel) !== null
+          )
+          needsCustomPlayer =
+            hasNativeControls &&
+            isNotLooping &&
+            isVisible &&
+            isLongEnough &&
+            !insideCommercialPlayer
+        }
 
         return {
           src,
@@ -114,7 +258,8 @@ export default defineBackground(async () => {
           height: video.videoHeight,
           title: document.title,
           id: video.dataset.synclifyId,
-          needsCustomPlayer
+          needsCustomPlayer,
+          streamingSite: detectedSite
         }
       })
       .filter((video) => video !== null)
@@ -141,9 +286,7 @@ export default defineBackground(async () => {
     return code
   }
 
-  async function handleShouldInject(
-    senderTabId?: number
-  ): Promise<boolean> {
+  async function handleShouldInject(senderTabId?: number): Promise<boolean> {
     let tabId = senderTabId
     if (tabId === undefined) {
       const tabs = await browser.tabs.query({
@@ -166,9 +309,14 @@ export default defineBackground(async () => {
     title: string
     id: string
     needsCustomPlayer: boolean
+    streamingSite: string
   }
 
-  async function handleInject(body?: { frameIds: number[]; videoId: string; needsCustomPlayer?: boolean }) {
+  async function handleInject(body?: {
+    frameIds: number[]
+    videoId: string
+    needsCustomPlayer?: boolean
+  }) {
     const wait = (ms: number) =>
       new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -259,7 +407,9 @@ export default defineBackground(async () => {
     // Notify the video player content script to attach custom controls
     // Only show custom player for native videos not inside commercial players
     const selectedVideoId = body ? body.videoId : videoId
-    const showCustomPlayer = body ? (body.needsCustomPlayer ?? needsCustomPlayer) : needsCustomPlayer
+    const showCustomPlayer = body
+      ? (body.needsCustomPlayer ?? needsCustomPlayer)
+      : needsCustomPlayer
     if (selectedVideoId && showCustomPlayer) {
       setTimeout(() => {
         browser.tabs
@@ -306,7 +456,11 @@ export default defineBackground(async () => {
       new Promise((resolve) => setTimeout(resolve, ms))
 
     // Find a video in the tab's frames
-    let videos: Array<{ id: string; frameId: number; needsCustomPlayer: boolean }> = []
+    let videos: Array<{
+      id: string
+      frameId: number
+      needsCustomPlayer: boolean
+    }> = []
     for (let attempt = 0; attempt < 3 && videos.length === 0; attempt++) {
       const result = await browser.scripting.executeScript({
         func: detectPageVideos,
@@ -318,7 +472,12 @@ export default defineBackground(async () => {
             Array.isArray(injection.result) && injection.result.length !== 0
         )
         .flatMap((injection) =>
-          (injection.result as Array<{ id: string; needsCustomPlayer: boolean }>).map((v) => ({
+          (
+            injection.result as Array<{
+              id: string
+              needsCustomPlayer: boolean
+            }>
+          ).map((v) => ({
             ...v,
             frameId: injection.frameId
           }))
