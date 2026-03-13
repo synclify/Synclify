@@ -29,7 +29,6 @@ const handler: PlasmoMessaging.MessageHandler<RequestBody> = async (
 ) => {
   const tabs = await browser.tabs.query({ active: true, currentWindow: true })
   const tabId = tabs[0].id
-  console.warn(req.body)
 
   let frameIds = req.body ? req.body.frameIds : null
   let videoId = null

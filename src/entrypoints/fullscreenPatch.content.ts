@@ -1,6 +1,5 @@
 import { defineContentScript } from "wxt/utils/define-content-script"
 
-const TAG = "[synclify/fullscreen]"
 const FULLSCREEN_EVENT = "__synclify_fs_enter__"
 const WRAPPER_ATTR = "data-synclify-fs-wrapper"
 
@@ -13,11 +12,8 @@ export default defineContentScript({
   main() {
     const origRequestFS = Element.prototype.requestFullscreen
     if (typeof origRequestFS !== "function") {
-      console.warn(TAG, "Element.prototype.requestFullscreen is not a function")
       return
     }
-
-    console.debug(TAG, "main-world patch installed")
 
     function wrapVideo(video: HTMLVideoElement): HTMLDivElement {
       const wrapper = document.createElement("div")
@@ -46,18 +42,14 @@ export default defineContentScript({
       const el = this
 
       if (el instanceof HTMLVideoElement) {
-        console.debug(TAG, "requestFullscreen called on VIDEO — wrapping", el)
-
         const wrapper = wrapVideo(el)
 
         return origRequestFS.apply(wrapper, args).then(
           (v) => {
-            console.info(TAG, "wrapped VIDEO fullscreen resolved")
             document.dispatchEvent(new CustomEvent(FULLSCREEN_EVENT))
             return v
           },
           (err) => {
-            console.warn(TAG, "wrapped VIDEO fullscreen rejected, unwrapping", err)
             unwrapVideo(wrapper)
             throw err
           }
@@ -70,7 +62,6 @@ export default defineContentScript({
           return v
         },
         (err) => {
-          console.warn(TAG, "requestFullscreen rejected", err)
           throw err
         }
       )
@@ -78,7 +69,6 @@ export default defineContentScript({
 
     document.addEventListener("fullscreenchange", () => {
       if (!document.fullscreenElement) {
-        console.debug(TAG, "fullscreen exited — unwrapping any wrappers")
         document
           .querySelectorAll(`[${WRAPPER_ATTR}]`)
           .forEach((w) => unwrapVideo(w))

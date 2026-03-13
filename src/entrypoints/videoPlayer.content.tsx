@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import browser from "webextension-polyfill"
 import { shouldShowCustomPlayer } from "~/lib/video-detection"
 
-const TAG = "[synclify/player]"
 const WRAPPER_ATTR = "data-synclify-player-wrapper"
 
 /* ------------------------------------------------------------------ */
@@ -767,7 +766,6 @@ function ReEnableBadge({
 /* ------------------------------------------------------------------ */
 
 function PlayerManager() {
-  console.debug(TAG, "PlayerManager render")
   const [video, setVideo] = useState<HTMLVideoElement | null>(null)
   const [wrapper, setWrapper] = useState<HTMLDivElement | null>(null)
   const [enabled, setEnabled] = useState(true)
@@ -806,8 +804,6 @@ function PlayerManager() {
       return
     }
 
-    console.debug(TAG, "wrapping video", el)
-
     el.controls = false
     el.removeAttribute("controls")
 
@@ -841,8 +837,6 @@ function PlayerManager() {
     const v = videoRef.current
     const w = wrapperRef.current
     if (v && w) {
-      console.debug(TAG, "unwrapping video", v)
-
       // Exit fullscreen first if the wrapper is the fullscreen element
       if (document.fullscreenElement === w) {
         document.exitFullscreen().then(() => {
@@ -896,24 +890,19 @@ function PlayerManager() {
 
   // Listen for video-player messages
   useEffect(() => {
-    console.debug(TAG, "registering onMessage listener, enabled:", enabled)
     const handler = (
       msg: { to?: string; videoId?: string; enable?: boolean },
       _sender: browser.Runtime.MessageSender,
       sendResponse: (r: unknown) => void
     ) => {
-      console.debug(TAG, "onMessage received", msg)
       if (msg.to === "videoPlayer" && msg.videoId) {
         if (!enabled || !settingEnabled) {
-          console.debug(TAG, "player disabled, ignoring attach")
           sendResponse(null)
           return true
         }
-        console.debug(TAG, "looking for video with synclify-id", msg.videoId)
         const el = document.querySelector(
           `[data-synclify-id="${msg.videoId}"]`
         ) as HTMLVideoElement | null
-        console.debug(TAG, "found video element?", el)
         if (el) attachToVideo(el)
         sendResponse(null)
         return true
@@ -933,15 +922,9 @@ function PlayerManager() {
   // Auto-attach when a video is detected (storage state change)
   useEffect(() => {
     if (!enabled || !settingEnabled) return
-    console.debug(TAG, "registering storage listener")
     const listener = (
       changes: Record<string, browser.Storage.StorageChange>
     ) => {
-      console.debug(TAG, "storage changed", {
-        hasStateChange: !!changes.state,
-        enabled,
-        hasVideo: !!videoRef.current
-      })
       if (videoRef.current) return
       if (changes.state) {
         const newState = changes.state.newValue
@@ -949,12 +932,10 @@ function PlayerManager() {
         const hasVideo = Object.values(newState).some(
           (entry: { videoFound?: boolean }) => entry.videoFound
         )
-        console.debug(TAG, "hasVideo in state?", hasVideo)
         if (hasVideo) {
           const vid = document.querySelector(
             "[data-synclify-id]"
           ) as HTMLVideoElement | null
-          console.debug(TAG, "found video in DOM?", vid)
           if (vid) attachToVideo(vid)
         }
       }
@@ -996,8 +977,6 @@ export default defineContentScript({
   matches: ["<all_urls>"],
 
   main(ctx) {
-    console.log(TAG, "content script main() called")
-
     const ui = createIntegratedUi(ctx, {
       position: "inline",
       anchor: "body",
