@@ -36,7 +36,7 @@ app.post("/t", async (res, req) => {
     res.writeHeader("Access-Control-Allow-Methods", "OPTIONS, POST");
     res.writeHeader(
       "Access-Control-Allow-Headers",
-      "origin, content-type, accept, x-requested-with"
+      "origin, content-type, accept, x-requested-with",
     );
     res.writeHeader("Access-Control-Max-Age", "3600");
 
@@ -68,7 +68,82 @@ app.post("/t", async (res, req) => {
     res.end(JSON.stringify({ message: "invalid request", error }));
   }
 });
+const POSTHOG_HOST = process.env.POSTHOG_HOST || "https://eu.i.posthog.com";
 
+function corsHeaders(res: HttpResponse) {
+  res.writeHeader("Access-Control-Allow-Origin", "*");
+  res.writeHeader("Access-Control-Allow-Methods", "OPTIONS, GET, POST");
+  res.writeHeader(
+    "Access-Control-Allow-Headers",
+    "origin, content-type, accept",
+  );
+  res.writeHeader("Access-Control-Max-Age", "3600");
+}
+
+function proxyToPostHog(method: "GET" | "POST") {
+  return async (res: HttpResponse, req: any) => {
+    try {
+      res.onAborted(() => {
+        res.aborted = true;
+      });
+      corsHeaders(res);
+
+      const path = req.getUrl().replace(/^\/m/, "") || "/";
+      const query = req.getQuery();
+      const target = `${POSTHOG_HOST}${path}${query ? `?${query}` : ""}`;
+      const posthogDomain = new URL(POSTHOG_HOST).host;
+
+      const headers: Record<string, string> = {
+        Host: posthogDomain,
+      };
+
+      let body: Buffer | undefined;
+      if (method === "POST") {
+        const contentType = req.getHeader("content-type");
+        const contentEncoding = req.getHeader("content-encoding");
+        if (contentType) headers["Content-Type"] = contentType;
+        if (contentEncoding) headers["Content-Encoding"] = contentEncoding;
+        body = await readBody(res);
+      }
+
+      const response = await fetch(target, {
+        method,
+        headers,
+        body: body ? new Uint8Array(body) : undefined,
+      });
+
+      const data = Buffer.from(await response.arrayBuffer());
+      if (!res.aborted) {
+        res.writeStatus(String(response.status));
+        res.writeHeader(
+          "Content-Type",
+          response.headers.get("content-type") || "application/json",
+        );
+        res.end(data);
+      }
+    } catch {
+      if (!res.aborted) {
+        res.writeStatus("502 Bad Gateway");
+        res.end(JSON.stringify({ error: "proxy error" }));
+      }
+    }
+  };
+}
+
+app.options("/m/*", (res) => {
+  corsHeaders(res);
+  res.end();
+});
+app.get("/m/*", proxyToPostHog("GET"));
+app.post("/m/*", proxyToPostHog("POST"));
+app.options("/m", (res) => {
+  corsHeaders(res);
+  res.end();
+});
+app.get("/m", proxyToPostHog("GET"));
+app.post("/m", proxyToPostHog("POST"));
+
+console.log(process.env.ADMIN_PASSWORD);
 instrument(io, {
   auth: {
     type: "basic",
@@ -77,8 +152,8 @@ instrument(io, {
   },
 });
 
-app.listen(3000, () => {
-  console.log("listening on *:3000");
+app.listen(3001, () => {
+  console.log("listening on *:3001");
 });
 
 function isEmpty(room: string) {
@@ -97,7 +172,22 @@ io.sockets.on("connection", (socket) => {
 
   socket.on("videoEvent", (room, event, volume, currentTime) => {
     // log('Got video event:', room, event, 'from: ', socket.id, volume, currentTime);
-    socket.to(room).emit("videoEvent", event, volume, currentTime);
+    socket.to(room).emit("videoEvent", event, volume, currentTime, Date.now());
+  });
+
+  socket.on("chatMessage", (room, message) => {
+    socket.to(room).emit("chatMessage", message);
+  });
+
+  socket.on("reaction", (room, data) => {
+    socket.to(room).emit("reaction", data);
+  });
+
+  socket.on("syncPing", (data) => {
+    socket.emit("syncPong", {
+      clientSendTs: data.clientSendTs,
+      serverTs: Date.now(),
+    });
   });
 
   socket.on("join", (room) => {
@@ -126,6 +216,20 @@ io.sockets.on("connection", (socket) => {
     socket.emit("emit(): client " + socket.id + " joined room " + room);
   });
 });
+
+function readBody(res: HttpResponse): Promise<Buffer> {
+  let buffer: Buffer;
+  return new Promise((resolve, reject) => {
+    res.onData((ab, isLast) => {
+      const chunk = Buffer.from(ab.slice(0));
+      if (isLast) {
+        resolve(buffer ? Buffer.concat([buffer, chunk]) : chunk);
+      } else {
+        buffer = buffer ? Buffer.concat([buffer, chunk]) : chunk;
+      }
+    });
+  });
+}
 
 function readJson(res: HttpResponse): Promise<string> {
   let buffer: Buffer;
