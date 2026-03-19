@@ -152,8 +152,10 @@ instrument(io, {
   },
 });
 
-app.listen(3001, () => {
-  console.log("listening on *:3001");
+const port = Number(process.env.PORT || 3000);
+
+app.listen(port, () => {
+  console.log(`listening on *:${port}`);
 });
 
 function isEmpty(room: string) {
