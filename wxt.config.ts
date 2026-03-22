@@ -3,7 +3,7 @@ import { defineConfig } from "wxt"
 export default defineConfig({
   srcDir: "src",
   modules: ["@wxt-dev/module-react"],
-  manifest: () => ({
+  manifest: ({ browser }) => ({
     name: "Synclify - Watch in sync with your friends",
     description:
       "Create a watch party straight from your browser — works anywhere, ad-free.",
@@ -33,7 +33,10 @@ export default defineConfig({
       }
     },
     icons: {
-      128: "/icon.png"
+      128:
+        browser === "firefox"
+          ? "/extension-icon-firefox.png"
+          : "/extension-icon.png"
     },
     web_accessible_resources: [
       {
