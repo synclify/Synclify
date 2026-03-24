@@ -61,14 +61,23 @@ app.post("/t", async (res, req) => {
     });
 
     const resData = await response.text();
-    res.writeStatus("201");
-    res.end(JSON.stringify({ message: "Success", data: resData }));
+    if (!res.aborted) {
+      res.cork(() => {
+        res.writeStatus("201");
+        res.end(JSON.stringify({ message: "Success", data: resData }));
+      });
+    }
   } catch (error) {
-    if (!res.aborted) res.writeStatus("400 Bad Request");
-    res.end(JSON.stringify({ message: "invalid request", error }));
+    if (!res.aborted) {
+      res.cork(() => {
+        res.writeStatus("400 Bad Request");
+        res.end(JSON.stringify({ message: "invalid request", error }));
+      });
+    }
   }
 });
-const POSTHOG_HOST = process.env.POSTHOG_HOST || "https://eu.i.posthog.com";
+const POSTHOG_API_HOST = "eu.i.posthog.com";
+const POSTHOG_ASSET_HOST = "eu-assets.i.posthog.com";
 
 function corsHeaders(res: HttpResponse) {
   res.writeHeader("Access-Control-Allow-Origin", "*");
@@ -80,7 +89,17 @@ function corsHeaders(res: HttpResponse) {
   res.writeHeader("Access-Control-Max-Age", "3600");
 }
 
-function proxyToPostHog(method: "GET" | "POST") {
+// Collect all request headers from a uWS request into a Headers object.
+// uWS exposes headers via req.forEach which iterates (name, value) pairs.
+function collectHeaders(req: any): Headers {
+  const headers = new Headers();
+  req.forEach((name: string, value: string) => {
+    headers.append(name, value);
+  });
+  return headers;
+}
+
+function proxyToPostHog(method: "GET" | "POST" | "HEAD") {
   return async (res: HttpResponse, req: any) => {
     try {
       res.onAborted(() => {
@@ -90,60 +109,141 @@ function proxyToPostHog(method: "GET" | "POST") {
 
       const path = req.getUrl().replace(/^\/m/, "") || "/";
       const query = req.getQuery();
-      const target = `${POSTHOG_HOST}${path}${query ? `?${query}` : ""}`;
-      const posthogDomain = new URL(POSTHOG_HOST).host;
+      const posthogHost = path.startsWith("/static/")
+        ? POSTHOG_ASSET_HOST
+        : POSTHOG_API_HOST;
 
-      const headers: Record<string, string> = {
-        Host: posthogDomain,
-      };
+      // Forward all incoming headers, then override the ones that matter
+      const headers = collectHeaders(req);
+      const originHost = headers.get("host");
+      headers.set("host", posthogHost);
+
+      if (originHost) {
+        headers.set("X-Forwarded-Host", originHost);
+      }
+      const clientIp =
+        headers.get("x-forwarded-for") ||
+        Buffer.from(res.getRemoteAddressAsText()).toString();
+      headers.set("X-Forwarded-For", clientIp);
+      headers.set("X-Real-IP", clientIp);
+
+      headers.delete("cookie");
+      headers.delete("connection");
+      headers.delete("transfer-encoding");
+      headers.delete("keep-alive");
+      headers.delete("upgrade");
 
       let body: Buffer | undefined;
       if (method === "POST") {
-        const contentType = req.getHeader("content-type");
-        const contentEncoding = req.getHeader("content-encoding");
-        if (contentType) headers["Content-Type"] = contentType;
-        if (contentEncoding) headers["Content-Encoding"] = contentEncoding;
         body = await readBody(res);
       }
 
+      const target = `https://${posthogHost}${path}${query ? `?${query}` : ""}`;
+      console.log("Proxying PostHog request", {
+        method,
+        target,
+        forwardedFor: clientIp,
+        forwardedHost: originHost ?? undefined,
+      });
       const response = await fetch(target, {
         method,
         headers,
         body: body ? new Uint8Array(body) : undefined,
       });
+      console.log("PostHog upstream response", {
+        method,
+        target,
+        status: response.status,
+        statusText: response.statusText,
+        contentType: response.headers.get("content-type") ?? undefined,
+      });
 
-      const data = Buffer.from(await response.arrayBuffer());
-      if (!res.aborted) {
-        res.writeStatus(String(response.status));
-        res.writeHeader(
-          "Content-Type",
-          response.headers.get("content-type") || "application/json",
-        );
-        res.end(data);
+      const resHeaders = filterProxyResponseHeaders(response.headers);
+
+      const hasNoBody = method === "HEAD" || response.status === 204 || response.status === 304;
+      const resBody = hasNoBody ? "" : await response.text();
+
+      if (hasNoBody) {
+        resHeaders.delete("content-length");
+        resHeaders.delete("content-type");
+        resHeaders.delete("content-encoding");
+      } else if (resHeaders.has("content-encoding")) {
+        resHeaders.delete("content-encoding");
+        resHeaders.delete("content-length");
       }
-    } catch {
+
       if (!res.aborted) {
-        res.writeStatus("502 Bad Gateway");
-        res.end(JSON.stringify({ error: "proxy error" }));
+        res.cork(() => {
+          res.writeStatus(`${response.status} ${response.statusText}`);
+          console.log("Sending PostHog proxy response", {
+            method,
+            target,
+            status: response.status,
+            hasNoBody,
+            headers: Array.from(resHeaders.entries()),
+          });
+          resHeaders.forEach((value, name) => {
+            res.writeHeader(name, value);
+          });
+          if (hasNoBody) {
+            res.end();
+            return;
+          }
+          res.end(resBody);
+        });
+      }
+    } catch (err) {
+      console.error("PostHog proxy error:", {
+        method,
+        path: req.getUrl(),
+        query: req.getQuery(),
+        error: err,
+      });
+      if (!res.aborted) {
+        res.cork(() => {
+          res.writeStatus("502 Bad Gateway");
+          res.end(JSON.stringify({ error: "proxy error" }));
+        });
       }
     }
   };
+}
+
+function filterProxyResponseHeaders(headers: Headers): Headers {
+  const filtered = new Headers();
+  const allowed = new Set([
+    "cache-control",
+    "content-type",
+    "etag",
+    "expires",
+    "last-modified",
+    "vary",
+  ]);
+
+  headers.forEach((value, name) => {
+    if (allowed.has(name.toLowerCase())) {
+      filtered.set(name, value);
+    }
+  });
+
+  return filtered;
 }
 
 app.options("/m/*", (res) => {
   corsHeaders(res);
   res.end();
 });
+app.head("/m/*", proxyToPostHog("HEAD"));
 app.get("/m/*", proxyToPostHog("GET"));
 app.post("/m/*", proxyToPostHog("POST"));
 app.options("/m", (res) => {
   corsHeaders(res);
   res.end();
 });
+app.head("/m", proxyToPostHog("HEAD"));
 app.get("/m", proxyToPostHog("GET"));
 app.post("/m", proxyToPostHog("POST"));
 
-console.log(process.env.ADMIN_PASSWORD);
 instrument(io, {
   auth: {
     type: "basic",
