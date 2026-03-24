@@ -139,23 +139,10 @@ function proxyToPostHog(method: "GET" | "POST" | "HEAD") {
       }
 
       const target = `https://${posthogHost}${path}${query ? `?${query}` : ""}`;
-      console.log("Proxying PostHog request", {
-        method,
-        target,
-        forwardedFor: clientIp,
-        forwardedHost: originHost ?? undefined,
-      });
       const response = await fetch(target, {
         method,
         headers,
         body: body ? new Uint8Array(body) : undefined,
-      });
-      console.log("PostHog upstream response", {
-        method,
-        target,
-        status: response.status,
-        statusText: response.statusText,
-        contentType: response.headers.get("content-type") ?? undefined,
       });
 
       const resHeaders = filterProxyResponseHeaders(response.headers);
@@ -175,13 +162,6 @@ function proxyToPostHog(method: "GET" | "POST" | "HEAD") {
       if (!res.aborted) {
         res.cork(() => {
           res.writeStatus(`${response.status} ${response.statusText}`);
-          console.log("Sending PostHog proxy response", {
-            method,
-            target,
-            status: response.status,
-            hasNoBody,
-            headers: Array.from(resHeaders.entries()),
-          });
           resHeaders.forEach((value, name) => {
             res.writeHeader(name, value);
           });
