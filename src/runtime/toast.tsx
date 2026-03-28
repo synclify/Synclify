@@ -1,11 +1,9 @@
-import { defineContentScript } from "wxt/utils/define-content-script"
-import { createIntegratedUi } from "wxt/utils/content-script-ui/integrated"
 import ReactDOM from "react-dom/client"
 import { Toaster } from "~/components/ui/sonner"
 import { toast } from "sonner"
 import { useEffect } from "react"
 import browser from "webextension-polyfill"
-import { watchFullscreen } from "~/lib/fullscreen"
+import { mountUi, runOnce, whenBodyReady } from "~/lib/runtime-ui"
 
 const ToastOverlay = () => {
   useEffect(() => {
@@ -38,24 +36,15 @@ const ToastOverlay = () => {
   return <Toaster />
 }
 
-export default defineContentScript({
-  matches: ["<all_urls>"],
+export function initToast(): void {
+  if (!runOnce("toast")) return
 
-  main(ctx) {
-    const ui = createIntegratedUi(ctx, {
-      position: "inline",
-      anchor: "body",
-      onMount: (container) => {
-        const root = ReactDOM.createRoot(container)
-        root.render(<ToastOverlay />)
-        return root
-      },
-      onRemove: (root) => {
-        root?.unmount()
-      }
+  whenBodyReady(() => {
+    const { mountPoint } = mountUi({
+      id: "synclify-toast-root",
+      watchFullscreenHost: true
     })
-
-    ui.mount()
-    ctx.onInvalidated(watchFullscreen(ui.wrapper))
-  }
-})
+    const root = ReactDOM.createRoot(mountPoint)
+    root.render(<ToastOverlay />)
+  })
+}

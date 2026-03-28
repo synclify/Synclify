@@ -1,10 +1,8 @@
-import { defineContentScript } from "wxt/utils/define-content-script"
-import { createIntegratedUi } from "wxt/utils/content-script-ui/integrated"
 import ReactDOM from "react-dom/client"
 import { createPortal } from "react-dom"
 import { useCallback, useEffect, useRef, useState } from "react"
 import browser from "webextension-polyfill"
-import { watchFullscreen } from "~/lib/fullscreen"
+import { mountUi, runOnce, whenBodyReady } from "~/lib/runtime-ui"
 
 const PRESET_EMOJIS = ["\u{1F602}", "\u{1F62E}", "\u2764\uFE0F", "\u{1F525}", "\u{1F622}", "\u{1F44F}"]
 
@@ -383,24 +381,15 @@ function ReactionsApp() {
   )
 }
 
-export default defineContentScript({
-  matches: ["<all_urls>"],
+export function initReactions(): void {
+  if (!runOnce("reactions")) return
 
-  main(ctx) {
-    const ui = createIntegratedUi(ctx, {
-      position: "overlay",
-      anchor: "body",
-      onMount: (container) => {
-        const root = ReactDOM.createRoot(container)
-        root.render(<ReactionsApp />)
-        return root
-      },
-      onRemove: (root) => {
-        root?.unmount()
-      }
+  whenBodyReady(() => {
+    const { mountPoint } = mountUi({
+      id: "synclify-reactions-root",
+      watchFullscreenHost: true
     })
-
-    ui.mount()
-    ctx.onInvalidated(watchFullscreen(ui.wrapper))
-  }
-})
+    const root = ReactDOM.createRoot(mountPoint)
+    root.render(<ReactionsApp />)
+  })
+}

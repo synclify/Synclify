@@ -1,19 +1,15 @@
-import { defineContentScript } from "wxt/utils/define-content-script"
-
 const FULLSCREEN_EVENT = "__synclify_fs_enter__"
 const WRAPPER_ATTR = "data-synclify-fs-wrapper"
 
-export default defineContentScript({
-  matches: ["<all_urls>"],
-  allFrames: true,
-  runAt: "document_start",
-  world: "MAIN",
+export function initFullscreenPatch(): void {
+  const win = window as Window & { __synclifyFullscreenPatched?: boolean }
+  if (win.__synclifyFullscreenPatched) return
+  win.__synclifyFullscreenPatched = true
 
-  main() {
-    const origRequestFS = Element.prototype.requestFullscreen
-    if (typeof origRequestFS !== "function") {
-      return
-    }
+  const origRequestFS = Element.prototype.requestFullscreen
+  if (typeof origRequestFS !== "function") {
+    return
+  }
 
     function wrapVideo(video: HTMLVideoElement): HTMLDivElement {
       const wrapper = document.createElement("div")
@@ -67,12 +63,11 @@ export default defineContentScript({
       )
     }
 
-    document.addEventListener("fullscreenchange", () => {
-      if (!document.fullscreenElement) {
-        document
-          .querySelectorAll(`[${WRAPPER_ATTR}]`)
-          .forEach((w) => unwrapVideo(w))
-      }
-    })
-  }
-})
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement) {
+      document
+        .querySelectorAll(`[${WRAPPER_ATTR}]`)
+        .forEach((w) => unwrapVideo(w))
+    }
+  })
+}

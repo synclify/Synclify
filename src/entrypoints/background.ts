@@ -8,6 +8,61 @@ import type { PostHog } from "posthog-js/dist/module.no-external"
 
 let posthog: PostHog
 
+const TOP_FRAME_SUPPORT_SCRIPTS = [
+  "chat.js",
+  "reactions.js",
+  "toast.js",
+  "videoPlayer.js",
+  "videoSelector.js"
+]
+
+const ALL_FRAME_SUPPORT_SCRIPTS = [
+  "autoInject.js"
+]
+
+const MAIN_WORLD_ALL_FRAME_SUPPORT_SCRIPTS = [
+  "fullscreenPatch.js"
+]
+
+async function injectSupportScripts(tabId: number): Promise<void> {
+  await browser.scripting.executeScript({
+    files: TOP_FRAME_SUPPORT_SCRIPTS,
+    target: { tabId }
+  })
+
+  await browser.scripting.executeScript({
+    files: ALL_FRAME_SUPPORT_SCRIPTS,
+    target: { tabId, allFrames: true }
+  })
+
+  await browser.scripting.executeScript({
+    files: MAIN_WORLD_ALL_FRAME_SUPPORT_SCRIPTS,
+    target: { tabId, allFrames: true },
+    world: "MAIN"
+  })
+}
+
+function toOriginPattern(url?: string): string | null {
+  if (!url) return null
+
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return null
+    }
+    return `${parsed.protocol}//${parsed.host}/*`
+  } catch {
+    return null
+  }
+}
+
+async function hasPersistentTabPermission(tabId: number): Promise<boolean> {
+  const tab = await browser.tabs.get(tabId)
+  const origin = toOriginPattern(tab.url)
+  if (!origin) return false
+  return browser.permissions.contains({ origins: [origin] })
+}
+
 export default defineBackground(async () => {
   posthog = await createPostHog("background")
 
@@ -18,6 +73,7 @@ export default defineBackground(async () => {
     const state = result.state as State | undefined
     if (state && state[tabId]) {
       try {
+        if (!(await hasPersistentTabPermission(tabId))) return
         await reinjectTab(tabId)
       } catch {
         // Tab may not be ready yet, ignore
@@ -327,6 +383,8 @@ export default defineBackground(async () => {
     const tabId = tabs[0].id
     if (!tabId) throw new Error("Tab id is undefined")
 
+    await injectSupportScripts(tabId)
+
     let frameIds = body ? body.frameIds : null
     let videoId: string | null = null
     let needsCustomPlayer = true
@@ -442,6 +500,7 @@ export default defineBackground(async () => {
       })
       id = tabs[0].id as number
     }
+    await injectSupportScripts(id)
     browser.tabs.sendMessage(id, {
       to: "toast",
       error: body.error,
@@ -454,6 +513,8 @@ export default defineBackground(async () => {
   async function reinjectTab(tabId: number) {
     const wait = (ms: number) =>
       new Promise((resolve) => setTimeout(resolve, ms))
+
+    await injectSupportScripts(tabId)
 
     // Find a video in the tab's frames
     let videos: Array<{

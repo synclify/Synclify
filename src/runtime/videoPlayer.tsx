@@ -1,10 +1,9 @@
-import { defineContentScript } from "wxt/utils/define-content-script"
-import { createIntegratedUi } from "wxt/utils/content-script-ui/integrated"
 import ReactDOM from "react-dom/client"
 import { createPortal } from "react-dom"
 import { useCallback, useEffect, useRef, useState } from "react"
 import browser from "webextension-polyfill"
 import { shouldShowCustomPlayer } from "~/lib/video-detection"
+import { mountUi, runOnce, whenBodyReady } from "~/lib/runtime-ui"
 
 const WRAPPER_ATTR = "data-synclify-player-wrapper"
 
@@ -973,23 +972,14 @@ function PlayerManager() {
 /*  Content script entry                                               */
 /* ------------------------------------------------------------------ */
 
-export default defineContentScript({
-  matches: ["<all_urls>"],
+export function initVideoPlayer(): void {
+  if (!runOnce("videoPlayer")) return
 
-  main(ctx) {
-    const ui = createIntegratedUi(ctx, {
-      position: "inline",
-      anchor: "body",
-      onMount: (container) => {
-        const root = ReactDOM.createRoot(container)
-        root.render(<PlayerManager />)
-        return root
-      },
-      onRemove: (root) => {
-        root?.unmount()
-      }
+  whenBodyReady(() => {
+    const { mountPoint } = mountUi({
+      id: "synclify-video-player-root"
     })
-
-    ui.mount()
-  }
-})
+    const root = ReactDOM.createRoot(mountPoint)
+    root.render(<PlayerManager />)
+  })
+}

@@ -1,9 +1,7 @@
-import { defineContentScript } from "wxt/utils/define-content-script"
-import { createShadowRootUi } from "wxt/utils/content-script-ui/shadow-root"
 import ReactDOM from "react-dom/client"
 import { useCallback, useEffect, useRef, useState } from "react"
 import browser from "webextension-polyfill"
-import { watchFullscreen } from "~/lib/fullscreen"
+import { mountUi, runOnce, whenBodyReady } from "~/lib/runtime-ui"
 
 type ChatMsg = {
   nickname: string
@@ -530,26 +528,16 @@ function ChatApp() {
   )
 }
 
-export default defineContentScript({
-  matches: ["<all_urls>"],
+export function initChat(): void {
+  if (!runOnce("chat")) return
 
-  async main(ctx) {
-    const ui = await createShadowRootUi(ctx, {
-      name: "synclify-chat",
-      position: "inline",
-      anchor: "body",
-      isolateEvents: true,
-      onMount: (container) => {
-        const root = ReactDOM.createRoot(container)
-        root.render(<ChatApp />)
-        return root
-      },
-      onRemove: (root) => {
-        root?.unmount()
-      }
+  whenBodyReady(() => {
+    const { mountPoint } = mountUi({
+      id: "synclify-chat-root",
+      shadow: true,
+      watchFullscreenHost: true
     })
-
-    ui.mount()
-    ctx.onInvalidated(watchFullscreen(ui.shadowHost))
-  }
-})
+    const root = ReactDOM.createRoot(mountPoint)
+    root.render(<ChatApp />)
+  })
+}

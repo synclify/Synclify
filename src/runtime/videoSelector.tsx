@@ -1,10 +1,8 @@
-import { defineContentScript } from "wxt/utils/define-content-script"
-import { createIntegratedUi } from "wxt/utils/content-script-ui/integrated"
 import ReactDOM from "react-dom/client"
 import { useEffect, useState } from "react"
 import browser from "webextension-polyfill"
 import iconUrl from "~/assets/icon.png"
-import { watchFullscreen } from "~/lib/fullscreen"
+import { mountUi, runOnce, whenBodyReady } from "~/lib/runtime-ui"
 
 type VideoElement = {
   title: string
@@ -59,7 +57,7 @@ const VideoSelector = () => {
         right: 0,
         bottom: 0,
         zIndex: 2147483647,
-        display: "flex",
+        display: show ? "flex" : "none",
         flexDirection: "column",
         justifyContent: "center",
         padding: "16px",
@@ -190,24 +188,15 @@ const VideoSelector = () => {
   )
 }
 
-export default defineContentScript({
-  matches: ["<all_urls>"],
+export function initVideoSelector(): void {
+  if (!runOnce("videoSelector")) return
 
-  main(ctx) {
-    const ui = createIntegratedUi(ctx, {
-      position: "inline",
-      anchor: "body",
-      onMount: (container) => {
-        const root = ReactDOM.createRoot(container)
-        root.render(<VideoSelector />)
-        return root
-      },
-      onRemove: (root) => {
-        root?.unmount()
-      }
+  whenBodyReady(() => {
+    const { mountPoint } = mountUi({
+      id: "synclify-video-selector-root",
+      watchFullscreenHost: true
     })
-
-    ui.mount()
-    ctx.onInvalidated(watchFullscreen(ui.wrapper))
-  }
-})
+    const root = ReactDOM.createRoot(mountPoint)
+    root.render(<VideoSelector />)
+  })
+}

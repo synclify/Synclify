@@ -14,8 +14,8 @@ export default defineConfig({
         `${import.meta.env.WXT_PUBLIC_POSTHOG_HOST || "https://eu.i.posthog.com"}/*`
       ])
     ],
-    optional_host_permissions: ["https://*/*"],
-    optional_permissions: ["activeTab", "https://*/*"],
+    optional_host_permissions: ["https://*/*", "http://*/*"],
+    optional_permissions: ["activeTab"],
     permissions: ["storage", "activeTab", "scripting"],
     content_security_policy: {
       extension_pages: [

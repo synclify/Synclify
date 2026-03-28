@@ -113,24 +113,34 @@ function App() {
   )
 
   const createOrJoinRoom = useCallback(
-    (data?: FormData) => {
-      browser.permissions
-        .request({
-          permissions: ["activeTab"],
-          origins: ["https://*/*"]
-        })
-        .catch((err) => console.error(err))
-        .then((granted) => {
-          if (granted) {
-            if (data) {
-              const room = data.room.toUpperCase()
-              roomCallback(room)
-            } else
-              browser.runtime
-                .sendMessage({ action: "createRoom" })
-                .then((roomCode: string) => roomCallback(roomCode))
-          }
-        })
+    async (data?: FormData) => {
+      const hasPermission = await browser.permissions.contains({
+        permissions: ["activeTab"],
+        origins: ["https://*/*", "http://*/*"]
+      })
+
+      const granted = hasPermission
+        ? true
+        : await browser.permissions
+            .request({
+              permissions: ["activeTab"],
+              origins: ["https://*/*", "http://*/*"]
+            })
+            .catch((err) => {
+              console.error(err)
+              return false
+            })
+
+      if (!granted) return
+
+      if (data) {
+        const room = data.room.toUpperCase()
+        roomCallback(room)
+      } else {
+        browser.runtime
+          .sendMessage({ action: "createRoom" })
+          .then((roomCode: string) => roomCallback(roomCode))
+      }
     },
     [roomCallback]
   )

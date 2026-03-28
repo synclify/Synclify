@@ -1,15 +1,12 @@
-import { defineContentScript } from "wxt/utils/define-content-script"
 import { MESSAGE_STATUS } from "~/types/messaging"
 import browser from "webextension-polyfill"
+import { runOnce } from "~/lib/runtime-ui"
 
-export default defineContentScript({
-  matches: ["<all_urls>"],
-  allFrames: true,
-  runAt: "document_end",
+export function initAutoInject(): void {
+  if (!runOnce("autoInject")) return
 
-  main() {
-    let shouldInject = false
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null
+  let shouldInject = false
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
     const triggerInject = () => {
       if (!shouldInject) return
@@ -69,26 +66,25 @@ export default defineContentScript({
       }
     })
 
-    browser.runtime
-      .sendMessage({ action: "shouldInject" })
-      .then(async (res: boolean) => {
-        shouldInject = res
-        if (shouldInject) {
-          const result = await browser.runtime.sendMessage({
-            action: "inject"
+  browser.runtime
+    .sendMessage({ action: "shouldInject" })
+    .then(async (res: boolean) => {
+      shouldInject = res
+      if (shouldInject) {
+        const result = await browser.runtime.sendMessage({
+          action: "inject"
+        })
+        if (
+          result?.status !== MESSAGE_STATUS.SUCCESS &&
+          result?.status !== MESSAGE_STATUS.MULTIPLE_VIDEOS
+        ) {
+          observer.observe(document, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: ["src"]
           })
-          if (
-            result?.status !== MESSAGE_STATUS.SUCCESS &&
-            result?.status !== MESSAGE_STATUS.MULTIPLE_VIDEOS
-          ) {
-            observer.observe(document, {
-              subtree: true,
-              childList: true,
-              attributes: true,
-              attributeFilter: ["src"]
-            })
-          }
         }
-      })
-  }
-})
+      }
+    })
+}
