@@ -28,11 +28,26 @@ export default defineUnlistedScript(async () => {
   let video: HTMLVideoElement | null | undefined
   let boundVideo: HTMLVideoElement | null = null
   let suppressEventsUntil = 0
+  let lastAppliedRemoteEventTimestamp = 0
   let joinedRoom: string | null = null
   let settings: { syncAudio: boolean } | undefined
-  const SYNTHETIC_SUPPRESSION_MS = 150
+  const SYNTHETIC_SUPPRESSION_MS = 400
   const suppressOutboundEvents = () => {
     suppressEventsUntil = Date.now() + SYNTHETIC_SUPPRESSION_MS
+  }
+  const markRemoteEventApplied = (serverTimestamp?: number) => {
+    if (typeof serverTimestamp === "number") {
+      lastAppliedRemoteEventTimestamp = Math.max(
+        lastAppliedRemoteEventTimestamp,
+        serverTimestamp
+      )
+    }
+  }
+  const isStaleRemoteEvent = (serverTimestamp?: number) => {
+    return (
+      typeof serverTimestamp === "number" &&
+      serverTimestamp < lastAppliedRemoteEventTimestamp
+    )
   }
 
   const socket = io(SOCKET_URL, {
@@ -190,18 +205,6 @@ export default defineUnlistedScript(async () => {
       if (socket.connected) measureLatency()
       else clearInterval(latencyInterval)
     }, 30000)
-    // Drift correction every 10s
-    if (driftInterval) clearInterval(driftInterval)
-    driftInterval = setInterval(() => {
-      if (!video || !socket.connected || lastPeerLocalTimestamp === 0) return
-      const expectedTime =
-        lastPeerCurrentTime + (Date.now() - lastPeerLocalTimestamp) / 1000
-      const drift = Math.abs(video.currentTime - expectedTime)
-      if (drift > 2) {
-        suppressOutboundEvents()
-        video.currentTime = expectedTime
-      }
-    }, 10000)
   })
 
   socket.on(SOCKET_EVENTS.FULL, (room) => {
@@ -242,11 +245,7 @@ export default defineUnlistedScript(async () => {
   )
 
   // --- Latency compensation ---
-  let estimatedRttMs = 0
   let estimatedClockOffsetMs = 0
-  let lastPeerCurrentTime = 0
-  let lastPeerLocalTimestamp = 0
-  let driftInterval: ReturnType<typeof setInterval> | null = null
 
   const measureLatency = async () => {
     const samples: Array<{ rtt: number; offset: number }> = []
@@ -267,7 +266,6 @@ export default defineUnlistedScript(async () => {
     // Discard highest and lowest RTT, average the rest
     samples.sort((a, b) => a.rtt - b.rtt)
     const trimmed = samples.slice(1, -1)
-    estimatedRttMs = trimmed.reduce((s, v) => s + v.rtt, 0) / trimmed.length
     estimatedClockOffsetMs =
       trimmed.reduce((s, v) => s + v.offset, 0) / trimmed.length
   }
@@ -285,6 +283,15 @@ export default defineUnlistedScript(async () => {
         posthog.captureException(e)
         throw e
       }
+      const shouldTrackTimelineEvent =
+        eventType === VIDEO_EVENTS.PLAY ||
+        eventType === VIDEO_EVENTS.PAUSE ||
+        eventType === VIDEO_EVENTS.SEEKED
+
+      if (shouldTrackTimelineEvent) {
+        if (isStaleRemoteEvent(serverTimestamp)) return
+        markRemoteEventApplied(serverTimestamp)
+      }
 
       // Latency-compensated time adjustment
       const adjustTime = (rawTime: number): number => {
@@ -299,8 +306,6 @@ export default defineUnlistedScript(async () => {
           suppressOutboundEvents()
           const adjustedTime = adjustTime(Number.parseFloat(currentTime))
           video.currentTime = adjustedTime
-          lastPeerCurrentTime = adjustedTime
-          lastPeerLocalTimestamp = Date.now()
           video.play().catch((e) => {
             console.error(e)
             if (e.name === "NotAllowedError") {
@@ -321,8 +326,6 @@ export default defineUnlistedScript(async () => {
         case VIDEO_EVENTS.PAUSE:
           suppressOutboundEvents()
           video.pause()
-          lastPeerCurrentTime = Number.parseFloat(currentTime)
-          lastPeerLocalTimestamp = Date.now()
           break
         case VIDEO_EVENTS.VOLUMECHANGE:
           if (!settings?.syncAudio) break
@@ -333,8 +336,6 @@ export default defineUnlistedScript(async () => {
           const adjustedTime = adjustTime(Number.parseFloat(currentTime))
           suppressOutboundEvents()
           video.currentTime = adjustedTime
-          lastPeerCurrentTime = adjustedTime
-          lastPeerLocalTimestamp = Date.now()
           break
         }
         case VIDEO_EVENTS.RATECHANGE:
@@ -365,7 +366,6 @@ export default defineUnlistedScript(async () => {
           }
           socket.disconnect()
           joinedRoom = null
-          if (driftInterval) clearInterval(driftInterval)
           observer.disconnect()
           video = null
           boundVideo = null
