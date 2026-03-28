@@ -200,7 +200,7 @@ const bootstrap = () => {
           video.volume = Number.parseFloat(volumeValue)
           break
         case VIDEO_EVENTS.SEEKED: {
-          const time = Number.parseInt(currentTime)
+          const time = Number.parseFloat(currentTime)
           syntheticEvent = true
           video.currentTime = time
           break
