@@ -7,19 +7,53 @@ const POSTHOG_KEY = import.meta.env.WXT_PUBLIC_POSTHOG_KEY as string
 const POSTHOG_HOST =
   (import.meta.env.WXT_PUBLIC_POSTHOG_HOST as string) ||
   "https://eu.i.posthog.com"
-
-export async function getSharedDistinctId(): Promise<string> {
-  const stored = await browser.storage.local.get(["posthog_distinct_id"])
-  if (stored.posthog_distinct_id) return stored.posthog_distinct_id as string
-  const id = crypto.randomUUID()
-  await browser.storage.local.set({ posthog_distinct_id: id })
-  return id
-}
+export const POSTHOG_DISTINCT_ID_STORAGE_KEY = "posthog_distinct_id"
 
 type PostHogContext = "background" | "injected" | "popup"
 
+let sharedDistinctIdPromise: Promise<string> | null = null
+
+async function getStoredDistinctId(): Promise<string> {
+  const stored = await browser.storage.local.get([
+    POSTHOG_DISTINCT_ID_STORAGE_KEY
+  ])
+  const distinctId = stored[POSTHOG_DISTINCT_ID_STORAGE_KEY]
+
+  if (typeof distinctId === "string" && distinctId.length > 0) {
+    return distinctId
+  }
+
+  const id = crypto.randomUUID()
+  await browser.storage.local.set({ [POSTHOG_DISTINCT_ID_STORAGE_KEY]: id })
+  return id
+}
+
+export async function getSharedDistinctId(
+  context: PostHogContext
+): Promise<string> {
+  if (!sharedDistinctIdPromise) {
+    sharedDistinctIdPromise =
+      context === "background"
+        ? getStoredDistinctId()
+        : browser.runtime
+            .sendMessage({ action: "getPosthogDistinctId" })
+            .then((distinctId) => {
+              if (
+                typeof distinctId !== "string" ||
+                distinctId.length === 0
+              ) {
+                throw new Error("Background distinct ID unavailable")
+              }
+              return distinctId
+            })
+            .catch(() => getStoredDistinctId())
+  }
+
+  return sharedDistinctIdPromise
+}
+
 export async function createPostHog(context: PostHogContext): Promise<PostHog> {
-  const distinctId = await getSharedDistinctId()
+  const distinctId = await getSharedDistinctId(context)
   const posthog = new PostHog()
 
   const shared = {

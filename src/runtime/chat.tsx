@@ -26,6 +26,23 @@ function ChatApp() {
   const dragStart = useRef({ x: 0, y: 0, bx: 0, by: 0, moved: false })
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const hasTrackedOpen = useRef(false)
+  const hasTrackedUsage = useRef(false)
+
+  const trackChatTelemetry = useCallback(
+    (body: {
+      event: "chat_opened" | "chat_used"
+      firstInteraction?: "incoming" | "outgoing"
+    }) => {
+      browser.runtime
+        .sendMessage({
+          action: "trackChatTelemetry",
+          body
+        })
+        .catch(() => {})
+    },
+    []
+  )
 
   // Check if in a room
   useEffect(() => {
@@ -137,6 +154,13 @@ function ChatApp() {
           self: msg.self
         }
         setMessages((prev) => [...prev, chatMsg])
+        if (!msg.self && !hasTrackedUsage.current) {
+          hasTrackedUsage.current = true
+          trackChatTelemetry({
+            event: "chat_used",
+            firstInteraction: "incoming"
+          })
+        }
         if (!open && !msg.self) {
           setUnread((prev) => prev + 1)
         }
@@ -146,7 +170,7 @@ function ChatApp() {
     }
     browser.runtime.onMessage.addListener(handler)
     return () => browser.runtime.onMessage.removeListener(handler)
-  }, [open])
+  }, [open, trackChatTelemetry])
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -162,22 +186,38 @@ function ChatApp() {
     }
   }, [open])
 
-  const sendMessage = useCallback(() => {
+  const sendMessage = useCallback(async () => {
     const text = inputText.trim()
     if (!text) return
-    browser.runtime.sendMessage({
-      action: "chatMessage",
-      body: { text }
-    })
-    setInputText("")
-  }, [inputText])
+    try {
+      await browser.runtime.sendMessage({
+        action: "chatMessage",
+        body: { text }
+      })
+      if (!hasTrackedUsage.current) {
+        hasTrackedUsage.current = true
+        trackChatTelemetry({
+          event: "chat_used",
+          firstInteraction: "outgoing"
+        })
+      }
+      setInputText("")
+    } catch {}
+  }, [inputText, trackChatTelemetry])
 
   const toggleOpen = useCallback(() => {
     if (!dragging) {
-      setOpen((prev) => !prev)
+      setOpen((prev) => {
+        const next = !prev
+        if (next && !hasTrackedOpen.current) {
+          hasTrackedOpen.current = true
+          trackChatTelemetry({ event: "chat_opened" })
+        }
+        return next
+      })
       setUnread(0)
     }
-  }, [dragging])
+  }, [dragging, trackChatTelemetry])
 
   // Drag handlers
   const onPointerDown = useCallback(

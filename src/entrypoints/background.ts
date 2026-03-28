@@ -3,7 +3,7 @@ import browser from "webextension-polyfill"
 import { SOCKET_URL, SOCKET_EVENTS } from "~/types/socket"
 import { MESSAGE_STATUS, MESSAGE_TYPE } from "~/types/messaging"
 import type { State } from "~/types/state"
-import { createPostHog } from "~/lib/posthog"
+import { createPostHog, getSharedDistinctId } from "~/lib/posthog"
 import type { PostHog } from "posthog-js/dist/module.no-external"
 
 let posthog: PostHog
@@ -64,6 +64,14 @@ async function hasPersistentTabPermission(tabId: number): Promise<boolean> {
 }
 
 export default defineBackground(async () => {
+  browser.runtime.onMessage.addListener((message) => {
+    if (message.action === "getPosthogDistinctId") {
+      return getSharedDistinctId("background")
+    }
+
+    return undefined
+  })
+
   posthog = await createPostHog("background")
 
   // --- Persistent rooms: re-inject on full page navigation ---
@@ -95,8 +103,11 @@ export default defineBackground(async () => {
   })
 
   browser.runtime.onInstalled.addListener(async (details) => {
-    if (details.previousVersion !== browser.runtime.getManifest().version) {
-      await browser.storage.local.clear()
+    if (
+      details.reason === "update" &&
+      details.previousVersion !== browser.runtime.getManifest().version
+    ) {
+      await browser.storage.local.remove("state")
       browser.runtime.reload()
     }
   })
@@ -510,6 +521,41 @@ export default defineBackground(async () => {
     return null
   }
 
+  function getTelemetryHost(url?: string): string | null {
+    if (!url) return null
+
+    try {
+      return new URL(url).host
+    } catch {
+      return null
+    }
+  }
+
+  async function handleOverlayTelemetry(
+    body: {
+      event: "chat_opened" | "chat_used" | "reaction_used"
+      surface: "overlay" | "emoji_bar"
+      firstInteraction?: "incoming" | "outgoing"
+    },
+    sender: browser.Runtime.MessageSender
+  ) {
+    const properties: Record<string, string> = {
+      surface: body.surface
+    }
+    const pageHost = getTelemetryHost(sender.tab?.url)
+
+    if (pageHost) {
+      properties.page_host = pageHost
+    }
+
+    if (body.firstInteraction) {
+      properties.first_interaction = body.firstInteraction
+    }
+
+    posthog.capture(body.event, properties)
+    return null
+  }
+
   async function reinjectTab(tabId: number) {
     const wait = (ms: number) =>
       new Promise((resolve) => setTimeout(resolve, ms))
@@ -593,6 +639,16 @@ export default defineBackground(async () => {
         return handleInject(message.body)
       case "showToast":
         return handleShowToast(message.body, sender.tab?.id)
+      case "trackChatTelemetry":
+        return handleOverlayTelemetry(
+          { ...message.body, surface: "overlay" },
+          sender
+        )
+      case "trackReactionTelemetry":
+        return handleOverlayTelemetry(
+          { ...message.body, surface: "emoji_bar" },
+          sender
+        )
       case "chatMessage": {
         // Relay from chat content script -> injected script
         const chatTabId = sender.tab?.id

@@ -68,9 +68,19 @@ function ReactionsApp() {
   const isDragging = useRef(false)
   const dragStart = useRef<{ mx: number; my: number; ox: number; oy: number }>({ mx: 0, my: 0, ox: 0, oy: 0 })
   const barRef = useRef<HTMLDivElement>(null)
+  const hasTrackedUsage = useRef(false)
   const timeoutsRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(
     new Map()
   )
+
+  const trackReactionTelemetry = useCallback(() => {
+    browser.runtime
+      .sendMessage({
+        action: "trackReactionTelemetry",
+        body: { event: "reaction_used" }
+      })
+      .catch(() => {})
+  }, [])
 
   // Check if in a room
   useEffect(() => {
@@ -191,12 +201,21 @@ function ReactionsApp() {
     timeoutsRef.current.set(id, timeout)
   }, [])
 
-  const sendReaction = useCallback((emoji: string) => {
-    browser.runtime.sendMessage({
-      action: "reaction",
-      body: { emoji }
-    })
-  }, [])
+  const sendReaction = useCallback(
+    async (emoji: string) => {
+      try {
+        await browser.runtime.sendMessage({
+          action: "reaction",
+          body: { emoji }
+        })
+        if (!hasTrackedUsage.current) {
+          hasTrackedUsage.current = true
+          trackReactionTelemetry()
+        }
+      } catch {}
+    },
+    [trackReactionTelemetry]
+  )
 
   // Reset dismissed state when leaving/joining a room
   useEffect(() => {
