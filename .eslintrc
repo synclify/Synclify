@@ -24,7 +24,6 @@
     "camelcase": ["error", { "properties": "never", "ignoreDestructuring": true }],
     "spaced-comment": ["error", "always", { "markers": ["/"] }],
     "no-duplicate-imports": "off",
-    "import/no-duplicates": "error",
     "no-unused-vars": "off",
     "@typescript-eslint/no-unused-vars": [
       "warn",
