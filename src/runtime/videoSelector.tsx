@@ -2,6 +2,7 @@ import ReactDOM from "react-dom/client"
 import { useEffect, useState } from "react"
 import browser from "webextension-polyfill"
 import iconUrl from "~/assets/icon.png"
+import { t } from "~/lib/i18n"
 import { mountUi, runOnce, whenBodyReady } from "~/lib/runtime-ui"
 
 type VideoElement = {
@@ -16,7 +17,7 @@ type VideoElement = {
 }
 
 function formatDuration(seconds: number | null | undefined): string {
-  if (!seconds || isNaN(seconds)) return "unknown"
+  if (!seconds || isNaN(seconds)) return t("unknownDuration")
   const m = Math.floor(seconds / 60)
   const s = Math.floor(seconds % 60)
   return `${m}:${s.toString().padStart(2, "0")}`
@@ -91,7 +92,7 @@ const VideoSelector = () => {
           }}>
           <img
             src={iconUrl}
-            alt="Synclify"
+            alt={t("popupTitle")}
             style={{ width: "22px", height: "22px" }}
           />
           <span
@@ -101,7 +102,7 @@ const VideoSelector = () => {
               color: "rgba(210, 160, 60, 0.9)",
               letterSpacing: "0.05em"
             }}>
-            Choose a video to sync
+            {t("chooseVideoToSync")}
           </span>
         </div>
 

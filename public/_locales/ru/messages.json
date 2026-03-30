@@ -1,0 +1,70 @@
+{
+  "extName": { "message": "Synclify - Смотрите синхронно с друзьями" },
+  "extDescription": {
+    "message": "Создавайте совместный просмотр прямо в браузере: работает везде и без рекламы."
+  },
+  "popupTitle": { "message": "Synclify" },
+  "optionsTitle": { "message": "Настройки Synclify" },
+  "anonymousNickname": { "message": "Аноним" },
+  "clickToCopy": { "message": "Нажмите, чтобы скопировать" },
+  "copied": { "message": "Скопировано" },
+  "videoNotDetectedYet": { "message": "Видео пока не обнаружено" },
+  "videoDetected": { "message": "Видео обнаружено" },
+  "videoNotFound": { "message": "Видео не найдено" },
+  "multipleVideosDetected": { "message": "Обнаружено несколько видео" },
+  "injectedScriptNotReadyRetrySync": {
+    "message": "Внедренный скрипт еще не готов, попробуйте синхронизацию снова"
+  },
+  "roomCode": { "message": "Код комнаты" },
+  "connectedAndSyncing": { "message": "Подключено и синхронизируется" },
+  "retrySync": { "message": "Повторить синхронизацию" },
+  "leaveRoom": { "message": "Покинуть комнату" },
+  "chatNickname": { "message": "Ник в чате" },
+  "nicknameOptional": { "message": "Ник (необязательно)" },
+  "createRoom": { "message": "Создать комнату" },
+  "orJoin": { "message": "или присоединиться" },
+  "enterRoomCode": { "message": "Введите код комнаты" },
+  "roomCodeEmpty": { "message": "Код комнаты не может быть пустым." },
+  "roomCodeTooLong": { "message": "Код комнаты слишком длинный." },
+  "roomCodeTooShort": { "message": "Код комнаты слишком короткий." },
+  "roomCodeFormatIncorrect": { "message": "Неверный формат кода комнаты." },
+  "joinRoom": { "message": "Присоединиться к комнате" },
+  "thanksForReporting": { "message": "Спасибо за сообщение" },
+  "reportWebsiteNotWorking": {
+    "message": "Сообщить, что этот сайт не работает"
+  },
+  "reportWhatWentWrongOptional": {
+    "message": "Что пошло не так? (необязательно)"
+  },
+  "cancel": { "message": "Отмена" },
+  "sendReport": { "message": "Отправить отчет" },
+  "reportIssue": { "message": "Сообщить о проблеме" },
+  "settings": { "message": "Настройки" },
+  "website": { "message": "Сайт" },
+  "settingsSaved": { "message": "Настройки сохранены" },
+  "failedToSaveSettings": { "message": "Не удалось сохранить настройки" },
+  "syncAudio": { "message": "Синхронизировать звук" },
+  "syncAudioDescription": {
+    "message": "Синхронизировать громкость с другим зрителем"
+  },
+  "chat": { "message": "Чат" },
+  "chatDescription": { "message": "Показывать всплывающее окно чата" },
+  "reactions": { "message": "Реакции" },
+  "reactionsDescription": { "message": "Показывать панель реакций с эмодзи" },
+  "customPlayer": { "message": "Собственный плеер" },
+  "customPlayerDescription": {
+    "message": "Заменить стандартные элементы управления интерфейсом Synclify"
+  },
+  "saveSettings": { "message": "Сохранить настройки" },
+  "chooseVideoToSync": { "message": "Выберите видео для синхронизации" },
+  "unknownDuration": { "message": "Неизвестна" },
+  "switchToNativeVideoControls": {
+    "message": "Переключиться на стандартные элементы управления видео"
+  },
+  "nativeUi": { "message": "Стандартный интерфейс" },
+  "switchToSynclifyVideoPlayer": {
+    "message": "Переключиться на видеоплеер Synclify"
+  },
+  "synclifyUi": { "message": "Интерфейс Synclify" },
+  "typeMessage": { "message": "Введите сообщение..." }
+}

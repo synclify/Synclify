@@ -2,6 +2,7 @@ import ReactDOM from "react-dom/client"
 import { createPortal } from "react-dom"
 import { useCallback, useEffect, useRef, useState } from "react"
 import browser from "webextension-polyfill"
+import { t } from "~/lib/i18n"
 import { shouldShowCustomPlayer } from "~/lib/video-detection"
 import { mountUi, runOnce, whenBodyReady } from "~/lib/runtime-ui"
 
@@ -353,12 +354,9 @@ function PlayerControls({
   }, [wrapper])
 
   const onSeekStart = useCallback(() => setSeeking(true), [])
-  const onSeekInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setCurrentTime(Number(e.currentTarget.value))
-    },
-    []
-  )
+  const onSeekInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setCurrentTime(Number(e.currentTarget.value))
+  }, [])
   const onSeekEnd = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       video.currentTime = Number(e.currentTarget.value)
@@ -463,7 +461,7 @@ function PlayerControls({
             e.currentTarget.style.color = TEXT_DIM
             e.currentTarget.style.borderColor = GLASS_BORDER
           }}
-          title="Switch to native video controls">
+          title={t("switchToNativeVideoControls")}>
           <svg
             width="12"
             height="12"
@@ -476,7 +474,7 @@ function PlayerControls({
             <polyline points="1 4 1 10 7 10" />
             <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
           </svg>
-          <span>Native UI</span>
+          <span>{t("nativeUi")}</span>
         </button>
       </div>
 
@@ -687,8 +685,7 @@ function ReEnableBadge({
   useEffect(() => {
     const el = document.createElement("div")
     el.className = "synclify-reenable-host"
-    el.style.cssText =
-      "position:relative;display:inline-block;line-height:0"
+    el.style.cssText = "position:relative;display:inline-block;line-height:0"
 
     videoEl.parentNode!.insertBefore(el, videoEl)
     el.appendChild(videoEl)
@@ -741,7 +738,7 @@ function ReEnableBadge({
           e.currentTarget.style.color = TEXT_DIM
           e.currentTarget.style.borderColor = GLASS_BORDER
         }}
-        title="Switch to Synclify video player">
+        title={t("switchToSynclifyVideoPlayer")}>
         <svg
           width="12"
           height="12"
@@ -753,7 +750,7 @@ function ReEnableBadge({
           strokeLinejoin="round">
           <polygon points="5 3 19 12 5 21 5 3" />
         </svg>
-        <span>Synclify UI</span>
+        <span>{t("synclifyUi")}</span>
       </button>
     </div>,
     host
@@ -769,7 +766,9 @@ function PlayerManager() {
   const [wrapper, setWrapper] = useState<HTMLDivElement | null>(null)
   const [enabled, setEnabled] = useState(true)
   const [settingEnabled, setSettingEnabled] = useState(true)
-  const [disabledVideo, setDisabledVideo] = useState<HTMLVideoElement | null>(null)
+  const [disabledVideo, setDisabledVideo] = useState<HTMLVideoElement | null>(
+    null
+  )
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
 
@@ -782,8 +781,13 @@ function PlayerManager() {
         setSettingEnabled(result.settings.showPlayer)
       }
     })
-    const onChange = (changes: Record<string, browser.Storage.StorageChange>) => {
-      if (changes.settings?.newValue && typeof changes.settings.newValue.showPlayer === "boolean") {
+    const onChange = (
+      changes: Record<string, browser.Storage.StorageChange>
+    ) => {
+      if (
+        changes.settings?.newValue &&
+        typeof changes.settings.newValue.showPlayer === "boolean"
+      ) {
         setSettingEnabled(changes.settings.newValue.showPlayer)
       }
     }
@@ -960,11 +964,7 @@ function PlayerManager() {
   if (!enabled || !video || !wrapper) return null
 
   return (
-    <PlayerControls
-      video={video}
-      wrapper={wrapper}
-      onDisable={handleDisable}
-    />
+    <PlayerControls video={video} wrapper={wrapper} onDisable={handleDisable} />
   )
 }
 

@@ -1,0 +1,66 @@
+{
+  "extName": { "message": "Synclify - شاهد بالمزامنة مع أصدقائك" },
+  "extDescription": {
+    "message": "أنشئ مشاهدة جماعية مباشرة من المتصفح، تعمل تقريبًا في أي مكان وبدون إعلانات."
+  },
+  "popupTitle": { "message": "Synclify" },
+  "optionsTitle": { "message": "إعدادات Synclify" },
+  "anonymousNickname": { "message": "مجهول" },
+  "clickToCopy": { "message": "انقر للنسخ" },
+  "copied": { "message": "تم النسخ" },
+  "videoNotDetectedYet": { "message": "لم يتم اكتشاف الفيديو بعد" },
+  "videoDetected": { "message": "تم اكتشاف الفيديو" },
+  "videoNotFound": { "message": "لم يتم العثور على فيديو" },
+  "multipleVideosDetected": { "message": "تم اكتشاف عدة فيديوهات" },
+  "injectedScriptNotReadyRetrySync": {
+    "message": "البرنامج النصي المحقون غير جاهز بعد، حاول المزامنة مرة أخرى"
+  },
+  "roomCode": { "message": "رمز الغرفة" },
+  "connectedAndSyncing": { "message": "متصل وتتم المزامنة" },
+  "retrySync": { "message": "إعادة محاولة المزامنة" },
+  "leaveRoom": { "message": "مغادرة الغرفة" },
+  "chatNickname": { "message": "الاسم في الدردشة" },
+  "nicknameOptional": { "message": "الاسم (اختياري)" },
+  "createRoom": { "message": "إنشاء غرفة" },
+  "orJoin": { "message": "أو انضمام" },
+  "enterRoomCode": { "message": "أدخل رمز الغرفة" },
+  "roomCodeEmpty": { "message": "لا يمكن أن يكون رمز الغرفة فارغًا." },
+  "roomCodeTooLong": { "message": "رمز الغرفة طويل جدًا." },
+  "roomCodeTooShort": { "message": "رمز الغرفة قصير جدًا." },
+  "roomCodeFormatIncorrect": { "message": "تنسيق رمز الغرفة غير صحيح." },
+  "joinRoom": { "message": "الانضمام إلى الغرفة" },
+  "thanksForReporting": { "message": "شكرًا على الإبلاغ" },
+  "reportWebsiteNotWorking": { "message": "أبلغ عن أن هذا الموقع لا يعمل" },
+  "reportWhatWentWrongOptional": { "message": "ما الذي حدث؟ (اختياري)" },
+  "cancel": { "message": "إلغاء" },
+  "sendReport": { "message": "إرسال البلاغ" },
+  "reportIssue": { "message": "الإبلاغ عن مشكلة" },
+  "settings": { "message": "الإعدادات" },
+  "website": { "message": "الموقع" },
+  "settingsSaved": { "message": "تم حفظ الإعدادات" },
+  "failedToSaveSettings": { "message": "تعذر حفظ الإعدادات" },
+  "syncAudio": { "message": "مزامنة الصوت" },
+  "syncAudioDescription": { "message": "مزامنة مستوى الصوت مع المشاهد الآخر" },
+  "chat": { "message": "الدردشة" },
+  "chatDescription": { "message": "إظهار فقاعة الدردشة فوق الفيديو" },
+  "reactions": { "message": "التفاعلات" },
+  "reactionsDescription": {
+    "message": "إظهار شريط التفاعلات بالرموز التعبيرية"
+  },
+  "customPlayer": { "message": "مشغل مخصص" },
+  "customPlayerDescription": {
+    "message": "استبدال عناصر التحكم الأصلية بواجهة Synclify"
+  },
+  "saveSettings": { "message": "حفظ الإعدادات" },
+  "chooseVideoToSync": { "message": "اختر فيديو للمزامنة" },
+  "unknownDuration": { "message": "غير معروفة" },
+  "switchToNativeVideoControls": {
+    "message": "التبديل إلى عناصر التحكم الأصلية للفيديو"
+  },
+  "nativeUi": { "message": "الواجهة الأصلية" },
+  "switchToSynclifyVideoPlayer": {
+    "message": "التبديل إلى مشغل فيديو Synclify"
+  },
+  "synclifyUi": { "message": "واجهة Synclify" },
+  "typeMessage": { "message": "اكتب رسالة..." }
+}

@@ -15,6 +15,7 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import browser from "webextension-polyfill"
 import logo from "~/assets/logo.svg?raw"
+import { t } from "~/lib/i18n"
 
 export const settingsSchema = z.object({
   syncAudio: z.boolean(),
@@ -26,7 +27,12 @@ export const settingsSchema = z.object({
 function App() {
   const form = useForm<z.infer<typeof settingsSchema>>({
     resolver: zodResolver(settingsSchema),
-    defaultValues: { syncAudio: false, showChat: true, showReactions: true, showPlayer: true }
+    defaultValues: {
+      syncAudio: false,
+      showChat: true,
+      showReactions: true,
+      showPlayer: true
+    }
   })
 
   useEffect(() => {
@@ -49,11 +55,11 @@ function App() {
         }
       })
       .then(() => {
-        toast.success("Settings saved")
+        toast.success(t("settingsSaved"))
       })
       .catch((e) => {
         console.error(e)
-        toast.error("Failed to save settings", { description: String(e) })
+        toast.error(t("failedToSaveSettings"), { description: String(e) })
       })
   }
 
@@ -79,7 +85,7 @@ function App() {
         {/* Settings card */}
         <div className="animate-fade-in-up stagger-1">
           <h2 className="mb-6 text-[11px] font-medium uppercase tracking-[0.25em] text-secondary-foreground">
-            Settings
+            {t("settings")}
           </h2>
 
           <Form {...form}>
@@ -91,10 +97,10 @@ function App() {
                   <FormItem className="flex items-center justify-between rounded-xl border border-border bg-card/50 px-4 py-4 transition-colors hover:border-[hsl(38_92%_55%/0.25)]">
                     <div className="space-y-0.5">
                       <p className="text-sm font-medium text-foreground">
-                        Sync audio
+                        {t("syncAudio")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Sync volume with the other viewer
+                        {t("syncAudioDescription")}
                       </p>
                     </div>
                     <FormControl>
@@ -116,10 +122,10 @@ function App() {
                   <FormItem className="flex items-center justify-between rounded-xl border border-border bg-card/50 px-4 py-4 transition-colors hover:border-[hsl(38_92%_55%/0.25)]">
                     <div className="space-y-0.5">
                       <p className="text-sm font-medium text-foreground">
-                        Chat
+                        {t("chat")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Show the chat bubble overlay
+                        {t("chatDescription")}
                       </p>
                     </div>
                     <FormControl>
@@ -141,10 +147,10 @@ function App() {
                   <FormItem className="flex items-center justify-between rounded-xl border border-border bg-card/50 px-4 py-4 transition-colors hover:border-[hsl(38_92%_55%/0.25)]">
                     <div className="space-y-0.5">
                       <p className="text-sm font-medium text-foreground">
-                        Reactions
+                        {t("reactions")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Show the emoji reaction bar
+                        {t("reactionsDescription")}
                       </p>
                     </div>
                     <FormControl>
@@ -166,10 +172,10 @@ function App() {
                   <FormItem className="flex items-center justify-between rounded-xl border border-border bg-card/50 px-4 py-4 transition-colors hover:border-[hsl(38_92%_55%/0.25)]">
                     <div className="space-y-0.5">
                       <p className="text-sm font-medium text-foreground">
-                        Custom player
+                        {t("customPlayer")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Replace native video controls with Synclify UI
+                        {t("customPlayerDescription")}
                       </p>
                     </div>
                     <FormControl>
@@ -187,7 +193,7 @@ function App() {
               <Button
                 type="submit"
                 className="w-full rounded-lg bg-[hsl(38_92%_55%)] py-5 text-sm font-semibold tracking-wide text-[hsl(220_20%_6%)] shadow-lg shadow-[hsl(38_92%_55%/0.15)] transition-all hover:bg-[hsl(38_80%_50%)] hover:shadow-[hsl(38_92%_55%/0.25)]">
-                Save Settings
+                {t("saveSettings")}
               </Button>
             </form>
           </Form>

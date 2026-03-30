@@ -1,0 +1,66 @@
+{
+  "extName": { "message": "Synclify - বন্ধুদের সঙ্গে একসাথে দেখুন" },
+  "extDescription": {
+    "message": "ব্রাউজার থেকেই ওয়াচ পার্টি তৈরি করুন, প্রায় সব জায়গায় কাজ করে এবং বিজ্ঞাপনমুক্ত।"
+  },
+  "popupTitle": { "message": "Synclify" },
+  "optionsTitle": { "message": "Synclify সেটিংস" },
+  "anonymousNickname": { "message": "নামহীন" },
+  "clickToCopy": { "message": "কপি করতে ক্লিক করুন" },
+  "copied": { "message": "কপি হয়েছে" },
+  "videoNotDetectedYet": { "message": "এখনও ভিডিও শনাক্ত হয়নি" },
+  "videoDetected": { "message": "ভিডিও শনাক্ত হয়েছে" },
+  "videoNotFound": { "message": "ভিডিও পাওয়া যায়নি" },
+  "multipleVideosDetected": { "message": "একাধিক ভিডিও শনাক্ত হয়েছে" },
+  "injectedScriptNotReadyRetrySync": {
+    "message": "ইনজেক্ট করা স্ক্রিপ্ট এখনও প্রস্তুত নয়, আবার সিঙ্ক করার চেষ্টা করুন"
+  },
+  "roomCode": { "message": "রুম কোড" },
+  "connectedAndSyncing": { "message": "সংযুক্ত এবং সিঙ্ক হচ্ছে" },
+  "retrySync": { "message": "আবার সিঙ্ক করুন" },
+  "leaveRoom": { "message": "রুম ছাড়ুন" },
+  "chatNickname": { "message": "চ্যাট নাম" },
+  "nicknameOptional": { "message": "নাম (ঐচ্ছিক)" },
+  "createRoom": { "message": "রুম তৈরি করুন" },
+  "orJoin": { "message": "অথবা যোগ দিন" },
+  "enterRoomCode": { "message": "রুম কোড লিখুন" },
+  "roomCodeEmpty": { "message": "রুম কোড খালি রাখা যাবে না।" },
+  "roomCodeTooLong": { "message": "রুম কোড খুব বড়।" },
+  "roomCodeTooShort": { "message": "রুম কোড খুব ছোট।" },
+  "roomCodeFormatIncorrect": { "message": "রুম কোডের ফরম্যাট সঠিক নয়।" },
+  "joinRoom": { "message": "রুমে যোগ দিন" },
+  "thanksForReporting": { "message": "জানানোর জন্য ধন্যবাদ" },
+  "reportWebsiteNotWorking": {
+    "message": "এই ওয়েবসাইট কাজ করছে না বলে জানান"
+  },
+  "reportWhatWentWrongOptional": { "message": "কী ভুল হয়েছে? (ঐচ্ছিক)" },
+  "cancel": { "message": "বাতিল" },
+  "sendReport": { "message": "রিপোর্ট পাঠান" },
+  "reportIssue": { "message": "সমস্যা জানান" },
+  "settings": { "message": "সেটিংস" },
+  "website": { "message": "ওয়েবসাইট" },
+  "settingsSaved": { "message": "সেটিংস সংরক্ষিত হয়েছে" },
+  "failedToSaveSettings": { "message": "সেটিংস সংরক্ষণ করা যায়নি" },
+  "syncAudio": { "message": "অডিও সিঙ্ক" },
+  "syncAudioDescription": { "message": "অন্য দর্শকের সঙ্গে ভলিউম সিঙ্ক করুন" },
+  "chat": { "message": "চ্যাট" },
+  "chatDescription": { "message": "চ্যাট বুদবুদ ওভারলে দেখান" },
+  "reactions": { "message": "প্রতিক্রিয়া" },
+  "reactionsDescription": { "message": "ইমোজি প্রতিক্রিয়া বার দেখান" },
+  "customPlayer": { "message": "কাস্টম প্লেয়ার" },
+  "customPlayerDescription": {
+    "message": "ডিফল্ট ভিডিও নিয়ন্ত্রণের বদলে Synclify UI ব্যবহার করুন"
+  },
+  "saveSettings": { "message": "সেটিংস সংরক্ষণ করুন" },
+  "chooseVideoToSync": { "message": "সিঙ্ক করার জন্য একটি ভিডিও বেছে নিন" },
+  "unknownDuration": { "message": "অজানা" },
+  "switchToNativeVideoControls": {
+    "message": "ডিফল্ট ভিডিও নিয়ন্ত্রণে ফিরুন"
+  },
+  "nativeUi": { "message": "ডিফল্ট UI" },
+  "switchToSynclifyVideoPlayer": {
+    "message": "Synclify ভিডিও প্লেয়ারে বদলান"
+  },
+  "synclifyUi": { "message": "Synclify UI" },
+  "typeMessage": { "message": "একটি বার্তা লিখুন..." }
+}

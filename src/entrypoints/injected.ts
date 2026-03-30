@@ -162,21 +162,21 @@ export default defineUnlistedScript(async () => {
       observer.disconnect()
       browser.runtime.sendMessage({
         action: "showToast",
-        body: { content: "Video detected" }
+        body: { content: "", messageKey: "videoDetected" }
       })
       return { status: MESSAGE_STATUS.SUCCESS }
     }
     observer.observe(document, { subtree: true, childList: true })
     browser.runtime.sendMessage({
       action: "showToast",
-      body: { error: true, content: "Video not found" }
+      body: { error: true, content: "", messageKey: "videoNotFound" }
     })
     posthog.capture("no_video_found", {
       message: `No video found in ${window.location.href}`
     })
     return {
       status: MESSAGE_STATUS.ERROR,
-      message: "Video not found"
+      messageKey: "videoNotFound"
     }
   }
 

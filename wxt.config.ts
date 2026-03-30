@@ -4,9 +4,9 @@ export default defineConfig({
   srcDir: "src",
   modules: ["@wxt-dev/module-react"],
   manifest: ({ browser }) => ({
-    name: "Synclify - Watch in sync with your friends",
-    description:
-      "Create a watch party straight from your browser — works anywhere, ad-free.",
+    name: "__MSG_extName__",
+    description: "__MSG_extDescription__",
+    default_locale: "en",
     host_permissions: [
       ...new Set([
         `${import.meta.env.WXT_SOCKET_ENDPOINT || "http://localhost:3001"}/*`,

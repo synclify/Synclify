@@ -1,0 +1,66 @@
+{
+  "extName": { "message": "Synclify - Watch in sync with your friends" },
+  "extDescription": {
+    "message": "Create a watch party straight from your browser - works anywhere, ad-free."
+  },
+  "popupTitle": { "message": "Synclify" },
+  "optionsTitle": { "message": "Synclify Settings" },
+  "anonymousNickname": { "message": "Anonymous" },
+  "clickToCopy": { "message": "Click to copy" },
+  "copied": { "message": "Copied!" },
+  "videoNotDetectedYet": { "message": "Video not detected yet" },
+  "videoDetected": { "message": "Video detected" },
+  "videoNotFound": { "message": "Video not found" },
+  "multipleVideosDetected": { "message": "Multiple videos detected" },
+  "injectedScriptNotReadyRetrySync": {
+    "message": "Injected script not ready yet, retry sync"
+  },
+  "roomCode": { "message": "Room Code" },
+  "connectedAndSyncing": { "message": "Connected & syncing" },
+  "retrySync": { "message": "Retry sync" },
+  "leaveRoom": { "message": "Leave room" },
+  "chatNickname": { "message": "Chat nickname" },
+  "nicknameOptional": { "message": "Nickname (optional)" },
+  "createRoom": { "message": "Create Room" },
+  "orJoin": { "message": "or join" },
+  "enterRoomCode": { "message": "Enter room code" },
+  "roomCodeEmpty": { "message": "Room code can't be empty." },
+  "roomCodeTooLong": { "message": "Room code too long." },
+  "roomCodeTooShort": { "message": "Room code too short." },
+  "roomCodeFormatIncorrect": { "message": "Room code format incorrect." },
+  "joinRoom": { "message": "Join Room" },
+  "thanksForReporting": { "message": "Thanks for reporting!" },
+  "reportWebsiteNotWorking": {
+    "message": "Report this website as not working"
+  },
+  "reportWhatWentWrongOptional": { "message": "What went wrong? (optional)" },
+  "cancel": { "message": "Cancel" },
+  "sendReport": { "message": "Send Report" },
+  "reportIssue": { "message": "Report issue" },
+  "settings": { "message": "Settings" },
+  "website": { "message": "Website" },
+  "settingsSaved": { "message": "Settings saved" },
+  "failedToSaveSettings": { "message": "Failed to save settings" },
+  "syncAudio": { "message": "Sync audio" },
+  "syncAudioDescription": { "message": "Sync volume with the other viewer" },
+  "chat": { "message": "Chat" },
+  "chatDescription": { "message": "Show the chat bubble overlay" },
+  "reactions": { "message": "Reactions" },
+  "reactionsDescription": { "message": "Show the emoji reaction bar" },
+  "customPlayer": { "message": "Custom player" },
+  "customPlayerDescription": {
+    "message": "Replace native video controls with Synclify UI"
+  },
+  "saveSettings": { "message": "Save Settings" },
+  "chooseVideoToSync": { "message": "Choose a video to sync" },
+  "unknownDuration": { "message": "Unknown" },
+  "switchToNativeVideoControls": {
+    "message": "Switch to native video controls"
+  },
+  "nativeUi": { "message": "Native UI" },
+  "switchToSynclifyVideoPlayer": {
+    "message": "Switch to Synclify video player"
+  },
+  "synclifyUi": { "message": "Synclify UI" },
+  "typeMessage": { "message": "Type a message..." }
+}

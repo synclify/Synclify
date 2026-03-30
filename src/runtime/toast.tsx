@@ -3,6 +3,8 @@ import { Toaster } from "~/components/ui/sonner"
 import { toast } from "sonner"
 import { useEffect } from "react"
 import browser from "webextension-polyfill"
+import type { MessageKey } from "~/lib/i18n"
+import { t } from "~/lib/i18n"
 import { mountUi, runOnce, whenBodyReady } from "~/lib/runtime-ui"
 
 const ToastOverlay = () => {
@@ -13,14 +15,16 @@ const ToastOverlay = () => {
         show: boolean
         content: string
         error: boolean
+        messageKey?: MessageKey
       },
       _sender: browser.Runtime.MessageSender,
       sendResponse: (response: unknown) => void
     ) => {
       if (msg.to === "toast") {
+        const content = msg.messageKey ? t(msg.messageKey) : msg.content
         if (msg.show) {
-          if (msg.error) toast.error(msg.content)
-          else toast.success(msg.content)
+          if (msg.error) toast.error(content)
+          else toast.success(content)
         } else toast.dismiss()
         sendResponse(null)
         return true

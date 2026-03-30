@@ -1,6 +1,7 @@
 import ReactDOM from "react-dom/client"
 import { useCallback, useEffect, useRef, useState } from "react"
 import browser from "webextension-polyfill"
+import { t } from "~/lib/i18n"
 import { mountUi, runOnce, whenBodyReady } from "~/lib/runtime-ui"
 
 type ChatMsg = {
@@ -88,8 +89,14 @@ function ChatApp() {
       if (result.chatBubblePos) {
         const saved = result.chatBubblePos as { x: number; y: number }
         setBubblePos({
-          x: Math.max(EDGE_MARGIN, Math.min(saved.x, window.innerWidth - BUBBLE_SIZE - EDGE_MARGIN)),
-          y: Math.max(EDGE_MARGIN, Math.min(saved.y, window.innerHeight - BUBBLE_SIZE - EDGE_MARGIN))
+          x: Math.max(
+            EDGE_MARGIN,
+            Math.min(saved.x, window.innerWidth - BUBBLE_SIZE - EDGE_MARGIN)
+          ),
+          y: Math.max(
+            EDGE_MARGIN,
+            Math.min(saved.y, window.innerHeight - BUBBLE_SIZE - EDGE_MARGIN)
+          )
         })
       } else {
         setBubblePos({
@@ -114,15 +121,13 @@ function ChatApp() {
 
       setBubblePos((prev) => {
         const wasOnRight = prev.x > oldW / 2
-        const x = wasOnRight
-          ? newW - BUBBLE_SIZE - EDGE_MARGIN
-          : EDGE_MARGIN
+        const x = wasOnRight ? newW - BUBBLE_SIZE - EDGE_MARGIN : EDGE_MARGIN
 
         const ratio = oldH > 0 ? prev.y / oldH : 0.5
-        const y = Math.max(EDGE_MARGIN, Math.min(
-          Math.round(ratio * newH),
-          newH - BUBBLE_SIZE - EDGE_MARGIN
-        ))
+        const y = Math.max(
+          EDGE_MARGIN,
+          Math.min(Math.round(ratio * newH), newH - BUBBLE_SIZE - EDGE_MARGIN)
+        )
 
         if (x === prev.x && y === prev.y) return prev
         return { x, y }
@@ -282,8 +287,7 @@ function ChatApp() {
     }
   }, [bubblePos])
 
-  const bubbleOnRight =
-    bubblePos.x + BUBBLE_SIZE / 2 > window.innerWidth / 2
+  const bubbleOnRight = bubblePos.x + BUBBLE_SIZE / 2 > window.innerWidth / 2
 
   if (!visible || !settingEnabled || bubblePos.x < 0) return null
 
@@ -517,7 +521,7 @@ function ChatApp() {
                   sendMessage()
                 }
               }}
-              placeholder="Type a message..."
+              placeholder={t("typeMessage")}
               rows={1}
               style={{
                 flex: 1,

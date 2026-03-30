@@ -18,6 +18,7 @@ import { useForm } from "react-hook-form"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
 import { usePostHog } from "@posthog/react"
+import { t } from "~/lib/i18n"
 
 type FormData = {
   room: string
@@ -31,7 +32,7 @@ function App() {
   const [error, setError] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
   const [currentTab, setCurrentTab] = useState<number>(0)
-  const [tooltipText, setTooltipText] = useState("Click to copy")
+  const [tooltipText, setTooltipText] = useState(() => t("clickToCopy"))
   const [openTooltip, setOpenTooltip] = useState(false)
   const [nickname, setNickname] = useState("")
   const [reportOpen, setReportOpen] = useState(false)
@@ -74,7 +75,7 @@ function App() {
   const responseCallback = useCallback((response: ExtResponse) => {
     if (!response) {
       setError(true)
-      setErrorMessage("Video not detected yet")
+      setErrorMessage(t("videoNotDetectedYet"))
       return
     }
     switch (response.status) {
@@ -84,18 +85,26 @@ function App() {
         break
       case MESSAGE_STATUS.ERROR:
         setError(true)
-        setErrorMessage(response.message as string)
+        setErrorMessage(
+          response.messageKey
+            ? t(response.messageKey)
+            : ((response.message as string) ?? t("videoNotDetectedYet"))
+        )
         break
       case MESSAGE_STATUS.MULTIPLE_VIDEOS:
         setError(true)
-        setErrorMessage(response.message as string)
+        setErrorMessage(
+          response.messageKey
+            ? t(response.messageKey)
+            : ((response.message as string) ?? t("multipleVideosDetected"))
+        )
         break
     }
   }, [])
 
   const roomCallback = useCallback(
     (roomId: string) => {
-      const nick = nickname.trim() || "Anonymous"
+      const nick = nickname.trim() || t("anonymousNickname")
       browser.storage.local.set({ nickname: nick })
       const newState = Object.assign(state ?? {}, {
         [currentTab]: {
@@ -150,7 +159,7 @@ function App() {
       setInRoom(true)
       if (!state[currentTab].videoFound) {
         setError(true)
-        setErrorMessage("Video not detected yet")
+        setErrorMessage(t("videoNotDetectedYet"))
       }
     }
   }, [currentTab, state])
@@ -182,7 +191,7 @@ function App() {
 
   const copyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(getRoom)
-    setTooltipText("Copied!")
+    setTooltipText(t("copied"))
   }, [getRoom])
 
   const submitReport = useCallback(async () => {
@@ -227,7 +236,7 @@ function App() {
             {/* Room code ticket */}
             <div className="animate-fade-in-up stagger-1 mb-4">
               <p className="mb-1.5 text-center text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                Room Code
+                {t("roomCode")}
               </p>
               <div className="flex justify-center">
                 <TooltipProvider>
@@ -237,7 +246,7 @@ function App() {
                         className="animate-pulse-glow group relative cursor-pointer rounded-lg border border-[hsl(38_92%_55%/0.2)] bg-[hsl(38_92%_55%/0.06)] px-6 py-3 transition-all hover:border-[hsl(38_92%_55%/0.4)] hover:bg-[hsl(38_92%_55%/0.1)]"
                         onMouseOver={() => {
                           setOpenTooltip(true)
-                          setTooltipText("Click to copy")
+                          setTooltipText(t("clickToCopy"))
                         }}
                         onMouseLeave={() => setOpenTooltip(false)}
                         onClick={copyToClipboard}>
@@ -266,7 +275,7 @@ function App() {
               <div className="animate-fade-in-up stagger-2 mb-4 flex items-center justify-center gap-2">
                 <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
                 <span className="text-xs text-emerald-400/80">
-                  Connected & syncing
+                  {t("connectedAndSyncing")}
                 </span>
               </div>
             )}
@@ -289,7 +298,7 @@ function App() {
                       state ? { room: state?.[currentTab].roomId } : undefined
                     )
                   }>
-                  Retry sync
+                  {t("retrySync")}
                 </Button>
               )}
               <Button
@@ -297,7 +306,7 @@ function App() {
                 size="sm"
                 className="w-full text-xs text-secondary-foreground hover:text-destructive"
                 onClick={exitRoom}>
-                Leave room
+                {t("leaveRoom")}
               </Button>
             </div>
           </div>
@@ -306,13 +315,15 @@ function App() {
             {/* Nickname input */}
             <div className="animate-fade-in-up mb-3">
               <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
-                Chat nickname
+                {t("chatNickname")}
               </label>
               <Input
                 type="text"
-                placeholder="Nickname (optional)"
+                placeholder={t("nicknameOptional")}
                 value={nickname}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNickname(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setNickname(e.target.value)
+                }
                 maxLength={20}
                 className="h-9 rounded-lg border-border bg-card text-center text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-[hsl(38_92%_55%/0.4)] focus-visible:ring-[hsl(38_92%_55%/0.2)]"
               />
@@ -323,7 +334,7 @@ function App() {
               <Button
                 onClick={() => createOrJoinRoom()}
                 className="relative w-full overflow-hidden rounded-lg bg-[hsl(38_92%_55%)] py-5 text-sm font-semibold tracking-wide text-[hsl(220_20%_6%)] shadow-lg shadow-[hsl(38_92%_55%/0.2)] transition-all hover:bg-[hsl(38_80%_50%)] hover:shadow-[hsl(38_92%_55%/0.3)]">
-                Create Room
+                {t("createRoom")}
               </Button>
             </div>
 
@@ -331,7 +342,7 @@ function App() {
             <div className="animate-fade-in-up stagger-2 mb-4 flex items-center gap-3">
               <div className="h-px flex-1 bg-border" />
               <span className="text-[10px] font-medium uppercase tracking-[0.25em] text-secondary-foreground">
-                or join
+                {t("orJoin")}
               </span>
               <div className="h-px flex-1 bg-border" />
             </div>
@@ -342,19 +353,19 @@ function App() {
               className="animate-fade-in-up stagger-3 flex flex-col gap-2.5">
               <Input
                 type="text"
-                placeholder="Enter room code"
+                placeholder={t("enterRoomCode")}
                 className="h-10 rounded-lg border-border bg-card text-center text-sm uppercase tracking-[0.15em] text-foreground placeholder:normal-case placeholder:tracking-normal placeholder:text-muted-foreground focus-visible:border-[hsl(38_92%_55%/0.4)] focus-visible:ring-[hsl(38_92%_55%/0.2)]"
                 style={{ fontFamily: "'DM Mono', monospace" }}
                 {...register("room", {
                   required: {
                     value: true,
-                    message: "Room code can't be empty."
+                    message: t("roomCodeEmpty")
                   },
-                  maxLength: { value: 5, message: "Room code too long." },
-                  minLength: { value: 5, message: "Room code too short" },
+                  maxLength: { value: 5, message: t("roomCodeTooLong") },
+                  minLength: { value: 5, message: t("roomCodeTooShort") },
                   pattern: {
                     value: /^[a-zA-Z0-9]*$/,
-                    message: "Room code format incorrect"
+                    message: t("roomCodeFormatIncorrect")
                   }
                 })}
               />
@@ -369,7 +380,7 @@ function App() {
                 type="submit"
                 variant="outline"
                 className="h-10 rounded-lg border-border text-sm font-medium text-foreground transition-all hover:border-[hsl(38_92%_55%/0.4)] hover:text-foreground">
-                Join Room
+                {t("joinRoom")}
               </Button>
             </form>
           </div>
@@ -381,19 +392,19 @@ function App() {
         <div className="relative z-10 border-t border-border/50 px-5 py-3">
           {reportSent ? (
             <p className="text-center text-xs text-emerald-400">
-              Thanks for reporting!
+              {t("thanksForReporting")}
             </p>
           ) : (
             <div className="flex flex-col gap-2">
               <p className="text-[11px] font-medium text-muted-foreground">
-                Report this website as not working
+                {t("reportWebsiteNotWorking")}
               </p>
               <textarea
                 value={reportDetails}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                   setReportDetails(e.target.value)
                 }
-                placeholder="What went wrong? (optional)"
+                placeholder={t("reportWhatWentWrongOptional")}
                 rows={2}
                 className="resize-none rounded-md border border-border bg-card px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-[hsl(38_92%_55%/0.4)] focus:outline-none"
               />
@@ -403,13 +414,13 @@ function App() {
                   variant="outline"
                   className="h-7 flex-1 text-[11px]"
                   onClick={() => setReportOpen(false)}>
-                  Cancel
+                  {t("cancel")}
                 </Button>
                 <Button
                   size="sm"
                   className="h-7 flex-1 bg-[hsl(38_92%_55%)] text-[11px] text-[hsl(220_20%_6%)] hover:bg-[hsl(38_80%_50%)]"
                   onClick={submitReport}>
-                  Send Report
+                  {t("sendReport")}
                 </Button>
               </div>
             </div>
@@ -425,18 +436,18 @@ function App() {
             setReportSent(false)
           }}
           className="text-[11px] text-muted-foreground transition-colors hover:text-[hsl(38_92%_55%)]">
-          Report issue
+          {t("reportIssue")}
         </button>
         <button
           onClick={() => browser.runtime.openOptionsPage()}
           className="text-[11px] text-muted-foreground transition-colors hover:text-[hsl(38_92%_55%)]">
-          Settings
+          {t("settings")}
         </button>
         <a
           href="https://synclify.party"
           target="about:blank"
           className="text-[11px] text-muted-foreground transition-colors hover:text-[hsl(38_92%_55%)]">
-          Website
+          {t("website")}
         </a>
       </div>
     </div>

@@ -1,0 +1,66 @@
+{
+  "extName": { "message": "Synclify - अपने दोस्तों के साथ सिंक में देखें" },
+  "extDescription": {
+    "message": "अपने ब्राउज़र से सीधे वॉच पार्टी बनाएं, लगभग हर जगह काम करता है और बिना विज्ञापनों के।"
+  },
+  "popupTitle": { "message": "Synclify" },
+  "optionsTitle": { "message": "Synclify सेटिंग्स" },
+  "anonymousNickname": { "message": "गुमनाम" },
+  "clickToCopy": { "message": "कॉपी करने के लिए क्लिक करें" },
+  "copied": { "message": "कॉपी हो गया" },
+  "videoNotDetectedYet": { "message": "वीडियो अभी तक नहीं मिला" },
+  "videoDetected": { "message": "वीडियो मिल गया" },
+  "videoNotFound": { "message": "वीडियो नहीं मिला" },
+  "multipleVideosDetected": { "message": "एक से ज़्यादा वीडियो मिले" },
+  "injectedScriptNotReadyRetrySync": {
+    "message": "इंजेक्ट किया गया स्क्रिप्ट अभी तैयार नहीं है, फिर से सिंक करें"
+  },
+  "roomCode": { "message": "रूम कोड" },
+  "connectedAndSyncing": { "message": "कनेक्टेड और सिंक हो रहा है" },
+  "retrySync": { "message": "फिर से सिंक करें" },
+  "leaveRoom": { "message": "रूम छोड़ें" },
+  "chatNickname": { "message": "चैट निकनेम" },
+  "nicknameOptional": { "message": "निकनेम (वैकल्पिक)" },
+  "createRoom": { "message": "रूम बनाएं" },
+  "orJoin": { "message": "या जुड़ें" },
+  "enterRoomCode": { "message": "रूम कोड दर्ज करें" },
+  "roomCodeEmpty": { "message": "रूम कोड खाली नहीं हो सकता।" },
+  "roomCodeTooLong": { "message": "रूम कोड बहुत लंबा है।" },
+  "roomCodeTooShort": { "message": "रूम कोड बहुत छोटा है।" },
+  "roomCodeFormatIncorrect": { "message": "रूम कोड का फ़ॉर्मेट सही नहीं है।" },
+  "joinRoom": { "message": "रूम में जुड़ें" },
+  "thanksForReporting": { "message": "रिपोर्ट करने के लिए धन्यवाद" },
+  "reportWebsiteNotWorking": {
+    "message": "बताएं कि यह वेबसाइट काम नहीं कर रही"
+  },
+  "reportWhatWentWrongOptional": { "message": "क्या गलत हुआ? (वैकल्पिक)" },
+  "cancel": { "message": "रद्द करें" },
+  "sendReport": { "message": "रिपोर्ट भेजें" },
+  "reportIssue": { "message": "समस्या बताएं" },
+  "settings": { "message": "सेटिंग्स" },
+  "website": { "message": "वेबसाइट" },
+  "settingsSaved": { "message": "सेटिंग्स सेव हो गईं" },
+  "failedToSaveSettings": { "message": "सेटिंग्स सेव नहीं हो सकीं" },
+  "syncAudio": { "message": "ऑडियो सिंक" },
+  "syncAudioDescription": { "message": "दूसरे दर्शक के साथ वॉल्यूम सिंक करें" },
+  "chat": { "message": "चैट" },
+  "chatDescription": { "message": "चैट बबल ओवरले दिखाएं" },
+  "reactions": { "message": "रिएक्शंस" },
+  "reactionsDescription": { "message": "इमोजी रिएक्शन बार दिखाएं" },
+  "customPlayer": { "message": "कस्टम प्लेयर" },
+  "customPlayerDescription": {
+    "message": "डिफॉल्ट वीडियो कंट्रोल्स की जगह Synclify UI इस्तेमाल करें"
+  },
+  "saveSettings": { "message": "सेटिंग्स सेव करें" },
+  "chooseVideoToSync": { "message": "सिंक करने के लिए एक वीडियो चुनें" },
+  "unknownDuration": { "message": "अज्ञात" },
+  "switchToNativeVideoControls": {
+    "message": "डिफॉल्ट वीडियो कंट्रोल्स पर स्विच करें"
+  },
+  "nativeUi": { "message": "डिफॉल्ट UI" },
+  "switchToSynclifyVideoPlayer": {
+    "message": "Synclify वीडियो प्लेयर पर स्विच करें"
+  },
+  "synclifyUi": { "message": "Synclify UI" },
+  "typeMessage": { "message": "संदेश लिखें..." }
+}

@@ -1,0 +1,62 @@
+{
+  "extName": { "message": "Synclify - اپنے دوستوں کے ساتھ ایک ساتھ دیکھیں" },
+  "extDescription": {
+    "message": "اپنے براؤزر سے سیدھا واچ پارٹی بنائیں، تقریباً ہر جگہ کام کرتا ہے اور بغیر اشتہارات کے۔"
+  },
+  "popupTitle": { "message": "Synclify" },
+  "optionsTitle": { "message": "Synclify کی ترتیبات" },
+  "anonymousNickname": { "message": "گمنام" },
+  "clickToCopy": { "message": "کاپی کرنے کے لیے کلک کریں" },
+  "copied": { "message": "کاپی ہوگیا" },
+  "videoNotDetectedYet": { "message": "ویڈیو ابھی تک نہیں ملی" },
+  "videoDetected": { "message": "ویڈیو مل گئی" },
+  "videoNotFound": { "message": "ویڈیو نہیں ملی" },
+  "multipleVideosDetected": { "message": "ایک سے زیادہ ویڈیوز ملیں" },
+  "injectedScriptNotReadyRetrySync": {
+    "message": "انجیکٹ کیا گیا اسکرپٹ ابھی تیار نہیں، دوبارہ ہم آہنگ کریں"
+  },
+  "roomCode": { "message": "روم کوڈ" },
+  "connectedAndSyncing": { "message": "منسلک اور ہم آہنگ" },
+  "retrySync": { "message": "دوبارہ ہم آہنگ کریں" },
+  "leaveRoom": { "message": "روم چھوڑیں" },
+  "chatNickname": { "message": "چیٹ نک نیم" },
+  "nicknameOptional": { "message": "نک نیم (اختیاری)" },
+  "createRoom": { "message": "روم بنائیں" },
+  "orJoin": { "message": "یا شامل ہوں" },
+  "enterRoomCode": { "message": "روم کوڈ درج کریں" },
+  "roomCodeEmpty": { "message": "روم کوڈ خالی نہیں ہوسکتا۔" },
+  "roomCodeTooLong": { "message": "روم کوڈ بہت لمبا ہے۔" },
+  "roomCodeTooShort": { "message": "روم کوڈ بہت چھوٹا ہے۔" },
+  "roomCodeFormatIncorrect": { "message": "روم کوڈ کا فارمیٹ درست نہیں ہے۔" },
+  "joinRoom": { "message": "روم میں شامل ہوں" },
+  "thanksForReporting": { "message": "رپورٹ کرنے کا شکریہ" },
+  "reportWebsiteNotWorking": {
+    "message": "بتائیں کہ یہ ویب سائٹ کام نہیں کر رہی"
+  },
+  "reportWhatWentWrongOptional": { "message": "کیا مسئلہ ہوا؟ (اختیاری)" },
+  "cancel": { "message": "منسوخ کریں" },
+  "sendReport": { "message": "رپورٹ بھیجیں" },
+  "reportIssue": { "message": "مسئلہ رپورٹ کریں" },
+  "settings": { "message": "ترتیبات" },
+  "website": { "message": "ویب سائٹ" },
+  "settingsSaved": { "message": "ترتیبات محفوظ ہوگئیں" },
+  "failedToSaveSettings": { "message": "ترتیبات محفوظ نہیں ہوسکیں" },
+  "syncAudio": { "message": "آڈیو ہم آہنگ کریں" },
+  "syncAudioDescription": { "message": "دوسرے ناظر کے ساتھ آواز ہم آہنگ کریں" },
+  "chat": { "message": "چیٹ" },
+  "chatDescription": { "message": "چیٹ ببل اوورلے دکھائیں" },
+  "reactions": { "message": "ردعمل" },
+  "reactionsDescription": { "message": "ایموجی ردعمل بار دکھائیں" },
+  "customPlayer": { "message": "کسٹم پلیئر" },
+  "customPlayerDescription": {
+    "message": "اصل ویڈیو کنٹرولز کی جگہ Synclify UI استعمال کریں"
+  },
+  "saveSettings": { "message": "ترتیبات محفوظ کریں" },
+  "chooseVideoToSync": { "message": "ہم آہنگ کرنے کے لیے ویڈیو منتخب کریں" },
+  "unknownDuration": { "message": "نامعلوم" },
+  "switchToNativeVideoControls": { "message": "اصل ویڈیو کنٹرولز پر جائیں" },
+  "nativeUi": { "message": "اصل UI" },
+  "switchToSynclifyVideoPlayer": { "message": "Synclify ویڈیو پلیئر پر جائیں" },
+  "synclifyUi": { "message": "Synclify UI" },
+  "typeMessage": { "message": "پیغام لکھیں..." }
+}

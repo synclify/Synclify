@@ -1,3 +1,5 @@
+import type { MessageKey } from "~/lib/i18n"
+
 export type ChatMessage = {
   nickname: string
   text: string
@@ -12,6 +14,7 @@ export type ExtMessage = {
 export type ExtResponse = {
   status?: MESSAGE_STATUS
   message?: string
+  messageKey?: MessageKey
 }
 
 export enum MESSAGE_STATUS {

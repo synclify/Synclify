@@ -2,6 +2,7 @@ import { defineBackground } from "wxt/utils/define-background"
 import browser from "webextension-polyfill"
 import { SOCKET_URL, SOCKET_EVENTS } from "~/types/socket"
 import { MESSAGE_STATUS, MESSAGE_TYPE } from "~/types/messaging"
+import type { MessageKey } from "~/lib/i18n"
 import type { State } from "~/types/state"
 import { createPostHog, getSharedDistinctId } from "~/lib/posthog"
 import type { PostHog } from "posthog-js/dist/module.no-external"
@@ -16,13 +17,9 @@ const TOP_FRAME_SUPPORT_SCRIPTS = [
   "videoSelector.js"
 ]
 
-const ALL_FRAME_SUPPORT_SCRIPTS = [
-  "autoInject.js"
-]
+const ALL_FRAME_SUPPORT_SCRIPTS = ["autoInject.js"]
 
-const MAIN_WORLD_ALL_FRAME_SUPPORT_SCRIPTS = [
-  "fullscreenPatch.js"
-]
+const MAIN_WORLD_ALL_FRAME_SUPPORT_SCRIPTS = ["fullscreenPatch.js"]
 
 async function injectSupportScripts(tabId: number): Promise<void> {
   await browser.scripting.executeScript({
@@ -434,7 +431,7 @@ export default defineBackground(async () => {
         })
         return {
           status: MESSAGE_STATUS.MULTIPLE_VIDEOS,
-          message: "Multiple videos detected"
+          messageKey: "multipleVideosDetected"
         }
       } else if (videos.length === 1) {
         frameIds = [videos[0].frameId]
@@ -469,7 +466,7 @@ export default defineBackground(async () => {
     if (!initSucceeded) {
       return {
         status: MESSAGE_STATUS.ERROR,
-        message: "Injected script not ready yet, retry sync"
+        messageKey: "injectedScriptNotReadyRetrySync"
       }
     }
 
@@ -500,6 +497,7 @@ export default defineBackground(async () => {
       error?: boolean
       content: string
       show?: boolean
+      messageKey?: MessageKey
     },
     senderTabId?: number
   ) {
@@ -516,6 +514,7 @@ export default defineBackground(async () => {
       to: "toast",
       error: body.error,
       content: body.content,
+      messageKey: body.messageKey,
       show: body.show ?? true
     })
     return null
