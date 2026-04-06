@@ -134,15 +134,18 @@ function collectHeaders(req: any): Headers {
 
 function proxyToPostHog(method: "GET" | "POST" | "HEAD") {
   return async (res: HttpResponse, req: any) => {
+    let requestPath = "/";
+    let requestQuery = "";
+
     try {
       res.onAborted(() => {
         res.aborted = true;
       });
       corsHeaders(res);
 
-      const path = req.getUrl().replace(/^\/m/, "") || "/";
-      const query = req.getQuery();
-      const posthogHost = path.startsWith("/static/")
+      requestPath = req.getUrl().replace(/^\/m/, "") || "/";
+      requestQuery = req.getQuery();
+      const posthogHost = requestPath.startsWith("/static/")
         ? POSTHOG_ASSET_HOST
         : POSTHOG_API_HOST;
 
@@ -171,7 +174,7 @@ function proxyToPostHog(method: "GET" | "POST" | "HEAD") {
         body = await readBody(res);
       }
 
-      const target = `https://${posthogHost}${path}${query ? `?${query}` : ""}`;
+      const target = `https://${posthogHost}${requestPath}${requestQuery ? `?${requestQuery}` : ""}`;
       const response = await fetch(target, {
         method,
         headers,
@@ -208,8 +211,8 @@ function proxyToPostHog(method: "GET" | "POST" | "HEAD") {
     } catch (err) {
       console.error("PostHog proxy error:", {
         method,
-        path: req.getUrl(),
-        query: req.getQuery(),
+        path: requestPath,
+        query: requestQuery,
         error: err,
       });
       if (!res.aborted) {
