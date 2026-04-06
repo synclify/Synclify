@@ -11,14 +11,17 @@ import {
   MESSAGE_TYPE
 } from "~/types/messaging"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
-import type { State } from "~/types/state"
+import type { State, TabState } from "~/types/state"
 import browser from "webextension-polyfill"
 import logo from "~/assets/logo.svg?raw"
 import { useForm } from "react-hook-form"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
+import { Switch } from "~/components/ui/switch"
 import { usePostHog } from "@posthog/react"
+import { debugRoomLog } from "~/lib/debug"
 import { t } from "~/lib/i18n"
+import type { ControlMode } from "~/types/socket"
 
 type FormData = {
   room: string
@@ -38,39 +41,133 @@ function App() {
   const [reportOpen, setReportOpen] = useState(false)
   const [reportDetails, setReportDetails] = useState("")
   const [reportSent, setReportSent] = useState(false)
+  const [participantsOpen, setParticipantsOpen] = useState(false)
+  const [sharedMode, setSharedMode] = useState(true)
+  const [sharedModeHelpOpen, setSharedModeHelpOpen] = useState(false)
   const {
     register,
     handleSubmit,
     formState: { errors }
   } = useForm<FormData>()
 
-  useEffect(() => {
-    const storage = browser.storage.local
-    storage.get("state").then((result) => {
-      if (result.state) {
-        setState(result.state as State)
+  const logRoomDebug = useCallback(
+    (
+      source: string,
+      details?: {
+        stateSnapshot?: State | undefined
+        currentTabOverride?: number
+        extra?: Record<string, unknown>
       }
-    })
-    storage.get("nickname").then((result) => {
-      if (result.nickname) setNickname(result.nickname as string)
-    })
-    const listener = (
-      changes: Record<string, browser.Storage.StorageChange>
     ) => {
-      if (changes.state) {
-        setState(changes.state.newValue as State)
-      }
+      const snapshot = details?.stateSnapshot ?? state
+      const resolvedTabId = details?.currentTabOverride ?? currentTab
+      const tabState = snapshot?.[resolvedTabId]
+      debugRoomLog("popup", {
+        source,
+        at: new Date().toISOString(),
+        currentTab: resolvedTabId,
+        roomId: tabState?.roomId,
+        participantId: tabState?.participantId,
+        participantCount: tabState?.participantCount,
+        participants: tabState?.participants?.map((participant) => ({
+          id: participant.id,
+          nickname: participant.nickname,
+          isHost: participant.isHost
+        })),
+        extra: details?.extra
+      })
+    },
+    [currentTab]
+  )
+
+  const getPopupTabId = useCallback(async () => {
+    const tabs = await browser.tabs.query({
+      active: true,
+      currentWindow: true
+    })
+    if (!tabs[0]?.id) {
+      throw new Error("No active tab found for popup window")
     }
-    browser.storage.onChanged.addListener(listener)
-    return () => {
-      browser.storage.onChanged.removeListener(listener)
-    }
+    return tabs[0].id as number
   }, [])
 
+  const loadPopupState = useCallback(async () => {
+    const [tabId, storageResult, nicknameResult] = await Promise.all([
+      getPopupTabId(),
+      browser.storage.local.get("state"),
+      browser.storage.local.get("nickname")
+    ])
+
+    const nextState = storageResult.state
+      ? ({ ...(storageResult.state as State) } as State)
+      : undefined
+
+    setCurrentTab(tabId)
+    if (nicknameResult.nickname) {
+      setNickname(nicknameResult.nickname as string)
+    }
+    logRoomDebug("loadPopupState", {
+      currentTabOverride: tabId,
+      stateSnapshot: nextState,
+      extra: {
+        resolvedTabId: tabId
+      }
+    })
+    setState(nextState)
+    return { tabId, nextState }
+  }, [getPopupTabId, logRoomDebug])
+
+  useEffect(() => {
+    const storage = browser.storage.local
+    loadPopupState().catch(() => {})
+    const listener = (
+      changes: Record<string, browser.Storage.StorageChange>,
+      areaName: string
+    ) => {
+      if (areaName !== "local" || !changes.state) return
+      const nextState = changes.state.newValue as State | undefined
+      logRoomDebug("hydrate.storage.onChanged", {
+        stateSnapshot: nextState ? { ...nextState } : undefined,
+        extra: {
+          oldParticipantCount: (changes.state.oldValue as State | undefined)?.[
+            currentTab
+          ]?.participantCount,
+          newParticipantCount: nextState?.[currentTab]?.participantCount
+        }
+      })
+      setState(nextState ? { ...nextState } : undefined)
+    }
+    const refreshState = () => {
+      loadPopupState()
+        .then(({ nextState }) => {
+          logRoomDebug("hydrate.refreshState", {
+            stateSnapshot: nextState
+          })
+        })
+        .catch(() => {})
+    }
+    const handleWindowFocus = () => {
+      refreshState()
+    }
+    window.addEventListener("focus", handleWindowFocus)
+    browser.tabs.onActivated.addListener(handleWindowFocus)
+    browser.windows.onFocusChanged.addListener(handleWindowFocus)
+    browser.storage.onChanged.addListener(listener)
+    return () => {
+      window.removeEventListener("focus", handleWindowFocus)
+      browser.tabs.onActivated.removeListener(handleWindowFocus)
+      browser.windows.onFocusChanged.removeListener(handleWindowFocus)
+      browser.storage.onChanged.removeListener(listener)
+    }
+  }, [currentTab, loadPopupState, logRoomDebug])
+
   const setStoredState = useCallback((newState: State) => {
+    logRoomDebug("setStoredState", {
+      stateSnapshot: newState
+    })
     setState(newState)
     browser.storage.local.set({ state: newState })
-  }, [])
+  }, [logRoomDebug])
 
   const responseCallback = useCallback((response: ExtResponse) => {
     if (!response) {
@@ -105,11 +202,17 @@ function App() {
   const roomCallback = useCallback(
     (roomId: string) => {
       const nick = nickname.trim() || t("anonymousNickname")
+      const participantId =
+        state?.[currentTab]?.participantId || crypto.randomUUID()
+      const controlMode: ControlMode =
+        state?.[currentTab]?.controlMode ?? (sharedMode ? "shared" : "host")
       browser.storage.local.set({ nickname: nick })
-      const newState = Object.assign(state ?? {}, {
+      const newState = Object.assign({}, state ?? {}, {
         [currentTab]: {
+          ...state?.[currentTab],
           roomId: roomId,
-          videoFound: state?.[currentTab]?.videoFound ?? false,
+          participantId,
+          controlMode,
           nickname: nick
         }
       })
@@ -118,7 +221,7 @@ function App() {
         .sendMessage({ action: "inject" })
         .then((response: ExtResponse) => responseCallback(response))
     },
-    [currentTab, responseCallback, state, setStoredState, nickname]
+    [currentTab, responseCallback, state, setStoredState, nickname, sharedMode]
   )
 
   const createOrJoinRoom = useCallback(
@@ -161,14 +264,10 @@ function App() {
         setError(true)
         setErrorMessage(t("videoNotDetectedYet"))
       }
+    } else {
+      setInRoom(false)
     }
   }, [currentTab, state])
-
-  useEffect(() => {
-    browser.runtime
-      .sendMessage({ action: "getTabId" })
-      .then((tabId: number) => setCurrentTab(tabId))
-  }, [])
 
   const exitRoom = useCallback(() => {
     if (state) {
@@ -189,6 +288,15 @@ function App() {
     [currentTab, state]
   )
 
+  const tabState: TabState | undefined = state?.[currentTab]
+  const participants = tabState?.participants
+  const participantCount = tabState?.participantCount ?? participants?.length ?? 0
+  const maxParticipants = tabState?.maxParticipants
+  const isHost = tabState?.isHost ?? false
+  const controlMode = tabState?.controlMode ?? "shared"
+  const localNickname = tabState?.nickname
+  const localParticipantId = tabState?.participantId
+
   const copyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(getRoom)
     setTooltipText(t("copied"))
@@ -203,7 +311,8 @@ function App() {
     posthog.capture("website_reported", {
       reported_url: url,
       details: reportDetails.trim(),
-      page_title: tabs[0]?.title || ""
+      page_title: tabs[0]?.title || "",
+      extension_version: browser.runtime.getManifest().version
     })
     setReportSent(true)
     setReportDetails("")
@@ -234,7 +343,7 @@ function App() {
         {inRoom ? (
           <div className="flex flex-1 flex-col">
             {/* Room code ticket */}
-            <div className="animate-fade-in-up stagger-1 mb-4">
+            <div className="animate-fade-in-up stagger-1 mb-3">
               <p className="mb-1.5 text-center text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
                 {t("roomCode")}
               </p>
@@ -268,15 +377,138 @@ function App() {
                   </Tooltip>
                 </TooltipProvider>
               </div>
+
+              {/* Participant count pill */}
+              {participantCount > 0 && (
+                <div className="mt-2 flex justify-center">
+                  <button
+                    onClick={() => setParticipantsOpen(!participantsOpen)}
+                    className="group/pill inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border/60 bg-card/50 px-2.5 py-1 transition-all hover:border-[hsl(38_92%_55%/0.3)] hover:bg-card">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-muted-foreground transition-colors group-hover/pill:text-foreground">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    <span
+                      className="text-[11px] tabular-nums text-muted-foreground transition-colors group-hover/pill:text-foreground"
+                      style={{ fontFamily: "'DM Mono', monospace" }}>
+                      {maxParticipants
+                        ? `${participantCount} / ${maxParticipants}`
+                        : participantCount}
+                    </span>
+                    <svg
+                      width="10"
+                      height="10"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={`text-muted-foreground transition-transform duration-200 ${participantsOpen ? "rotate-180" : ""}`}>
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
+
+            {/* Participant list (collapsible) */}
+            {participantsOpen && participants && participants.length > 0 && (
+              <div className="animate-fade-in-up mb-3 overflow-hidden rounded-lg border border-border/50 bg-card/30">
+                <div className="px-3 pb-1 pt-2">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                    {t("participants")}
+                  </p>
+                </div>
+                <div className="max-h-[120px] overflow-y-auto px-1 pb-1.5">
+                  {participants.map((p, i) => {
+                    const isSelf =
+                      p.id === localParticipantId ||
+                      (!localParticipantId && p.nickname === localNickname)
+                    return (
+                      <div
+                        key={p.id}
+                        className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent/30"
+                        style={{
+                          animationDelay: `${i * 30}ms`
+                        }}>
+                        {/* Avatar circle */}
+                        <span
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold uppercase ${
+                            p.isHost
+                              ? "bg-[hsl(38_92%_55%/0.2)] text-[hsl(38_92%_55%)]"
+                              : "bg-secondary text-secondary-foreground"
+                          }`}>
+                          {p.nickname?.charAt(0) || "?"}
+                        </span>
+
+                        {/* Name */}
+                        <span
+                          className={`flex-1 truncate text-[11px] ${
+                            isSelf
+                              ? "font-semibold text-foreground"
+                              : "text-secondary-foreground"
+                          }`}>
+                          {p.nickname || t("anonymousNickname")}
+                        </span>
+
+                        {/* Badges */}
+                        <span className="flex shrink-0 items-center gap-1">
+                          {isSelf && (
+                            <span className="rounded-sm bg-secondary px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                              {t("you")}
+                            </span>
+                          )}
+                          {p.isHost && (
+                            <span className="rounded-sm bg-[hsl(38_92%_55%/0.15)] px-1.5 py-0.5 text-[9px] font-semibold text-[hsl(38_92%_55%)]">
+                              {t("host")}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Status indicator */}
             {!error && (
-              <div className="animate-fade-in-up stagger-2 mb-4 flex items-center justify-center gap-2">
-                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                <span className="text-xs text-emerald-400/80">
-                  {t("connectedAndSyncing")}
-                </span>
+              <div className="animate-fade-in-up stagger-2 mb-2 flex flex-col items-center gap-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                  <span className="text-xs text-emerald-400/80">
+                    {t("connectedAndSyncing")}
+                  </span>
+                  {isHost && (
+                    <span className="rounded-sm bg-[hsl(38_92%_55%/0.15)] px-1.5 py-0.5 text-[9px] font-semibold text-[hsl(38_92%_55%)]">
+                      {t("host")}
+                    </span>
+                  )}
+                </div>
+
+                {/* Playback notice */}
+                {participantCount > 0 && controlMode === "shared" && (
+                  <p className="text-center text-[10px] leading-snug text-muted-foreground">
+                    {t("sharedControlsPlayback")}
+                  </p>
+                )}
+                {!isHost && participantCount > 0 && controlMode === "host" && (
+                  <p className="text-center text-[10px] leading-snug text-muted-foreground">
+                    {t("hostControlsPlayback")}
+                  </p>
+                )}
               </div>
             )}
 
@@ -328,6 +560,69 @@ function App() {
                 className="h-9 rounded-lg border-border bg-card text-center text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-[hsl(38_92%_55%/0.4)] focus-visible:ring-[hsl(38_92%_55%/0.2)]"
               />
             </div>
+
+            {/* Shared mode toggle */}
+            <div className="animate-fade-in-up mb-3 flex items-center justify-between rounded-lg border border-border/50 bg-card/30 px-3 py-2.5">
+              <div className="flex items-center gap-1.5">
+                <label
+                  htmlFor="shared-mode-switch"
+                  className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+                  {t("sharedMode")}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setSharedModeHelpOpen(true)}
+                  className="inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full border border-muted-foreground/40 text-[9px] font-semibold leading-none text-muted-foreground transition-colors hover:border-[hsl(38_92%_55%/0.6)] hover:text-foreground">
+                  ?
+                </button>
+              </div>
+              <Switch
+                id="shared-mode-switch"
+                checked={sharedMode}
+                onCheckedChange={setSharedMode}
+                className="data-[state=checked]:bg-[hsl(38_92%_55%)]"
+              />
+            </div>
+
+            {/* Shared mode help modal */}
+            {sharedModeHelpOpen && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+                onClick={() => setSharedModeHelpOpen(false)}>
+                <div
+                  className="animate-fade-in-up mx-4 w-full max-w-[280px] rounded-xl border border-border bg-background p-5 shadow-xl"
+                  onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                  <h3 className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.15em] text-foreground">
+                    {t("sharedMode")}
+                  </h3>
+                  <div className="flex flex-col gap-3">
+                    <div className="rounded-lg border border-[hsl(38_92%_55%/0.2)] bg-[hsl(38_92%_55%/0.06)] px-3 py-2.5">
+                      <p className="mb-1 text-[11px] font-semibold text-[hsl(38_92%_55%)]">
+                        ON
+                      </p>
+                      <p className="text-[11px] leading-snug text-secondary-foreground">
+                        {t("sharedModeOnHelp")}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-card/40 px-3 py-2.5">
+                      <p className="mb-1 text-[11px] font-semibold text-foreground">
+                        OFF
+                      </p>
+                      <p className="text-[11px] leading-snug text-secondary-foreground">
+                        {t("sharedModeOffHelp")}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4 w-full text-xs"
+                    onClick={() => setSharedModeHelpOpen(false)}>
+                    {t("close")}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Create room CTA */}
             <div className="animate-fade-in-up stagger-1 mb-4">

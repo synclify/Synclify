@@ -453,9 +453,10 @@ export default defineBackground(async () => {
       videoId: body ? body.videoId : videoId
     }
     let initSucceeded = false
+    let initResponse: unknown = null
     for (let attempt = 0; attempt < 4 && !initSucceeded; attempt++) {
       try {
-        await browser.tabs.sendMessage(tabId, initPayload, {
+        initResponse = await browser.tabs.sendMessage(tabId, initPayload, {
           frameId: frameIds[0]
         })
         initSucceeded = true
@@ -489,7 +490,9 @@ export default defineBackground(async () => {
       }, 300)
     }
 
-    return { status: MESSAGE_STATUS.SUCCESS }
+    return (initResponse as { status?: MESSAGE_STATUS } | null) ?? {
+      status: MESSAGE_STATUS.SUCCESS
+    }
   }
 
   async function handleShowToast(

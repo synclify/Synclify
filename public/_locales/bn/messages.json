@@ -35,6 +35,7 @@
   },
   "reportWhatWentWrongOptional": { "message": "কী ভুল হয়েছে? (ঐচ্ছিক)" },
   "cancel": { "message": "বাতিল" },
+  "close": { "message": "বন্ধ করুন" },
   "sendReport": { "message": "রিপোর্ট পাঠান" },
   "reportIssue": { "message": "সমস্যা জানান" },
   "settings": { "message": "সেটিংস" },
@@ -62,5 +63,12 @@
     "message": "Synclify ভিডিও প্লেয়ারে বদলান"
   },
   "synclifyUi": { "message": "Synclify UI" },
-  "typeMessage": { "message": "একটি বার্তা লিখুন..." }
+  "typeMessage": { "message": "একটি বার্তা লিখুন..." },
+  "participants": { "message": "অংশগ্রহণকারী" },
+  "host": { "message": "হোস্ট" },
+  "you": { "message": "আপনি" },
+  "hostControlsPlayback": { "message": "শুধুমাত্র হোস্ট প্লেব্যাক নিয়ন্ত্রণ করতে পারেন" },
+  "sharedMode": { "message": "শেয়ার্ড মোড" },
+  "sharedModeOnHelp": { "message": "শেয়ার্ড মোড চালু থাকলে রুমের যে কেউ সবার জন্য প্লে, পজ, সিক বা প্লেব্যাক পরিবর্তন করতে পারেন।" },
+  "sharedModeOffHelp": { "message": "শেয়ার্ড মোড বন্ধ থাকলে শুধুমাত্র হোস্ট সবার জন্য প্লে, পজ, সিক বা প্লেব্যাক পরিবর্তন করতে পারেন।" }
 }

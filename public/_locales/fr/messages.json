@@ -39,6 +39,7 @@
     "message": "Qu'est-ce qui a mal tourné ? (facultatif)"
   },
   "cancel": { "message": "Annuler" },
+  "close": { "message": "Fermer" },
   "sendReport": { "message": "Envoyer le signalement" },
   "reportIssue": { "message": "Signaler un problème" },
   "settings": { "message": "Paramètres" },
@@ -72,5 +73,12 @@
     "message": "Passer au lecteur vidéo Synclify"
   },
   "synclifyUi": { "message": "Interface Synclify" },
-  "typeMessage": { "message": "Tapez un message..." }
+  "typeMessage": { "message": "Tapez un message..." },
+  "participants": { "message": "Participants" },
+  "host": { "message": "Hôte" },
+  "you": { "message": "Vous" },
+  "hostControlsPlayback": { "message": "Seul l'hôte peut contrôler la lecture" },
+  "sharedMode": { "message": "Mode partagé" },
+  "sharedModeOnHelp": { "message": "Lorsque le mode partagé est activé, n'importe qui dans la salle peut lire, mettre en pause, avancer ou modifier la lecture pour tout le monde." },
+  "sharedModeOffHelp": { "message": "Lorsque le mode partagé est désactivé, seul l'hôte peut lire, mettre en pause, avancer ou modifier la lecture pour tout le monde." }
 }

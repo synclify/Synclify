@@ -1,13 +1,21 @@
 import { defineUnlistedScript } from "wxt/utils/define-unlisted-script"
 import { MESSAGE_STATUS, MESSAGE_TYPE } from "~/types/messaging"
 import type { ExtMessage, ChatMessage } from "~/types/messaging"
-import { SOCKET_EVENTS, SOCKET_URL } from "~/types/socket"
-import type { State } from "~/types/state"
+import {
+  type ControlMode,
+  SOCKET_EVENTS,
+  SOCKET_URL,
+  type JoinRoomPayload,
+  type LeaveRoomPayload,
+  type RoomErrorPayload,
+  type RoomState
+} from "~/types/socket"
+import type { State, TabState } from "~/types/state"
 import { VIDEO_EVENTS } from "~/types/video"
 import { findSiteVideo, detectStreamingSite } from "~/lib/video-detection"
+import { debugRoomLog } from "~/lib/debug"
 import browser from "webextension-polyfill"
 import { io } from "socket.io-client"
-import { z } from "zod"
 import { createPostHog } from "~/lib/posthog"
 
 declare global {
@@ -21,6 +29,36 @@ export default defineUnlistedScript(async () => {
   window.__synclifyInjected = true
 
   const posthog = await createPostHog("injected")
+  const TRACKED_MULTI_PARTICIPANT_ROOMS_STORAGE_KEY =
+    "tracked_multi_participant_rooms"
+  const MAX_TRACKED_MULTI_PARTICIPANT_ROOMS = 200
+
+  function logRoomDebug(
+    source: string,
+    details?: {
+      roomId?: string
+      participantId?: string
+      participantCount?: number
+      participants?: Array<{ id: string; nickname: string; isHost: boolean }>
+      extra?: Record<string, unknown>
+    }
+  ) {
+    debugRoomLog("injected", {
+      source,
+      at: new Date().toISOString(),
+      tabId,
+      roomId: details?.roomId ?? roomCode,
+      participantId: details?.participantId ?? state?.[tabId]?.participantId,
+      participantCount: details?.participantCount,
+      participants:
+        details?.participants?.map((participant) => ({
+          id: participant.id,
+          nickname: participant.nickname,
+          isHost: participant.isHost
+        })) ?? state?.[tabId]?.participants,
+      extra: details?.extra
+    })
+  }
 
   let tabId: number
   let roomCode: string
@@ -30,6 +68,16 @@ export default defineUnlistedScript(async () => {
   let suppressEventsUntil = 0
   let lastAppliedRemoteEventTimestamp = 0
   let joinedRoom: string | null = null
+  let activeRoomState: RoomState | null = null
+  let pendingJoinPromise:
+    | Promise<{ status: MESSAGE_STATUS; message?: string }>
+    | null = null
+  let pendingInitPromise:
+    | Promise<{ status: MESSAGE_STATUS; message?: string; messageKey?: string }>
+    | null = null
+  let pendingConnectPromise: Promise<void> | null = null
+  let connectRequestedByJoin = false
+  let isExitingRoom = false
   let settings: { syncAudio: boolean } | undefined
   const SYNTHETIC_SUPPRESSION_MS = 400
   const suppressOutboundEvents = () => {
@@ -50,12 +98,142 @@ export default defineUnlistedScript(async () => {
     )
   }
 
+  const persistState = (nextState: State) => {
+    const nextTabState = nextState?.[tabId]
+    logRoomDebug("persistState", {
+      roomId: nextTabState?.roomId,
+      participantId: nextTabState?.participantId,
+      participantCount: nextTabState?.participantCount,
+      participants: nextTabState?.participants,
+      extra: {
+        isHost: nextTabState?.isHost,
+        hostId: nextTabState?.hostId
+      }
+    })
+    state = nextState
+    return browser.storage.local.set({ state: nextState })
+  }
+
+  const readLatestState = async () => {
+    const storageResult = await browser.storage.local.get("state")
+    return (storageResult.state as State | undefined) ?? state ?? {}
+  }
+
+  const updateTabState = async (patch: Partial<TabState>) => {
+    const latestState = await readLatestState()
+    const nextState = Object.assign({}, latestState, {
+      [tabId]: {
+        ...latestState?.[tabId],
+        ...patch
+      }
+    })
+    return persistState(nextState)
+  }
+
+  const clearTabState = async () => {
+    const latestState = await readLatestState()
+    const nextState = { ...latestState }
+    delete nextState[tabId]
+    activeRoomState = null
+    joinedRoom = null
+    roomCode = ""
+    return persistState(nextState)
+  }
+
+  const trackMultiParticipantRoom = async (nextRoomState: RoomState) => {
+    const participantId = state?.[tabId]?.participantId
+
+    if (!participantId || nextRoomState.participantCount <= 2) return
+
+    const trackingKey = `${participantId}:${nextRoomState.roomId}`
+    const storageResult = await browser.storage.local.get(
+      TRACKED_MULTI_PARTICIPANT_ROOMS_STORAGE_KEY
+    )
+    const trackedRooms = Array.isArray(
+      storageResult[TRACKED_MULTI_PARTICIPANT_ROOMS_STORAGE_KEY]
+    )
+      ? (storageResult[
+          TRACKED_MULTI_PARTICIPANT_ROOMS_STORAGE_KEY
+        ] as string[])
+      : []
+
+    if (trackedRooms.includes(trackingKey)) return
+
+    posthog.capture("room_more_than_two_participants", {
+      roomId: nextRoomState.roomId,
+      participantCount: nextRoomState.participantCount,
+      controlMode: nextRoomState.controlMode,
+      isHost: nextRoomState.hostId === participantId
+    })
+
+    await browser.storage.local.set({
+      [TRACKED_MULTI_PARTICIPANT_ROOMS_STORAGE_KEY]: [
+        ...trackedRooms.slice(-(MAX_TRACKED_MULTI_PARTICIPANT_ROOMS - 1)),
+        trackingKey
+      ]
+    })
+  }
+
+  const applyRoomState = async (nextRoomState: RoomState) => {
+    const participantId = state?.[tabId]?.participantId
+    logRoomDebug("applyRoomState", {
+      roomId: nextRoomState.roomId,
+      participantId,
+      participantCount: nextRoomState.participantCount,
+      participants: nextRoomState.participants,
+      extra: {
+        hostId: nextRoomState.hostId,
+        maxParticipants: nextRoomState.maxParticipants
+      }
+    })
+    activeRoomState = nextRoomState
+    joinedRoom = nextRoomState.roomId
+    await updateTabState({
+      roomId: nextRoomState.roomId,
+      participantId,
+      controlMode: nextRoomState.controlMode,
+      nickname: state?.[tabId]?.nickname ?? "Anonymous",
+      participants: nextRoomState.participants,
+      participantCount: nextRoomState.participantCount,
+      hostId: nextRoomState.hostId,
+      isHost: nextRoomState.hostId === participantId,
+      maxParticipants: nextRoomState.maxParticipants
+    })
+    await trackMultiParticipantRoom(nextRoomState)
+  }
+
+  const ensureParticipantId = async () => {
+    const existingParticipantId = state?.[tabId]?.participantId
+    if (existingParticipantId) return existingParticipantId
+
+    const participantId = crypto.randomUUID()
+    await updateTabState({
+      participantId
+    })
+    return participantId
+  }
+
+  const showRoomError = async (message: string) => {
+    await browser.runtime.sendMessage({
+      action: "showToast",
+      body: {
+        error: true,
+        content: message
+      }
+    })
+  }
+
   const socket = io(SOCKET_URL, {
     autoConnect: false,
     transports: ["websocket", "polling"]
   })
 
   const init = async (videoId: string) => {
+    if (pendingInitPromise) {
+      return pendingInitPromise
+    }
+
+    pendingInitPromise = (async () => {
     const tabIdResult = await browser.runtime.sendMessage({
       action: "getTabId"
     })
@@ -63,29 +241,49 @@ export default defineUnlistedScript(async () => {
     const storageResult = await browser.storage.local.get("state")
     const savedState = storageResult.state as State | undefined
 
-    if (savedState === undefined) {
-      const e = new Error("Stored state is undefined")
-      posthog.captureException(e)
-      throw e
-    }
-    state = savedState
+    state = savedState ?? {}
 
     const settingsResult = await browser.storage.sync.get("settings")
     settings = settingsResult.settings as { syncAudio: boolean } | undefined
-    roomCode = state[tabId].roomId
-    if (roomCode) {
-      // Idempotent: reuse existing connection, just re-join and re-bind video
-      if (socket.disconnected) socket.connect()
-      else if (joinedRoom !== roomCode) {
-        joinedRoom = null
-        joinRoom()
+    roomCode = state[tabId]?.roomId
+    logRoomDebug("init", {
+      roomId: roomCode,
+      participantId: state?.[tabId]?.participantId,
+      participantCount: state?.[tabId]?.participantCount,
+      participants: state?.[tabId]?.participants,
+      extra: {
+        hasSavedState: !!savedState,
+        hasActiveRoomState: !!activeRoomState
       }
-      return getVideo(videoId)
+    })
+    if (!roomCode) {
+      return {
+        status: MESSAGE_STATUS.ERROR,
+        message: "Missing room code."
+      }
+    }
+
+    await ensureParticipantId()
+
+    const videoResult = getVideo(videoId)
+    if (videoResult.status !== MESSAGE_STATUS.SUCCESS) return videoResult
+
+    return joinRoom()
+    })()
+
+    try {
+      return await pendingInitPromise
+    } finally {
+      pendingInitPromise = null
     }
   }
 
   const videoEventHandler = (event: Event) => {
-    if (roomCode) {
+    const controlMode = state?.[tabId]?.controlMode ?? "shared"
+    const canControlPlayback =
+      controlMode === "shared" || state?.[tabId]?.isHost
+
+    if (roomCode && canControlPlayback) {
       const volumeOrRate =
         event.type === VIDEO_EVENTS.RATECHANGE
           ? video?.playbackRate
@@ -142,14 +340,12 @@ export default defineUnlistedScript(async () => {
     }
 
     if (video != null) {
-      const newState = Object.assign(state ?? {}, {
-        [tabId]: {
-          ...state?.[tabId],
-          roomId: roomCode,
-          videoFound: true
-        }
+      updateTabState({
+        roomId: roomCode,
+        videoFound: true
+      }).catch((error) => {
+        posthog.captureException(error as Error)
       })
-      browser.storage.local.set({ state: newState })
       if (boundVideo) {
         for (const event of Object.values(VIDEO_EVENTS)) {
           boundVideo.removeEventListener(event, checkVideoEvent)
@@ -180,37 +376,181 @@ export default defineUnlistedScript(async () => {
     }
   }
 
-  const joinRoom = () => {
+  const ensureSocketConnected = async () => {
+    if (socket.connected) return
+    if (pendingConnectPromise) {
+      return pendingConnectPromise
+    }
+
+    connectRequestedByJoin = true
+    pendingConnectPromise = new Promise<void>((resolve, reject) => {
+      const onConnect = () => {
+        cleanup()
+        resolve()
+      }
+      const onError = (error: Error) => {
+        cleanup()
+        reject(error)
+      }
+      const cleanup = () => {
+        socket.off("connect", onConnect)
+        socket.off("connect_error", onError)
+        pendingConnectPromise = null
+        connectRequestedByJoin = false
+      }
+
+      socket.on("connect", onConnect)
+      socket.on("connect_error", onError)
+      socket.connect()
+    })
+
+    return pendingConnectPromise
+  }
+
+  const joinRoom = async () => {
+    if (pendingJoinPromise) {
+      return pendingJoinPromise
+    }
     if (!roomCode) {
       const e = new Error("Invalid room code: " + roomCode)
       posthog.captureException(e)
       throw e
     }
-    if (!socket.connected) return
-    if (joinedRoom === roomCode) return
-    socket.emit(SOCKET_EVENTS.JOIN, roomCode)
-    joinedRoom = roomCode
+    await ensureSocketConnected()
+
+    if (joinedRoom === roomCode && activeRoomState) {
+      return { status: MESSAGE_STATUS.SUCCESS }
+    }
+
+    const nickname = state?.[tabId]?.nickname || "Anonymous"
+    const participantId = await ensureParticipantId()
+    const controlMode: ControlMode = state?.[tabId]?.controlMode ?? "shared"
+    const payload: JoinRoomPayload = {
+      roomId: roomCode,
+      nickname,
+      participantId,
+      controlMode
+    }
+    logRoomDebug("joinRoom.emit", {
+      roomId: roomCode,
+      participantId,
+      participantCount: state?.[tabId]?.participantCount,
+      participants: state?.[tabId]?.participants,
+      extra: {
+        nickname,
+        controlMode,
+        socketConnected: socket.connected
+      }
+    })
+
+    pendingJoinPromise = new Promise<{ status: MESSAGE_STATUS; message?: string }>(
+      (resolve) => {
+        const onJoined = async (nextRoomState: RoomState) => {
+          if (nextRoomState.roomId !== roomCode) return
+          logRoomDebug("roomJoined", {
+            roomId: nextRoomState.roomId,
+            participantId,
+            participantCount: nextRoomState.participantCount,
+            participants: nextRoomState.participants,
+            extra: {
+              hostId: nextRoomState.hostId
+            }
+          })
+          cleanup()
+          await applyRoomState(nextRoomState)
+          resolve({ status: MESSAGE_STATUS.SUCCESS })
+        }
+
+        const onError = async (error: RoomErrorPayload) => {
+          if (error.roomId && error.roomId !== roomCode) return
+          cleanup()
+          await clearTabState()
+          await showRoomError(error.message)
+          resolve({
+            status: MESSAGE_STATUS.ERROR,
+            message: error.message
+          })
+        }
+
+        const cleanup = () => {
+          socket.off(SOCKET_EVENTS.ROOM_JOINED, onJoined)
+          socket.off(SOCKET_EVENTS.ROOM_ERROR, onError)
+          pendingJoinPromise = null
+        }
+
+        socket.on(SOCKET_EVENTS.ROOM_JOINED, onJoined)
+        socket.on(SOCKET_EVENTS.ROOM_ERROR, onError)
+        socket.emit(SOCKET_EVENTS.JOIN, payload)
+      }
+    )
+    return pendingJoinPromise
   }
 
   socket.on("disconnect", () => {
+    logRoomDebug("disconnect", {
+      extra: {
+        isExitingRoom
+      }
+    })
     joinedRoom = null
+    activeRoomState = null
+    if (isExitingRoom) {
+      isExitingRoom = false
+      return
+    }
+    if (state?.[tabId]) {
+      updateTabState({
+        isHost: false
+      }).catch(() => {})
+    }
   })
 
   socket.on("connect", () => {
-    joinedRoom = null
-    joinRoom()
+    logRoomDebug("connect", {
+      extra: {
+        connectRequestedByJoin,
+        joinedRoom,
+        hasActiveRoomState: !!activeRoomState
+      }
+    })
     // Measure latency on connect and periodically
     measureLatency()
     const latencyInterval = setInterval(() => {
       if (socket.connected) measureLatency()
       else clearInterval(latencyInterval)
     }, 30000)
+
+    if (
+      roomCode &&
+      joinedRoom !== roomCode &&
+      !pendingJoinPromise &&
+      !connectRequestedByJoin
+    ) {
+      joinRoom().catch((error) => {
+        posthog.captureException(error as Error)
+      })
+    }
   })
 
   socket.on(SOCKET_EVENTS.FULL, (room) => {
     const e = new Error("Room is full: " + room)
-    scope.captureException(e)
-    throw e
+    posthog.captureException(e)
+  })
+
+  socket.on(SOCKET_EVENTS.ROOM_UPDATED, (nextRoomState: RoomState) => {
+    if (nextRoomState.roomId !== roomCode) return
+    logRoomDebug("roomUpdated", {
+      roomId: nextRoomState.roomId,
+      participantId: state?.[tabId]?.participantId,
+      participantCount: nextRoomState.participantCount,
+      participants: nextRoomState.participants,
+      extra: {
+        hostId: nextRoomState.hostId
+      }
+    })
+    applyRoomState(nextRoomState).catch((error) => {
+      posthog.captureException(error as Error)
+    })
   })
 
   socket.on("connect_error", () => {
@@ -361,11 +701,23 @@ export default defineUnlistedScript(async () => {
           })
         }
         case MESSAGE_TYPE.EXIT:
+          isExitingRoom = true
           for (const event of Object.values(VIDEO_EVENTS)) {
             boundVideo?.removeEventListener(event, checkVideoEvent)
           }
+          if (socket.connected && roomCode && state?.[tabId]?.participantId) {
+            const leavePayload: LeaveRoomPayload = {
+              roomId: roomCode,
+              participantId: state[tabId].participantId as string
+            }
+            socket.emit(SOCKET_EVENTS.LEAVE, leavePayload)
+          }
+          clearTabState().catch(() => {})
           socket.disconnect()
+          roomCode = ""
           joinedRoom = null
+          activeRoomState = null
+          pendingJoinPromise = null
           observer.disconnect()
           video = null
           boundVideo = null

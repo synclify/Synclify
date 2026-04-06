@@ -31,6 +31,7 @@ export const MESSAGE_KEYS = [
   "reportWebsiteNotWorking",
   "reportWhatWentWrongOptional",
   "cancel",
+  "close",
   "sendReport",
   "reportIssue",
   "settings",
@@ -52,7 +53,15 @@ export const MESSAGE_KEYS = [
   "nativeUi",
   "switchToSynclifyVideoPlayer",
   "synclifyUi",
-  "typeMessage"
+  "typeMessage",
+  "participants",
+  "host",
+  "you",
+  "hostControlsPlayback",
+  "sharedControlsPlayback",
+  "sharedMode",
+  "sharedModeOnHelp",
+  "sharedModeOffHelp"
 ] as const
 
 export type MessageKey = (typeof MESSAGE_KEYS)[number]

@@ -33,6 +33,7 @@
   "reportWebsiteNotWorking": { "message": "报告此网站无法使用" },
   "reportWhatWentWrongOptional": { "message": "出了什么问题？（可选）" },
   "cancel": { "message": "取消" },
+  "close": { "message": "关闭" },
   "sendReport": { "message": "发送反馈" },
   "reportIssue": { "message": "报告问题" },
   "settings": { "message": "设置" },
@@ -54,5 +55,12 @@
   "nativeUi": { "message": "原生界面" },
   "switchToSynclifyVideoPlayer": { "message": "切换到 Synclify 视频播放器" },
   "synclifyUi": { "message": "Synclify 界面" },
-  "typeMessage": { "message": "输入消息..." }
+  "typeMessage": { "message": "输入消息..." },
+  "participants": { "message": "参与者" },
+  "host": { "message": "主持人" },
+  "you": { "message": "你" },
+  "hostControlsPlayback": { "message": "只有主持人可以控制播放" },
+  "sharedMode": { "message": "共享模式" },
+  "sharedModeOnHelp": { "message": "开启共享模式后，房间里的任何人都可以为所有人播放、暂停、拖动进度或更改播放。" },
+  "sharedModeOffHelp": { "message": "关闭共享模式后，只有主持人可以为所有人播放、暂停、拖动进度或更改播放。" }
 }

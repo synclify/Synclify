@@ -35,6 +35,7 @@
   },
   "reportWhatWentWrongOptional": { "message": "What went wrong? (optional)" },
   "cancel": { "message": "Cancel" },
+  "close": { "message": "Close" },
   "sendReport": { "message": "Send Report" },
   "reportIssue": { "message": "Report issue" },
   "settings": { "message": "Settings" },
@@ -62,5 +63,13 @@
     "message": "Switch to Synclify video player"
   },
   "synclifyUi": { "message": "Synclify UI" },
-  "typeMessage": { "message": "Type a message..." }
+  "typeMessage": { "message": "Type a message..." },
+  "participants": { "message": "Participants" },
+  "host": { "message": "Host" },
+  "you": { "message": "You" },
+  "hostControlsPlayback": { "message": "Only the host can control playback" },
+  "sharedControlsPlayback": { "message": "Everyone controls the playback" },
+  "sharedMode": { "message": "Shared mode" },
+  "sharedModeOnHelp": { "message": "When Shared mode is on, anyone in the room can play, pause, seek, or change playback for everyone." },
+  "sharedModeOffHelp": { "message": "When Shared mode is off, only the host can play, pause, seek, or change playback for everyone." }
 }

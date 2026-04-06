@@ -33,6 +33,7 @@
   "reportWebsiteNotWorking": { "message": "أبلغ عن أن هذا الموقع لا يعمل" },
   "reportWhatWentWrongOptional": { "message": "ما الذي حدث؟ (اختياري)" },
   "cancel": { "message": "إلغاء" },
+  "close": { "message": "إغلاق" },
   "sendReport": { "message": "إرسال البلاغ" },
   "reportIssue": { "message": "الإبلاغ عن مشكلة" },
   "settings": { "message": "الإعدادات" },
@@ -62,5 +63,12 @@
     "message": "التبديل إلى مشغل فيديو Synclify"
   },
   "synclifyUi": { "message": "واجهة Synclify" },
-  "typeMessage": { "message": "اكتب رسالة..." }
+  "typeMessage": { "message": "اكتب رسالة..." },
+  "participants": { "message": "المشاركون" },
+  "host": { "message": "المضيف" },
+  "you": { "message": "أنت" },
+  "hostControlsPlayback": { "message": "المضيف فقط يمكنه التحكم في التشغيل" },
+  "sharedMode": { "message": "الوضع المشترك" },
+  "sharedModeOnHelp": { "message": "عند تفعيل الوضع المشترك، يمكن لأي شخص في الغرفة التشغيل أو الإيقاف المؤقت أو التقديم أو تغيير التشغيل للجميع." },
+  "sharedModeOffHelp": { "message": "عند إيقاف الوضع المشترك، يمكن للمضيف فقط التشغيل أو الإيقاف المؤقت أو التقديم أو تغيير التشغيل للجميع." }
 }

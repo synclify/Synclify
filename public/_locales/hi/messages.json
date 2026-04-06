@@ -35,6 +35,7 @@
   },
   "reportWhatWentWrongOptional": { "message": "क्या गलत हुआ? (वैकल्पिक)" },
   "cancel": { "message": "रद्द करें" },
+  "close": { "message": "बंद करें" },
   "sendReport": { "message": "रिपोर्ट भेजें" },
   "reportIssue": { "message": "समस्या बताएं" },
   "settings": { "message": "सेटिंग्स" },
@@ -62,5 +63,12 @@
     "message": "Synclify वीडियो प्लेयर पर स्विच करें"
   },
   "synclifyUi": { "message": "Synclify UI" },
-  "typeMessage": { "message": "संदेश लिखें..." }
+  "typeMessage": { "message": "संदेश लिखें..." },
+  "participants": { "message": "प्रतिभागी" },
+  "host": { "message": "होस्ट" },
+  "you": { "message": "आप" },
+  "hostControlsPlayback": { "message": "केवल होस्ट ही प्लेबैक नियंत्रित कर सकता है" },
+  "sharedMode": { "message": "साझा मोड" },
+  "sharedModeOnHelp": { "message": "जब Shared mode चालू होता है, तो रूम में कोई भी सभी के लिए प्ले, पॉज़, सीक या प्लेबैक बदल सकता है।" },
+  "sharedModeOffHelp": { "message": "जब Shared mode बंद होता है, तो केवल होस्ट ही सभी के लिए प्ले, पॉज़, सीक या प्लेबैक बदल सकता है।" }
 }

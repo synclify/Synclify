@@ -37,6 +37,7 @@
   },
   "reportWhatWentWrongOptional": { "message": "¿Qué salió mal? (opcional)" },
   "cancel": { "message": "Cancelar" },
+  "close": { "message": "Cerrar" },
   "sendReport": { "message": "Enviar informe" },
   "reportIssue": { "message": "Informar problema" },
   "settings": { "message": "Configuración" },
@@ -68,5 +69,12 @@
     "message": "Cambiar al reproductor de video de Synclify"
   },
   "synclifyUi": { "message": "Interfaz de Synclify" },
-  "typeMessage": { "message": "Escribe un mensaje..." }
+  "typeMessage": { "message": "Escribe un mensaje..." },
+  "participants": { "message": "Participantes" },
+  "host": { "message": "Anfitrión" },
+  "you": { "message": "Tú" },
+  "hostControlsPlayback": { "message": "Solo el anfitrión puede controlar la reproducción" },
+  "sharedMode": { "message": "Modo compartido" },
+  "sharedModeOnHelp": { "message": "Cuando el modo compartido está activado, cualquier persona en la sala puede reproducir, pausar, adelantar o cambiar la reproducción para todos." },
+  "sharedModeOffHelp": { "message": "Cuando el modo compartido está desactivado, solo el anfitrión puede reproducir, pausar, adelantar o cambiar la reproducción para todos." }
 }
