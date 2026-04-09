@@ -18,26 +18,7 @@ const TOP_FRAME_SUPPORT_SCRIPTS = [
 ]
 
 const ALL_FRAME_SUPPORT_SCRIPTS = ["autoInject.js"]
-
-const MAIN_WORLD_ALL_FRAME_SUPPORT_SCRIPTS = ["fullscreenPatch.js"]
-
-async function injectSupportScripts(tabId: number): Promise<void> {
-  await browser.scripting.executeScript({
-    files: TOP_FRAME_SUPPORT_SCRIPTS,
-    target: { tabId }
-  })
-
-  await browser.scripting.executeScript({
-    files: ALL_FRAME_SUPPORT_SCRIPTS,
-    target: { tabId, allFrames: true }
-  })
-
-  await browser.scripting.executeScript({
-    files: MAIN_WORLD_ALL_FRAME_SUPPORT_SCRIPTS,
-    target: { tabId, allFrames: true },
-    world: "MAIN"
-  })
-}
+const AUTO_ENABLE_DEBUG_SHIELD = false
 
 function toOriginPattern(url?: string): string | null {
   if (!url) return null
@@ -53,14 +34,123 @@ function toOriginPattern(url?: string): string | null {
   }
 }
 
-async function hasPersistentTabPermission(tabId: number): Promise<boolean> {
+function getDebugShieldRegistrationId(origin: string): string {
+  return `synclify-debug-shield-${origin.replace(/[^a-z0-9]+/gi, "_").slice(0, 80)}`
+}
+
+type DebugShieldRegistrationResult = {
+  origin: string | null
+  registered: boolean
+  alreadyRegistered?: boolean
+  error?: string
+}
+
+async function injectSupportScripts(tabId: number): Promise<void> {
+  await browser.scripting.executeScript({
+    files: TOP_FRAME_SUPPORT_SCRIPTS,
+    target: { tabId }
+  })
+
+  await browser.scripting.executeScript({
+    files: ALL_FRAME_SUPPORT_SCRIPTS,
+    target: { tabId, allFrames: true }
+  })
+}
+
+async function injectMainWorldScripts(
+  tabId: number,
+  files: string[],
+  frameIds?: number[]
+): Promise<void> {
+  await browser.scripting.executeScript({
+    files,
+    target: frameIds ? { tabId, frameIds } : { tabId, allFrames: true },
+    world: "MAIN"
+  })
+}
+
+async function setPersistentDebugShield(
+  tabId: number,
+  enabled: boolean
+): Promise<DebugShieldRegistrationResult> {
   const tab = await browser.tabs.get(tabId)
   const origin = toOriginPattern(tab.url)
-  if (!origin) return false
-  return browser.permissions.contains({ origins: [origin] })
+  if (!origin) return { origin: null, registered: false }
+
+  const id = getDebugShieldRegistrationId(origin)
+
+  if (!enabled) {
+    try {
+      await browser.scripting.unregisterContentScripts({ ids: [id] })
+    } catch {
+      // Ignore missing registrations.
+    }
+    return { origin, registered: false, alreadyRegistered: false }
+  }
+
+  try {
+    const existing = await browser.scripting.getRegisteredContentScripts({
+      ids: [id]
+    })
+    if (existing.length > 0) {
+      return { origin, registered: true, alreadyRegistered: true }
+    }
+  } catch {
+    // Continue and attempt a fresh registration below.
+  }
+
+  try {
+    await browser.scripting.registerContentScripts([
+      {
+        id,
+        js: ["debugShield.js"],
+        matches: [origin],
+        runAt: "document_start",
+        allFrames: true,
+        matchAboutBlank: true,
+        matchOriginAsFallback: true,
+        world: "MAIN",
+        persistAcrossSessions: true
+      }
+    ])
+    return { origin, registered: true, alreadyRegistered: false }
+  } catch (error) {
+    return {
+      origin,
+      registered: false,
+      alreadyRegistered: false,
+      error: error instanceof Error ? error.message : String(error)
+    }
+  }
 }
 
 export default defineBackground(async () => {
+  const bg = globalThis as typeof globalThis & {
+    synclifyDebug?: {
+      enableShield: (tabId?: number) => Promise<unknown>
+      disableShield: (tabId?: number) => Promise<unknown>
+      detectVideos: (tabId?: number) => Promise<unknown>
+      getActiveTabId: () => Promise<number>
+    }
+  }
+
+  async function autoEnableDebugShieldForTab(tabId?: number): Promise<void> {
+    if (!AUTO_ENABLE_DEBUG_SHIELD) return
+    if (!tabId) return
+
+    try {
+      const tab = await browser.tabs.get(tabId)
+      if (!tab.url) return
+
+      const origin = toOriginPattern(tab.url)
+      if (!origin) return
+
+      await handleSetDebugShield(true, tabId)
+    } catch {
+      // Best effort only.
+    }
+  }
+
   browser.runtime.onMessage.addListener((message) => {
     if (message.action === "getPosthogDistinctId") {
       return getSharedDistinctId("background")
@@ -73,12 +163,15 @@ export default defineBackground(async () => {
 
   // --- Persistent rooms: re-inject on full page navigation ---
   browser.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+    if (changeInfo.url) {
+      await autoEnableDebugShieldForTab(tabId)
+    }
+
     if (changeInfo.status !== "complete") return
     const result = await browser.storage.local.get("state")
     const state = result.state as State | undefined
     if (state && state[tabId]) {
       try {
-        if (!(await hasPersistentTabPermission(tabId))) return
         await reinjectTab(tabId)
       } catch {
         // Tab may not be ready yet, ignore
@@ -108,6 +201,22 @@ export default defineBackground(async () => {
       browser.runtime.reload()
     }
   })
+
+  browser.tabs.onActivated.addListener(async ({ tabId }) => {
+    await autoEnableDebugShieldForTab(tabId)
+  })
+
+  browser.tabs
+    .query({
+      active: true,
+      currentWindow: true
+    })
+    .then(async (tabs) => {
+      await autoEnableDebugShieldForTab(tabs[0]?.id)
+    })
+    .catch(() => {
+      // Ignore startup probe failures.
+    })
 
   // --- Message handlers (replaces Plasmo background/messages/) ---
 
@@ -338,6 +447,176 @@ export default defineBackground(async () => {
     return tabs[0].id as number
   }
 
+  type DebugVideoReport = {
+    id: string | null
+    src: string
+    currentSrc: string
+    readyState: number
+    width: number
+    height: number
+    duration: number | null
+    paused: boolean
+    controls: boolean
+  }
+
+  type DebugFrameReport = {
+    url: string
+    title: string
+    readyState: string
+    frameElement: string | null
+    iframeCount: number
+    videoCount: number
+    videos: DebugVideoReport[]
+    iframes: Array<{
+      src: string | null
+      id: string | null
+      className: string | null
+      width: number
+      height: number
+    }>
+  }
+
+  function inspectFrameForDebug(): DebugFrameReport {
+    const videos = Array.from(document.querySelectorAll("video")).map(
+      (video) => ({
+        id: video.dataset.synclifyId ?? null,
+        src: video.getAttribute("src") ?? "",
+        currentSrc: video.currentSrc ?? "",
+        readyState: video.readyState,
+        width: video.videoWidth,
+        height: video.videoHeight,
+        duration: Number.isFinite(video.duration) ? video.duration : null,
+        paused: video.paused,
+        controls: video.hasAttribute("controls")
+      })
+    )
+
+    const iframes = Array.from(document.querySelectorAll("iframe")).map(
+      (iframe) => ({
+        src: iframe.getAttribute("src"),
+        id: iframe.id || null,
+        className: iframe.className || null,
+        width: iframe.clientWidth,
+        height: iframe.clientHeight
+      })
+    )
+
+    const frameElement =
+      window.frameElement instanceof HTMLIFrameElement
+        ? window.frameElement.getAttribute("src")
+        : null
+
+    return {
+      url: location.href,
+      title: document.title,
+      readyState: document.readyState,
+      frameElement,
+      iframeCount: iframes.length,
+      videoCount: videos.length,
+      videos,
+      iframes
+    }
+  }
+
+  async function getActiveTabIdOrThrow(tabId?: number): Promise<number> {
+    if (tabId) return tabId
+    return handleGetTabId()
+  }
+
+  async function handleDebugDetectVideos(tabId?: number) {
+    const activeTabId = await getActiveTabIdOrThrow(tabId)
+    await injectSupportScripts(activeTabId)
+
+    const [detectedVideos, frameSnapshots] = await Promise.all([
+      browser.scripting.executeScript({
+        func: detectPageVideos,
+        target: { tabId: activeTabId, allFrames: true }
+      }),
+      browser.scripting.executeScript({
+        func: inspectFrameForDebug,
+        target: { tabId: activeTabId, allFrames: true }
+      })
+    ])
+
+    return frameSnapshots.map((snapshot) => {
+      const matchedVideos = detectedVideos.find(
+        (candidate) => candidate.frameId === snapshot.frameId
+      )
+
+      return {
+        frameId: snapshot.frameId,
+        detectedVideos: Array.isArray(matchedVideos?.result)
+          ? matchedVideos.result
+          : [],
+        frame:
+          snapshot.result && typeof snapshot.result === "object"
+            ? snapshot.result
+            : null
+      }
+    })
+  }
+
+  async function handleSetDebugShield(
+    enabled: boolean,
+    tabId?: number
+  ): Promise<{
+    persistentRegistration: DebugShieldRegistrationResult
+    reloaded: boolean
+    frames: Array<{
+      frameId: number
+      state: unknown
+    }>
+  }> {
+    const activeTabId = await getActiveTabIdOrThrow(tabId)
+    const persistentRegistration = await setPersistentDebugShield(
+      activeTabId,
+      enabled
+    )
+    await injectMainWorldScripts(activeTabId, ["debugShield.js"])
+
+    const results = await browser.scripting.executeScript({
+      target: { tabId: activeTabId, allFrames: true },
+      world: "MAIN",
+      args: [enabled],
+      func: (shouldEnable: boolean) => {
+        const api = (
+          window as Window & {
+            __synclifyDebugShield?: {
+              enable: () => unknown
+              disable: () => unknown
+            }
+          }
+        ).__synclifyDebugShield
+
+        if (!api) return null
+        return shouldEnable ? api.enable() : api.disable()
+      }
+    })
+
+    const frames = results.map((result) => ({
+      frameId: result.frameId,
+      state: result.result
+    }))
+
+    const shouldReload =
+      enabled &&
+      persistentRegistration.registered &&
+      !persistentRegistration.alreadyRegistered
+    if (shouldReload) {
+      try {
+        await browser.tabs.reload(activeTabId)
+      } catch {
+        // Best effort; the current page is already patched as a fallback.
+      }
+    }
+
+    return {
+      persistentRegistration,
+      reloaded: shouldReload,
+      frames
+    }
+  }
+
   async function handleCreateRoom(): Promise<string> {
     const res = await fetch(`${SOCKET_URL}/create`)
     const code = await res.text()
@@ -478,6 +757,7 @@ export default defineBackground(async () => {
       ? (body.needsCustomPlayer ?? needsCustomPlayer)
       : needsCustomPlayer
     if (selectedVideoId && showCustomPlayer) {
+      await injectMainWorldScripts(tabId, ["fullscreenPatch.js"], frameIds)
       setTimeout(() => {
         browser.tabs
           .sendMessage(tabId, {
@@ -628,6 +908,13 @@ export default defineBackground(async () => {
     }
   }
 
+  bg.synclifyDebug = {
+    enableShield: (tabId?: number) => handleSetDebugShield(true, tabId),
+    disableShield: (tabId?: number) => handleSetDebugShield(false, tabId),
+    detectVideos: (tabId?: number) => handleDebugDetectVideos(tabId),
+    getActiveTabId: () => handleGetTabId()
+  }
+
   // Central message router
   browser.runtime.onMessage.addListener((message, sender) => {
     switch (message.action) {
@@ -639,6 +926,12 @@ export default defineBackground(async () => {
         return handleShouldInject(sender.tab?.id)
       case "inject":
         return handleInject(message.body)
+      case "debugDetectVideos":
+        return handleDebugDetectVideos(sender.tab?.id)
+      case "enableDebugShield":
+        return handleSetDebugShield(true, sender.tab?.id)
+      case "disableDebugShield":
+        return handleSetDebugShield(false, sender.tab?.id)
       case "showToast":
         return handleShowToast(message.body, sender.tab?.id)
       case "trackChatTelemetry":
