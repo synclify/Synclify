@@ -46,7 +46,7 @@
     "@wxt-dev/module-react": "^1.1.5",
     "autoprefixer": "^10.4.27",
     "cssnano": "^7.1.2",
-    "eslint": "^8.57.1",
+    "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
