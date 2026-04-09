@@ -224,27 +224,20 @@ function App() {
     [currentTab, responseCallback, state, setStoredState, nickname, sharedMode]
   )
 
-  const createOrJoinRoom = useCallback(
-    async (data?: FormData) => {
-      const hasPermission = await browser.permissions.contains({
+  const requestRoomPermission = useCallback(() => {
+    return browser.permissions
+      .request({
         permissions: ["activeTab"],
         origins: ["https://*/*", "http://*/*"]
       })
+      .catch((err) => {
+        console.error(err)
+        return false
+      })
+  }, [])
 
-      const granted = hasPermission
-        ? true
-        : await browser.permissions
-            .request({
-              permissions: ["activeTab"],
-              origins: ["https://*/*", "http://*/*"]
-            })
-            .catch((err) => {
-              console.error(err)
-              return false
-            })
-
-      if (!granted) return
-
+  const createOrJoinRoom = useCallback(
+    (data?: FormData) => {
       if (data) {
         const room = data.room.toUpperCase()
         roomCallback(room)
@@ -255,6 +248,25 @@ function App() {
       }
     },
     [roomCallback]
+  )
+
+  const handleCreateRoomClick = useCallback(async () => {
+    const granted = await requestRoomPermission()
+    if (!granted) return
+
+    createOrJoinRoom()
+  }, [createOrJoinRoom, requestRoomPermission])
+
+  const handleJoinRoomSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+
+      const granted = await requestRoomPermission()
+      if (!granted) return
+
+      void handleSubmit((data) => createOrJoinRoom(data))(event)
+    },
+    [createOrJoinRoom, handleSubmit, requestRoomPermission]
   )
 
   useEffect(() => {
@@ -627,7 +639,7 @@ function App() {
             {/* Create room CTA */}
             <div className="animate-fade-in-up stagger-1 mb-4">
               <Button
-                onClick={() => createOrJoinRoom()}
+                onClick={handleCreateRoomClick}
                 className="relative w-full overflow-hidden rounded-lg bg-[hsl(38_92%_55%)] py-5 text-sm font-semibold tracking-wide text-[hsl(220_20%_6%)] shadow-lg shadow-[hsl(38_92%_55%/0.2)] transition-all hover:bg-[hsl(38_80%_50%)] hover:shadow-[hsl(38_92%_55%/0.3)]">
                 {t("createRoom")}
               </Button>
@@ -644,7 +656,7 @@ function App() {
 
             {/* Join form */}
             <form
-              onSubmit={handleSubmit(createOrJoinRoom)}
+              onSubmit={handleJoinRoomSubmit}
               className="animate-fade-in-up stagger-3 flex flex-col gap-2.5">
               <Input
                 type="text"
