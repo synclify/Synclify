@@ -312,6 +312,15 @@ export default defineBackground(async () => {
         hostPatterns: [/mubi\.com$/],
         videoSelector: "video",
         playerContainer: ".player"
+      },
+      vkvideo: {
+        hostPatterns: [/(^|\.)vkvideo\.ru$/, /(^|\.)vk\.com$/],
+        videoSelector: '[data-testid="video-container"] video',
+        playerContainer: ".vk-vp-root",
+        watchPageTest: () =>
+          /^\/video_ext\.php/.test(location.pathname) ||
+          /^\/video-?\d+_\d+/.test(location.pathname),
+        excludeSelector: ".ads-container video"
       }
     }
 
@@ -322,6 +331,8 @@ export default defineBackground(async () => {
       "#hudson-wrapper",
       '[data-testid="playerContainer"]',
       ".ContentPlayer",
+      ".vk-vp-root",
+      '[data-testid="video-container"]',
       ".html5-video-player",
       ".video-player",
       ".jw-wrapper",
@@ -374,29 +385,66 @@ export default defineBackground(async () => {
       )
     }
 
-    /* Find candidate videos */
-    let candidates: HTMLVideoElement[]
-    if (siteConfig) {
-      // Use site-specific selector for more precise matching
-      candidates = Array.from(
-        document.querySelectorAll<HTMLVideoElement>(siteConfig.videoSelector)
-      )
-      // Filter out excluded elements (ads, overlays, etc.)
-      if (siteConfig.excludeSelector) {
-        const excludeSel = siteConfig.excludeSelector
-        candidates = candidates.filter((v) => !v.matches(excludeSel))
+    /* Deep-walk that crosses open shadow roots. VK Video, and a growing
+       number of modern players, mount their <video> inside a closed-looking
+       shadow tree (mode: "open" but not queryable via document.*). */
+    const collectAllVideos = (): HTMLVideoElement[] => {
+      const found: HTMLVideoElement[] = []
+      const visit = (root: Document | ShadowRoot) => {
+        for (const v of Array.from(
+          root.querySelectorAll<HTMLVideoElement>("video")
+        )) {
+          found.push(v)
+        }
+        for (const el of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
+          const sr = el.shadowRoot
+          if (sr) visit(sr)
+        }
       }
-      // If site-specific selector returned nothing, fall back to all videos
-      if (candidates.length === 0) {
-        candidates = Array.from(document.getElementsByTagName("video"))
+      visit(document)
+      return found
+    }
+
+    /* Find candidate videos. When the site-specific selector matches,
+       trustSelector=true and we skip the isPlayable filter — the player
+       <video> may not yet have src/dimensions (e.g. VK Video uses MSE
+       blob-URL only after the first Play). On the fallback path and on
+       unknown sites we still require isPlayable so generic detection
+       picks the right element. */
+    const allVideos = collectAllVideos()
+    let candidates: HTMLVideoElement[]
+    let trustSelector = false
+    if (siteConfig) {
+      const sel = siteConfig.videoSelector
+      const exclude = siteConfig.excludeSelector
+      candidates = allVideos.filter((v) => {
+        try {
+          if (!v.matches(sel)) return false
+        } catch {
+          return false
+        }
+        if (exclude) {
+          try {
+            if (v.matches(exclude)) return false
+          } catch {
+            /* ignore bad exclude selector */
+          }
+        }
+        return true
+      })
+      if (candidates.length > 0) {
+        trustSelector = true
+      } else {
+        // Fall back to all <video> (including shadow) if site selector matched nothing
+        candidates = allVideos
       }
     } else {
-      candidates = Array.from(document.getElementsByTagName("video"))
+      candidates = allVideos
     }
 
     return candidates
       .map((video) => {
-        if (!isPlayable(video)) return null
+        if (!trustSelector && !isPlayable(video)) return null
         if (!video.dataset.synclifyId)
           video.dataset.synclifyId = Math.random().toString(36).slice(2, 7)
 
@@ -678,7 +726,8 @@ export default defineBackground(async () => {
 
     if (!frameIds) {
       let videos: Array<Video & { frameId: number }> = []
-      for (let attempt = 0; attempt < 3 && videos.length === 0; attempt++) {
+      const MAX_ATTEMPTS = 5
+      for (let attempt = 0; attempt < MAX_ATTEMPTS && videos.length === 0; attempt++) {
         const result = await browser.scripting.executeScript({
           func: detectPageVideos,
           target: { tabId: tabId, allFrames: true }
@@ -698,8 +747,8 @@ export default defineBackground(async () => {
             })
           )
 
-        if (videos.length === 0 && attempt < 2) {
-          await wait(700)
+        if (videos.length === 0 && attempt < MAX_ATTEMPTS - 1) {
+          await wait(800)
         }
       }
 
@@ -850,7 +899,8 @@ export default defineBackground(async () => {
       frameId: number
       needsCustomPlayer: boolean
     }> = []
-    for (let attempt = 0; attempt < 3 && videos.length === 0; attempt++) {
+    const MAX_ATTEMPTS = 5
+    for (let attempt = 0; attempt < MAX_ATTEMPTS && videos.length === 0; attempt++) {
       const result = await browser.scripting.executeScript({
         func: detectPageVideos,
         target: { tabId, allFrames: true }
@@ -871,7 +921,7 @@ export default defineBackground(async () => {
             frameId: injection.frameId
           }))
         )
-      if (videos.length === 0 && attempt < 2) await wait(700)
+      if (videos.length === 0 && attempt < MAX_ATTEMPTS - 1) await wait(800)
     }
     if (videos.length === 0) return
 

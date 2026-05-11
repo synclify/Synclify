@@ -12,7 +12,11 @@ import {
 } from "~/types/socket"
 import type { State, TabState } from "~/types/state"
 import { VIDEO_EVENTS } from "~/types/video"
-import { findSiteVideo, detectStreamingSite } from "~/lib/video-detection"
+import {
+  findSiteVideo,
+  detectStreamingSite,
+  deepQuerySelector
+} from "~/lib/video-detection"
 import { debugRoomLog } from "~/lib/debug"
 import browser from "webextension-polyfill"
 import { io } from "socket.io-client"
@@ -309,11 +313,11 @@ export default defineUnlistedScript(async () => {
   })
 
   const getVideo = (videoId?: string) => {
-    // First try by synclify-id if provided
+    // First try by synclify-id if provided (deep — crosses shadow boundaries)
     if (videoId) {
-      video = document.querySelector(
+      video = deepQuerySelector<HTMLVideoElement>(
         `[data-synclify-id="${videoId}"]`
-      ) as HTMLVideoElement | null
+      )
     }
 
     // If no videoId or element not found, use site-specific detection
@@ -330,12 +334,12 @@ export default defineUnlistedScript(async () => {
       }
     }
 
-    // Final fallback: first video on the page
+    // Final fallback: first video on the page (deep — shadow-aware)
     if (!video) {
-      video = document.querySelector("video")
+      video = deepQuerySelector<HTMLVideoElement>("video")
       posthog.capture("video_id_null_fallback", {
         message:
-          "videoId is null, using first element returned by document.querySelector"
+          "videoId is null, using first element returned by deepQuerySelector"
       })
     }
 

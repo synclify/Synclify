@@ -3,7 +3,10 @@ import { createPortal } from "react-dom"
 import { useCallback, useEffect, useRef, useState } from "react"
 import browser from "webextension-polyfill"
 import { t } from "~/lib/i18n"
-import { shouldShowCustomPlayer } from "~/lib/video-detection"
+import {
+  shouldShowCustomPlayer,
+  deepQuerySelector
+} from "~/lib/video-detection"
 import { mountUi, runOnce, whenBodyReady } from "~/lib/runtime-ui"
 
 const WRAPPER_ATTR = "data-synclify-player-wrapper"
@@ -903,9 +906,9 @@ function PlayerManager() {
           sendResponse(null)
           return true
         }
-        const el = document.querySelector(
+        const el = deepQuerySelector<HTMLVideoElement>(
           `[data-synclify-id="${msg.videoId}"]`
-        ) as HTMLVideoElement | null
+        )
         if (el) attachToVideo(el)
         sendResponse(null)
         return true
@@ -936,9 +939,8 @@ function PlayerManager() {
           (entry: { videoFound?: boolean }) => entry.videoFound
         )
         if (hasVideo) {
-          const vid = document.querySelector(
-            "[data-synclify-id]"
-          ) as HTMLVideoElement | null
+          const vid =
+            deepQuerySelector<HTMLVideoElement>("[data-synclify-id]")
           if (vid) attachToVideo(vid)
         }
       }

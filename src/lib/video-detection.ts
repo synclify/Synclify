@@ -27,6 +27,7 @@ export type StreamingSite =
   | "stan"
   | "britbox"
   | "shudder"
+  | "vkvideo"
   | "unknown"
 
 /* ------------------------------------------------------------------
@@ -181,6 +182,23 @@ export const SITE_CONFIGS: Record<
     hostPatterns: [/shudder\.com$/],
     videoSelector: "video",
     playerContainer: ".player-container"
+  },
+
+  /* ---- VK Video (vkvideo.ru + vk.com, including /video_ext.php embeds) ----
+     The VK player lives inside an open Shadow DOM rooted at
+     div.shadow-root-container. Inside, the main <video> sits in
+     .vk-vp-root > .player-wrapper > ... > [data-testid="video-container"],
+     and an ad <video> sits in .ads-container. The detection code uses a
+     deep walk that crosses shadow boundaries — selectors below are
+     matched against video elements regardless of shadow root. */
+  vkvideo: {
+    hostPatterns: [/(^|\.)vkvideo\.ru$/, /(^|\.)vk\.com$/],
+    videoSelector: '[data-testid="video-container"] video',
+    playerContainer: ".vk-vp-root",
+    watchPageTest: () =>
+      /^\/video_ext\.php/.test(location.pathname) ||
+      /^\/video-?\d+_\d+/.test(location.pathname),
+    excludeSelector: ".ads-container video"
   }
 }
 
@@ -209,6 +227,49 @@ export function getSiteConfig(hostname?: string): SiteConfig | null {
 }
 
 /* ------------------------------------------------------------------
+ *  Shadow-DOM aware traversal helpers
+ *
+ *  Modern players (VK Video, Bitmovin, etc.) put their <video> inside
+ *  open shadow roots. document.querySelector* does not cross shadow
+ *  boundaries — these helpers do.
+ * ------------------------------------------------------------------ */
+
+export function collectAllVideos(): HTMLVideoElement[] {
+  const found: HTMLVideoElement[] = []
+  const visit = (root: Document | ShadowRoot) => {
+    for (const v of Array.from(
+      root.querySelectorAll<HTMLVideoElement>("video")
+    )) {
+      found.push(v)
+    }
+    for (const el of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
+      const sr = el.shadowRoot
+      if (sr) visit(sr)
+    }
+  }
+  visit(document)
+  return found
+}
+
+export function deepQuerySelector<E extends Element = Element>(
+  selector: string
+): E | null {
+  const visit = (root: Document | ShadowRoot): E | null => {
+    const direct = root.querySelector<E>(selector)
+    if (direct) return direct
+    for (const el of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
+      const sr = el.shadowRoot
+      if (sr) {
+        const nested = visit(sr)
+        if (nested) return nested
+      }
+    }
+    return null
+  }
+  return visit(document)
+}
+
+/* ------------------------------------------------------------------
  *  Find the primary video element using site-specific knowledge
  *
  *  Returns the best-matching <video> element, or null if not found.
@@ -224,22 +285,31 @@ export function findSiteVideo(hostname?: string): HTMLVideoElement | null {
       return null
     }
 
-    const candidates = Array.from(
-      document.querySelectorAll<HTMLVideoElement>(config.videoSelector)
-    )
-
-    // Filter out excluded elements
-    const filtered = config.excludeSelector
-      ? candidates.filter((v) => !v.matches(config.excludeSelector!))
-      : candidates
+    const sel = config.videoSelector
+    const exclude = config.excludeSelector
+    const candidates = collectAllVideos().filter((v) => {
+      try {
+        if (!v.matches(sel)) return false
+      } catch {
+        return false
+      }
+      if (exclude) {
+        try {
+          if (v.matches(exclude)) return false
+        } catch {
+          /* ignore bad exclude selector */
+        }
+      }
+      return true
+    })
 
     // Return the first video that has actual content
-    for (const video of filtered) {
+    for (const video of candidates) {
       if (isPlayableVideo(video)) return video
     }
 
     // Fallback: the selector might not match yet (lazy load); return first
-    return filtered[0] ?? null
+    return candidates[0] ?? null
   }
 
   // Unknown site — use generic heuristic
@@ -253,9 +323,7 @@ export function findSiteVideo(hostname?: string): HTMLVideoElement | null {
  * ------------------------------------------------------------------ */
 
 function findGenericVideo(): HTMLVideoElement | null {
-  const videos = Array.from(
-    document.querySelectorAll<HTMLVideoElement>("video")
-  )
+  const videos = collectAllVideos()
   const scored = videos
     .filter((v) => isPlayableVideo(v))
     .map((v) => ({
@@ -298,6 +366,8 @@ export const COMMERCIAL_PLAYER_SELECTORS = [
   "#hudson-wrapper", // Disney+, Peacock, Crunchyroll, Apple TV+
   '[data-testid="playerContainer"]', // Max / HBO Max
   ".ContentPlayer", // Hulu
+  ".vk-vp-root", // VK Video (shadow DOM player root)
+  '[data-testid="video-container"]', // VK Video (player video container)
 
   // --- Generic commercial player wrappers ---
   ".html5-video-player",

@@ -244,7 +244,23 @@ function App() {
       } else {
         browser.runtime
           .sendMessage({ action: "createRoom" })
-          .then((roomCode: string) => roomCallback(roomCode))
+          .then((roomCode: string) => {
+            if (typeof roomCode !== "string" || roomCode.length === 0) {
+              setError(true)
+              setErrorMessage(t("videoNotDetectedYet"))
+              return
+            }
+            roomCallback(roomCode)
+          })
+          .catch((err) => {
+            console.error("createRoom failed", err)
+            setError(true)
+            setErrorMessage(
+              err instanceof Error && err.message
+                ? err.message
+                : t("videoNotDetectedYet")
+            )
+          })
       }
     },
     [roomCallback]
@@ -643,6 +659,11 @@ function App() {
                 className="relative w-full overflow-hidden rounded-lg bg-[hsl(38_92%_55%)] py-5 text-sm font-semibold tracking-wide text-[hsl(220_20%_6%)] shadow-lg shadow-[hsl(38_92%_55%/0.2)] transition-all hover:bg-[hsl(38_80%_50%)] hover:shadow-[hsl(38_92%_55%/0.3)]">
                 {t("createRoom")}
               </Button>
+              {error && (
+                <div className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-xs text-destructive">
+                  {errorMessage}
+                </div>
+              )}
             </div>
 
             {/* Divider */}
