@@ -18,6 +18,7 @@ import { useForm } from "react-hook-form"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
 import { Switch } from "~/components/ui/switch"
+import { VpnPromo } from "~/components/VpnPromo"
 import { usePostHog } from "@posthog/react"
 import { debugRoomLog } from "~/lib/debug"
 import { t } from "~/lib/i18n"
@@ -690,6 +691,9 @@ function App() {
                 {t("joinRoom")}
               </Button>
             </form>
+
+            {/* Partner placement */}
+            <VpnPromo />
           </div>
         )}
       </div>

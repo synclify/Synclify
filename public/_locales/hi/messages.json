@@ -70,5 +70,8 @@
   "hostControlsPlayback": { "message": "केवल होस्ट ही प्लेबैक नियंत्रित कर सकता है" },
   "sharedMode": { "message": "साझा मोड" },
   "sharedModeOnHelp": { "message": "जब Shared mode चालू होता है, तो रूम में कोई भी सभी के लिए प्ले, पॉज़, सीक या प्लेबैक बदल सकता है।" },
-  "sharedModeOffHelp": { "message": "जब Shared mode बंद होता है, तो केवल होस्ट ही सभी के लिए प्ले, पॉज़, सीक या प्लेबैक बदल सकता है।" }
+  "sharedModeOffHelp": { "message": "जब Shared mode बंद होता है, तो केवल होस्ट ही सभी के लिए प्ले, पॉज़, सीक या प्लेबैक बदल सकता है।" },
+  "vpnPromoEyebrow": { "message": "ब्लॉक है?" },
+  "vpnPromoTitle": { "message": "PureVPN से अनब्लॉक करें" },
+  "vpnPromoAdLabel": { "message": "विज्ञापन" }
 }

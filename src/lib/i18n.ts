@@ -61,7 +61,10 @@ export const MESSAGE_KEYS = [
   "sharedControlsPlayback",
   "sharedMode",
   "sharedModeOnHelp",
-  "sharedModeOffHelp"
+  "sharedModeOffHelp",
+  "vpnPromoEyebrow",
+  "vpnPromoTitle",
+  "vpnPromoAdLabel"
 ] as const
 
 export type MessageKey = (typeof MESSAGE_KEYS)[number]

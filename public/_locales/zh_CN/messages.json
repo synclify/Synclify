@@ -62,5 +62,8 @@
   "hostControlsPlayback": { "message": "只有主持人可以控制播放" },
   "sharedMode": { "message": "共享模式" },
   "sharedModeOnHelp": { "message": "开启共享模式后，房间里的任何人都可以为所有人播放、暂停、拖动进度或更改播放。" },
-  "sharedModeOffHelp": { "message": "关闭共享模式后，只有主持人可以为所有人播放、暂停、拖动进度或更改播放。" }
+  "sharedModeOffHelp": { "message": "关闭共享模式后，只有主持人可以为所有人播放、暂停、拖动进度或更改播放。" },
+  "vpnPromoEyebrow": { "message": "被封锁了？" },
+  "vpnPromoTitle": { "message": "用 PureVPN 解锁" },
+  "vpnPromoAdLabel": { "message": "广告" }
 }

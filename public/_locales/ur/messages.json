@@ -66,5 +66,8 @@
   "hostControlsPlayback": { "message": "صرف میزبان ہی پلے بیک کنٹرول کرسکتا ہے" },
   "sharedMode": { "message": "مشترکہ موڈ" },
   "sharedModeOnHelp": { "message": "جب Shared mode آن ہو تو روم میں کوئی بھی سب کے لیے پلے، پاز، سیک یا پلے بیک تبدیل کرسکتا ہے۔" },
-  "sharedModeOffHelp": { "message": "جب Shared mode آف ہو تو صرف میزبان ہی سب کے لیے پلے، پاز، سیک یا پلے بیک تبدیل کرسکتا ہے۔" }
+  "sharedModeOffHelp": { "message": "جب Shared mode آف ہو تو صرف میزبان ہی سب کے لیے پلے، پاز، سیک یا پلے بیک تبدیل کرسکتا ہے۔" },
+  "vpnPromoEyebrow": { "message": "بلاک ہے؟" },
+  "vpnPromoTitle": { "message": "PureVPN سے اَن بلاک کریں" },
+  "vpnPromoAdLabel": { "message": "اشتہار" }
 }

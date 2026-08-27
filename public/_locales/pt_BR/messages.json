@@ -76,5 +76,8 @@
   "hostControlsPlayback": { "message": "Apenas o anfitrião pode controlar a reprodução" },
   "sharedMode": { "message": "Modo compartilhado" },
   "sharedModeOnHelp": { "message": "Quando o modo compartilhado está ativado, qualquer pessoa na sala pode reproduzir, pausar, avançar ou alterar a reprodução para todos." },
-  "sharedModeOffHelp": { "message": "Quando o modo compartilhado está desativado, apenas o anfitrião pode reproduzir, pausar, avançar ou alterar a reprodução para todos." }
+  "sharedModeOffHelp": { "message": "Quando o modo compartilhado está desativado, apenas o anfitrião pode reproduzir, pausar, avançar ou alterar a reprodução para todos." },
+  "vpnPromoEyebrow": { "message": "Bloqueado?" },
+  "vpnPromoTitle": { "message": "Desbloqueie com a PureVPN" },
+  "vpnPromoAdLabel": { "message": "Anúncio" }
 }

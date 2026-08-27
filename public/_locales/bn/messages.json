@@ -70,5 +70,8 @@
   "hostControlsPlayback": { "message": "শুধুমাত্র হোস্ট প্লেব্যাক নিয়ন্ত্রণ করতে পারেন" },
   "sharedMode": { "message": "শেয়ার্ড মোড" },
   "sharedModeOnHelp": { "message": "শেয়ার্ড মোড চালু থাকলে রুমের যে কেউ সবার জন্য প্লে, পজ, সিক বা প্লেব্যাক পরিবর্তন করতে পারেন।" },
-  "sharedModeOffHelp": { "message": "শেয়ার্ড মোড বন্ধ থাকলে শুধুমাত্র হোস্ট সবার জন্য প্লে, পজ, সিক বা প্লেব্যাক পরিবর্তন করতে পারেন।" }
+  "sharedModeOffHelp": { "message": "শেয়ার্ড মোড বন্ধ থাকলে শুধুমাত্র হোস্ট সবার জন্য প্লে, পজ, সিক বা প্লেব্যাক পরিবর্তন করতে পারেন।" },
+  "vpnPromoEyebrow": { "message": "ব্লক করা?" },
+  "vpnPromoTitle": { "message": "PureVPN দিয়ে আনব্লক করুন" },
+  "vpnPromoAdLabel": { "message": "বিজ্ঞাপন" }
 }

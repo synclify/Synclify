@@ -71,5 +71,8 @@
   "sharedControlsPlayback": { "message": "Everyone controls the playback" },
   "sharedMode": { "message": "Shared mode" },
   "sharedModeOnHelp": { "message": "When Shared mode is on, anyone in the room can play, pause, seek, or change playback for everyone." },
-  "sharedModeOffHelp": { "message": "When Shared mode is off, only the host can play, pause, seek, or change playback for everyone." }
+  "sharedModeOffHelp": { "message": "When Shared mode is off, only the host can play, pause, seek, or change playback for everyone." },
+  "vpnPromoEyebrow": { "message": "Geo-blocked?" },
+  "vpnPromoTitle": { "message": "Unblock it with PureVPN" },
+  "vpnPromoAdLabel": { "message": "Ad" }
 }
