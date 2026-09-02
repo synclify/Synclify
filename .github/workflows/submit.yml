@@ -1,43 +1,55 @@
-name: "Submit to Web Store"
+name: Release
+
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  submit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Cache pnpm modules
-        uses: actions/cache@v3
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
         with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-
-      - uses: pnpm/action-setup@v2.2.2
+          version: 11.24.0
+
+      - uses: actions/setup-node@v4
         with:
-          version: 7.11.0
-          run_install: true
-      - name: Use Node.js 16.x
-        uses: actions/setup-node@v3.4.1
-        with:
-          node-version: 16.x
+          node-version: 22
           cache: "pnpm"
-      - name: Create .env file
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Zip extensions
         run: |
-          touch .env
-          echo PLASMO_PUBLIC_SOCKET_ENDPOINT=${{ secrets.PLASMO_PUBLIC_SOCKET_ENDPOINT }} >> .env
-      - name: Build and zip chromium extension artifact
-        run: pnpm build -- --zip
-      - name: Chrome/Edge Platform Publish
-        uses: PlasmoHQ/bpp@v2
-        with:
-          keys: ${{ secrets.SUBMIT_CHROMIUM }}
-          artifact: build/chrome-mv3-prod.zip
-      - name: Build and zip firefox extension artifact
-        run: pnpm build -- --zip --target=firefox-mv2
-      - name: Chrome/Edge Platform Publish
-        uses: PlasmoHQ/bpp@v2
-        with:
-          keys: ${{ secrets.SUBMIT_FIREFOX }}
-          artifact: build/chrome-mv3-prod.zip
+          pnpm zip
+          pnpm zip:firefox
+
+      - name: Submit to stores
+        run: |
+          pnpm wxt submit \
+            --chrome-zip .output/*-chrome.zip \
+            --firefox-zip .output/*-firefox.zip \
+            --firefox-sources-zip .output/*-sources.zip \
+            --edge-zip .output/*-chrome.zip
+        env:
+          CHROME_API_VERSION: v2
+          CHROME_EXTENSION_ID: okdfcljlaacbdacenfeaiekllplonlfm
+          CHROME_PUBLISHER_ID: ${{ vars.CHROME_PUBLISHER_ID }}
+          CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL: ${{ vars.CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL }}
+          CHROME_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_PRIVATE_KEY }}
+          CHROME_SKIP_SUBMIT_REVIEW: "false"
+          CHROME_CANCEL_PENDING: "true"
+          CHROME_SKIP_REVIEW: "false"
+          CHROME_PUBLISH_TYPE: DEFAULT_PUBLISH
+          CHROME_DEPLOY_PERCENTAGE: "100"
+          FIREFOX_EXTENSION_ID: synclify
+          FIREFOX_JWT_ISSUER: ${{ vars.FIREFOX_JWT_ISSUER }}
+          FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
+          FIREFOX_CHANNEL: listed
+          FIREFOX_SKIP_SUBMIT_REVIEW: "false"
+          EDGE_PRODUCT_ID: ${{ vars.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ vars.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+          EDGE_SKIP_SUBMIT_REVIEW: "false"
