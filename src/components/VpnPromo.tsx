@@ -4,7 +4,7 @@ import { useCallback } from "react"
 import pureVpnMark from "~/assets/purevpn-mark.svg?raw"
 import { t } from "~/lib/i18n"
 
-const PUREVPN_URL = "https://www.purevpn.com/unblock-streaming?aff=49388045"
+const PUREVPN_URL = "https://www.purevpn.com/special-streaming?aff=49388045"
 
 export function VpnPromo() {
   const posthog = usePostHog()
