@@ -13,6 +13,7 @@ type ChatMsg = {
 
 const BUBBLE_SIZE = 48
 const EDGE_MARGIN = 12
+const KEYBOARD_EVENTS = ["keydown", "keyup", "keypress"] as const
 
 function ChatApp() {
   const [visible, setVisible] = useState(false)
@@ -576,11 +577,19 @@ export function initChat(): void {
   if (!runOnce("chat")) return
 
   whenBodyReady(() => {
-    const { mountPoint } = mountUi({
+    const { host, mountPoint } = mountUi({
       id: "synclify-chat-root",
       shadow: true,
       watchFullscreenHost: true
     })
+
+    const stopKeyboardEventPropagation = (event: Event) => {
+      event.stopPropagation()
+    }
+    KEYBOARD_EVENTS.forEach((eventName) => {
+      host.addEventListener(eventName, stopKeyboardEventPropagation)
+    })
+
     const root = ReactDOM.createRoot(mountPoint)
     root.render(<ChatApp />)
   })
