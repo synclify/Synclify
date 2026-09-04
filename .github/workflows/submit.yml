@@ -25,6 +25,10 @@ jobs:
         run: |
           pnpm zip
           pnpm zip:firefox
+        env:
+          WXT_SOCKET_ENDPOINT: ${{ vars.WXT_SOCKET_ENDPOINT }}
+          WXT_PUBLIC_POSTHOG_KEY: ${{ vars.WXT_PUBLIC_POSTHOG_KEY }}
+          WXT_PUBLIC_POSTHOG_HOST: ${{ vars.WXT_PUBLIC_POSTHOG_HOST }}
 
       - name: Submit to stores
         run: |
