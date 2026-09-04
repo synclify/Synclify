@@ -27,6 +27,7 @@ export type StreamingSite =
   | "stan"
   | "britbox"
   | "shudder"
+  | "movy"
   | "unknown"
 
 /* ------------------------------------------------------------------
@@ -181,6 +182,14 @@ export const SITE_CONFIGS: Record<
     hostPatterns: [/shudder\.com$/],
     videoSelector: "video",
     playerContainer: ".player-container"
+  },
+
+  /* ---- Movy ---- */
+  movy: {
+    hostPatterns: [/(^|\.)movy\.bz$/],
+    videoSelector: "#vp-shell video",
+    playerContainer: "#vp-shell",
+    watchPageTest: () => document.querySelector("#vp-shell") !== null
   }
 }
 
@@ -298,6 +307,7 @@ export const COMMERCIAL_PLAYER_SELECTORS = [
   "#hudson-wrapper", // Disney+, Peacock, Crunchyroll, Apple TV+
   '[data-testid="playerContainer"]', // Max / HBO Max
   ".ContentPlayer", // Hulu
+  "#vp-shell", // Movy
 
   // --- Generic commercial player wrappers ---
   ".html5-video-player",

@@ -312,6 +312,12 @@ export default defineBackground(async () => {
         hostPatterns: [/mubi\.com$/],
         videoSelector: "video",
         playerContainer: ".player"
+      },
+      movy: {
+        hostPatterns: [/(^|\.)movy\.bz$/],
+        videoSelector: "#vp-shell video",
+        playerContainer: "#vp-shell",
+        watchPageTest: () => document.querySelector("#vp-shell") !== null
       }
     }
 
@@ -322,6 +328,7 @@ export default defineBackground(async () => {
       "#hudson-wrapper",
       '[data-testid="playerContainer"]',
       ".ContentPlayer",
+      "#vp-shell",
       ".html5-video-player",
       ".video-player",
       ".jw-wrapper",
@@ -376,6 +383,7 @@ export default defineBackground(async () => {
 
     /* Find candidate videos */
     let candidates: HTMLVideoElement[]
+    let trustSiteSelector = false
     if (siteConfig) {
       // Use site-specific selector for more precise matching
       candidates = Array.from(
@@ -386,6 +394,7 @@ export default defineBackground(async () => {
         const excludeSel = siteConfig.excludeSelector
         candidates = candidates.filter((v) => !v.matches(excludeSel))
       }
+      trustSiteSelector = candidates.length > 0
       // If site-specific selector returned nothing, fall back to all videos
       if (candidates.length === 0) {
         candidates = Array.from(document.getElementsByTagName("video"))
@@ -396,7 +405,9 @@ export default defineBackground(async () => {
 
     return candidates
       .map((video) => {
-        if (!isPlayable(video)) return null
+        // A site-specific player can expose its video before an async MSE
+        // source is attached. The selector is precise enough to trust it.
+        if (!trustSiteSelector && !isPlayable(video)) return null
         if (!video.dataset.synclifyId)
           video.dataset.synclifyId = Math.random().toString(36).slice(2, 7)
 
