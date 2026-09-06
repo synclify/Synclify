@@ -3,6 +3,12 @@ import { App, HttpResponse } from "uWebSockets.js";
 import { Server, Socket } from "socket.io";
 import crypto from "crypto";
 import { instrument } from "@socket.io/admin-ui";
+import {
+  CallRegistry,
+  type CallErrorCode,
+  type CallMediaState,
+} from "./call-registry";
+import { createIceConfig } from "./ice-config";
 
 const app = App();
 
@@ -45,6 +51,22 @@ type LeaveRoomPayload = {
 
 const roomRegistry = new Map<string, RoomRecord>();
 const socketMembership = new Map<string, { roomId: string; participantId: string }>();
+const callRegistry = new CallRegistry();
+
+type CallSignalPayload = {
+  roomId: string;
+  toParticipantId: string;
+  description?: {
+    type: "offer" | "answer" | "pranswer" | "rollback";
+    sdp?: string;
+  };
+  candidate?: {
+    candidate: string;
+    sdpMid?: string | null;
+    sdpMLineIndex?: number | null;
+    usernameFragment?: string | null;
+  } | null;
+};
 
 // Creates a room code and checks that it's empty
 app.get("/create", (res, req) => {
@@ -307,6 +329,25 @@ function broadcastRoomState(room: string) {
   }
 }
 
+function broadcastCallState(room: string) {
+  io.sockets.in(room).emit("callState", callRegistry.getState(room));
+}
+
+function emitCallError(
+  socket: Socket,
+  roomId: string,
+  code: CallErrorCode,
+  message: string,
+) {
+  socket.emit("callError", { roomId, code, message });
+}
+
+function leaveCall(room: string, participantId: string) {
+  if (!callRegistry.hasParticipant(room, participantId)) return;
+  callRegistry.leave(room, participantId);
+  broadcastCallState(room);
+}
+
 function clearParticipantRemoval(participant?: Participant) {
   if (!participant?.removalTimer) return;
   clearTimeout(participant.removalTimer);
@@ -386,6 +427,7 @@ function leaveTrackedRooms(socket: Socket) {
   const membership = socketMembership.get(socket.id);
   if (!membership) return;
 
+  leaveCall(membership.roomId, membership.participantId);
   socket.leave(membership.roomId);
   socketMembership.delete(socket.id);
   removeParticipant(membership.roomId, membership.participantId);
@@ -467,6 +509,197 @@ io.sockets.on("connection", (socket) => {
     socket.to(room).emit("reaction", data);
   });
 
+  socket.on(
+    "callJoin",
+    (payload: ({ roomId?: string } & Partial<CallMediaState>) = {}) => {
+      const room = payload.roomId?.toUpperCase();
+      const membership = socketMembership.get(socket.id);
+      if (!room || membership?.roomId !== room) {
+        emitCallError(
+          socket,
+          room ?? "",
+          "not_in_room",
+          "Join the watch room before joining its video call.",
+        );
+        return;
+      }
+
+      if (
+        typeof payload.micEnabled !== "boolean" ||
+        typeof payload.cameraEnabled !== "boolean"
+      ) {
+        emitCallError(
+          socket,
+          room,
+          "invalid_payload",
+          "Invalid video call media state.",
+        );
+        return;
+      }
+
+      const participant = roomRegistry
+        .get(room)
+        ?.participants.get(membership.participantId);
+      if (!participant) {
+        emitCallError(
+          socket,
+          room,
+          "not_in_room",
+          "Join the watch room before joining its video call.",
+        );
+        return;
+      }
+
+      const result = callRegistry.join(
+        room,
+        { id: participant.id, nickname: participant.nickname },
+        {
+          micEnabled: payload.micEnabled,
+          cameraEnabled: payload.cameraEnabled,
+        },
+      );
+      if (!result.ok) {
+        emitCallError(socket, room, result.code, result.message);
+        return;
+      }
+
+      socket.emit("callJoined", {
+        participantId: participant.id,
+        state: result.state,
+        existingParticipantIds: result.existingParticipantIds,
+        iceConfig: createIceConfig(participant.id),
+      });
+      broadcastCallState(room);
+    },
+  );
+
+  socket.on("callGetState", (payload: { roomId?: string } = {}) => {
+    const room = payload.roomId?.toUpperCase();
+    const membership = socketMembership.get(socket.id);
+    if (!room || membership?.roomId !== room) return;
+    socket.emit("callState", callRegistry.getState(room));
+  });
+
+  socket.on("callSignal", (payload: Partial<CallSignalPayload> = {}) => {
+    const room = payload.roomId?.toUpperCase();
+    const membership = socketMembership.get(socket.id);
+    if (!room || membership?.roomId !== room) {
+      emitCallError(
+        socket,
+        room ?? "",
+        "not_in_room",
+        "You are no longer in this watch room.",
+      );
+      return;
+    }
+    if (!callRegistry.hasParticipant(room, membership.participantId)) {
+      emitCallError(
+        socket,
+        room,
+        "not_in_call",
+        "Join the video call before sending signaling data.",
+      );
+      return;
+    }
+    if (
+      !payload.toParticipantId ||
+      (!payload.description && payload.candidate === undefined)
+    ) {
+      emitCallError(
+        socket,
+        room,
+        "invalid_target",
+        "The selected call participant is unavailable.",
+      );
+      return;
+    }
+
+    const signalError = callRegistry.validateSignal(
+      room,
+      membership.participantId,
+      payload.toParticipantId,
+    );
+    if (signalError) {
+      emitCallError(
+        socket,
+        room,
+        signalError,
+        signalError === "not_in_call"
+          ? "Join the video call before sending signaling data."
+          : "The selected call participant is unavailable.",
+      );
+      return;
+    }
+
+    const targetSocketId = roomRegistry
+      .get(room)
+      ?.participants.get(payload.toParticipantId)?.socketId;
+    if (!targetSocketId) {
+      emitCallError(
+        socket,
+        room,
+        "invalid_target",
+        "The selected call participant is unavailable.",
+      );
+      return;
+    }
+
+    io.to(targetSocketId).emit("callSignal", {
+      roomId: room,
+      fromParticipantId: membership.participantId,
+      description: payload.description,
+      candidate: payload.candidate,
+    });
+  });
+
+  socket.on(
+    "callMediaState",
+    (payload: ({ roomId?: string } & Partial<CallMediaState>) = {}) => {
+      const room = payload.roomId?.toUpperCase();
+      const membership = socketMembership.get(socket.id);
+      if (
+        !room ||
+        membership?.roomId !== room ||
+        typeof payload.micEnabled !== "boolean" ||
+        typeof payload.cameraEnabled !== "boolean"
+      ) {
+        emitCallError(
+          socket,
+          room ?? "",
+          "invalid_payload",
+          "Invalid video call media state.",
+        );
+        return;
+      }
+
+      const nextState = callRegistry.updateMediaState(
+        room,
+        membership.participantId,
+        {
+          micEnabled: payload.micEnabled,
+          cameraEnabled: payload.cameraEnabled,
+        },
+      );
+      if (!nextState) {
+        emitCallError(
+          socket,
+          room,
+          "not_in_call",
+          "Join the video call before changing media state.",
+        );
+        return;
+      }
+      broadcastCallState(room);
+    },
+  );
+
+  socket.on("callLeave", (payload: { roomId?: string } = {}) => {
+    const room = payload.roomId?.toUpperCase();
+    const membership = socketMembership.get(socket.id);
+    if (!room || membership?.roomId !== room) return;
+    leaveCall(room, membership.participantId);
+  });
+
   socket.on("syncPing", (data) => {
     socket.emit("syncPong", {
       clientSendTs: data.clientSendTs,
@@ -529,6 +762,7 @@ io.sockets.on("connection", (socket) => {
 
     socket.emit("roomJoined", roomState);
     io.sockets.in(room).emit("roomUpdated", roomState);
+    socket.emit("callState", callRegistry.getState(room));
     socket.emit("emit(): client " + socket.id + " joined room " + room);
   });
 
@@ -545,6 +779,7 @@ io.sockets.on("connection", (socket) => {
       return;
     }
 
+    leaveCall(room, participantId);
     socket.leave(room);
     socketMembership.delete(socket.id);
     removeParticipant(room, participantId);
@@ -552,6 +787,10 @@ io.sockets.on("connection", (socket) => {
   });
 
   socket.on("disconnecting", () => {
+    const membership = socketMembership.get(socket.id);
+    if (membership) {
+      leaveCall(membership.roomId, membership.participantId);
+    }
     markParticipantDisconnected(socket.id);
   });
 });
