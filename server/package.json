@@ -1,0 +1,51 @@
+{
+  "name": "openw2g-socket",
+  "version": "1.0.0",
+  "packageManager": "pnpm@11.24.0+sha512.bd27e345e976dcb0be0b7a1228217b049a817e21b1f355c90dbe7dc46671895a8bc1e6d06c24554505ea93ea0b45f489a27ec1bfbc8de6a9659fca0f16fa0000",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "npx tsc && pnpm sentry:sourcemaps",
+    "start": "node dist/app.js",
+    "dev": "npx nodemon ./app.ts",
+    "test": "tsc -p tsconfig.test.json && node --test .test-dist/*.test.js",
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org synclify --project synclify-server-c2 ./dist && sentry-cli sourcemaps upload --org synclify --project synclify-server-c2 ./dist"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@sentry/cli": "^2.58.5",
+    "@sentry/node": "^8.55.0",
+    "@socket.io/admin-ui": "^0.5.1",
+    "dotenv": "^16.6.1",
+    "socket.io": "^4.8.3",
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.58.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.34",
+    "bcryptjs": "^3.0.3",
+    "nodemon": "^3.1.14",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": "24.x"
+  },
+  "pnpm": {
+    "overrides": {
+      "socket.io-parser@>=4.0.0 <4.2.6": ">=4.2.6",
+      "brace-expansion@>=4.0.0 <5.0.5": ">=5.0.5",
+      "picomatch@<2.3.2": ">=2.3.2",
+      "ws@>=8.0.0 <8.20.1": ">=8.20.1",
+      "brace-expansion@>=5.0.0 <5.0.6": ">=5.0.6",
+      "ws@>=8.0.0 <8.21.0": ">=8.21.0",
+      "brace-expansion@>=3.0.0 <5.0.7": ">=5.0.7",
+      "engine.io@>=4.1.0 <6.6.7": ">=6.6.7",
+      "brace-expansion@>=4.0.0 <5.0.8": ">=5.0.8",
+      "socket.io-parser@>=4.0.0 <4.2.7": ">=4.2.7",
+      "brace-expansion@>=4.0.0 <5.0.9": ">=5.0.9",
+      "@opentelemetry/core@<2.8.0": ">=2.8.0"
+    }
+  }
+}
