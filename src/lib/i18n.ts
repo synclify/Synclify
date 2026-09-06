@@ -64,7 +64,27 @@ export const MESSAGE_KEYS = [
   "sharedModeOffHelp",
   "vpnPromoEyebrow",
   "vpnPromoTitle",
-  "vpnPromoAdLabel"
+  "vpnPromoAdLabel",
+  "videoCall",
+  "startVideoCall",
+  "joinVideoCall",
+  "leaveVideoCall",
+  "callFull",
+  "callConnecting",
+  "playCallAudio",
+  "callYouSuffix",
+  "muteMicrophone",
+  "unmuteMicrophone",
+  "hideCamera",
+  "showCamera",
+  "hideVideoCall",
+  "showVideoCall",
+  "callFullError",
+  "callRoomEndedError",
+  "callConnectionError",
+  "callPermissionError",
+  "callDeviceError",
+  "callGenericError"
 ] as const
 
 export type MessageKey = (typeof MESSAGE_KEYS)[number]

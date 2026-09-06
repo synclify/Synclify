@@ -3,6 +3,12 @@ import { defineConfig } from "wxt"
 export default defineConfig({
   srcDir: "src",
   modules: ["@wxt-dev/module-react"],
+  dev: {
+    server: {
+      port: 3002,
+      strictPort: true
+    }
+  },
   manifest: ({ browser }) => {
     const requestableOrigins = ["https://*/*", "http://*/*"]
 

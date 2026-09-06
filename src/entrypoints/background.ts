@@ -1,6 +1,6 @@
 import { defineBackground } from "wxt/utils/define-background"
 import browser from "webextension-polyfill"
-import { SOCKET_URL, SOCKET_EVENTS } from "~/types/socket"
+import { SOCKET_URL } from "~/types/socket"
 import { MESSAGE_STATUS, MESSAGE_TYPE } from "~/types/messaging"
 import type { MessageKey } from "~/lib/i18n"
 import type { State } from "~/types/state"
@@ -10,7 +10,7 @@ import type { PostHog } from "posthog-js/dist/module.no-external"
 let posthog: PostHog
 
 const TOP_FRAME_SUPPORT_SCRIPTS = [
-  "chat.js",
+  "communication.js",
   "reactions.js",
   "toast.js",
   "videoPlayer.js",
@@ -181,15 +181,22 @@ export default defineBackground(async () => {
 
   // --- Tab lifecycle ---
   browser.tabs.onRemoved.addListener((tabId) => {
-    browser.storage.local.get("state").then((result) => {
-      const state = result.state as State | undefined
-      if (state === undefined)
-        throw new Error(
-          "State undefined in background worker tab closed callback"
-        )
-      delete state[tabId]
-      browser.storage.local.set({ state })
-    })
+    browser.storage.local
+      .get(["state", "communicationRejoin"])
+      .then((result) => {
+        const state = result.state as State | undefined
+        if (state === undefined)
+          throw new Error(
+            "State undefined in background worker tab closed callback"
+          )
+        delete state[tabId]
+        const communicationRejoin = {
+          ...((result.communicationRejoin as
+            Record<number, boolean> | undefined) ?? {})
+        }
+        delete communicationRejoin[tabId]
+        browser.storage.local.set({ state, communicationRejoin })
+      })
   })
 
   browser.runtime.onInstalled.addListener(async (details) => {
@@ -781,9 +788,11 @@ export default defineBackground(async () => {
       }, 300)
     }
 
-    return (initResponse as { status?: MESSAGE_STATUS } | null) ?? {
-      status: MESSAGE_STATUS.SUCCESS
-    }
+    return (
+      (initResponse as { status?: MESSAGE_STATUS } | null) ?? {
+        status: MESSAGE_STATUS.SUCCESS
+      }
+    )
   }
 
   async function handleShowToast(
@@ -826,8 +835,16 @@ export default defineBackground(async () => {
 
   async function handleOverlayTelemetry(
     body: {
-      event: "chat_opened" | "chat_used" | "reaction_used"
-      surface: "overlay" | "emoji_bar"
+      event:
+        | "chat_opened"
+        | "chat_used"
+        | "reaction_used"
+        | "video_call_started"
+        | "video_call_joined"
+        | "video_call_left"
+        | "video_call_mic_toggled"
+        | "video_call_camera_toggled"
+      surface: "overlay" | "emoji_bar" | "video_call"
       firstInteraction?: "incoming" | "outgoing"
     },
     sender: browser.Runtime.MessageSender
@@ -929,6 +946,8 @@ export default defineBackground(async () => {
   // Central message router
   browser.runtime.onMessage.addListener((message, sender) => {
     switch (message.action) {
+      case "getSenderTabId":
+        return Promise.resolve(sender.tab?.id ?? -1)
       case "getTabId":
         return handleGetTabId()
       case "createRoom":
@@ -955,6 +974,11 @@ export default defineBackground(async () => {
           { ...message.body, surface: "emoji_bar" },
           sender
         )
+      case "trackVideoCallTelemetry":
+        return handleOverlayTelemetry(
+          { ...message.body, surface: "video_call" },
+          sender
+        )
       case "chatMessage": {
         // Relay from chat content script -> injected script
         const chatTabId = sender.tab?.id
@@ -973,6 +997,16 @@ export default defineBackground(async () => {
           browser.tabs.sendMessage(reactionTabId, {
             type: MESSAGE_TYPE.REACTION,
             emoji: message.body.emoji
+          })
+        }
+        return Promise.resolve(null)
+      }
+      case "videoCallCommand": {
+        const callTabId = sender.tab?.id
+        if (callTabId) {
+          browser.tabs.sendMessage(callTabId, {
+            type: MESSAGE_TYPE.VIDEO_CALL,
+            call: message.body
           })
         }
         return Promise.resolve(null)
@@ -1000,6 +1034,16 @@ export default defineBackground(async () => {
             to: "reaction",
             emoji: message.emoji,
             nickname: message.nickname
+          })
+        }
+        return Promise.resolve(null)
+      }
+      case "forwardToVideoCall": {
+        const videoCallTabId = sender.tab?.id
+        if (videoCallTabId) {
+          browser.tabs.sendMessage(videoCallTabId, {
+            to: "videoCall",
+            event: message.event
           })
         }
         return Promise.resolve(null)

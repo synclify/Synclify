@@ -45,7 +45,7 @@
   "syncAudio": { "message": "অডিও সিঙ্ক" },
   "syncAudioDescription": { "message": "অন্য দর্শকের সঙ্গে ভলিউম সিঙ্ক করুন" },
   "chat": { "message": "চ্যাট" },
-  "chatDescription": { "message": "চ্যাট বুদবুদ ওভারলে দেখান" },
+  "chatDescription": { "message": "Synclify পার্টি প্যানেলে চ্যাট দেখান" },
   "reactions": { "message": "প্রতিক্রিয়া" },
   "reactionsDescription": { "message": "ইমোজি প্রতিক্রিয়া বার দেখান" },
   "customPlayer": { "message": "কাস্টম প্লেয়ার" },
@@ -67,11 +67,41 @@
   "participants": { "message": "অংশগ্রহণকারী" },
   "host": { "message": "হোস্ট" },
   "you": { "message": "আপনি" },
-  "hostControlsPlayback": { "message": "শুধুমাত্র হোস্ট প্লেব্যাক নিয়ন্ত্রণ করতে পারেন" },
+  "hostControlsPlayback": {
+    "message": "শুধুমাত্র হোস্ট প্লেব্যাক নিয়ন্ত্রণ করতে পারেন"
+  },
   "sharedMode": { "message": "শেয়ার্ড মোড" },
-  "sharedModeOnHelp": { "message": "শেয়ার্ড মোড চালু থাকলে রুমের যে কেউ সবার জন্য প্লে, পজ, সিক বা প্লেব্যাক পরিবর্তন করতে পারেন।" },
-  "sharedModeOffHelp": { "message": "শেয়ার্ড মোড বন্ধ থাকলে শুধুমাত্র হোস্ট সবার জন্য প্লে, পজ, সিক বা প্লেব্যাক পরিবর্তন করতে পারেন।" },
+  "sharedModeOnHelp": {
+    "message": "শেয়ার্ড মোড চালু থাকলে রুমের যে কেউ সবার জন্য প্লে, পজ, সিক বা প্লেব্যাক পরিবর্তন করতে পারেন।"
+  },
+  "sharedModeOffHelp": {
+    "message": "শেয়ার্ড মোড বন্ধ থাকলে শুধুমাত্র হোস্ট সবার জন্য প্লে, পজ, সিক বা প্লেব্যাক পরিবর্তন করতে পারেন।"
+  },
   "vpnPromoEyebrow": { "message": "ব্লক করা?" },
   "vpnPromoTitle": { "message": "PureVPN দিয়ে আনব্লক করুন" },
-  "vpnPromoAdLabel": { "message": "বিজ্ঞাপন" }
+  "vpnPromoAdLabel": { "message": "বিজ্ঞাপন" },
+  "videoCall": { "message": "ভিডিও কল" },
+  "startVideoCall": { "message": "কল শুরু করুন" },
+  "joinVideoCall": { "message": "কলে যোগ দিন" },
+  "leaveVideoCall": { "message": "ভিডিও কল ছাড়ুন" },
+  "callFull": { "message": "কল পূর্ণ" },
+  "callConnecting": { "message": "সংযোগ হচ্ছে" },
+  "playCallAudio": { "message": "কলের অডিও চালান" },
+  "callYouSuffix": { "message": "(আপনি)" },
+  "muteMicrophone": { "message": "মাইক্রোফোন মিউট করুন" },
+  "unmuteMicrophone": { "message": "মাইক্রোফোন আনমিউট করুন" },
+  "hideCamera": { "message": "ক্যামেরা বন্ধ করুন" },
+  "showCamera": { "message": "ক্যামেরা চালু করুন" },
+  "hideVideoCall": { "message": "ভিডিও কল লুকান" },
+  "showVideoCall": { "message": "ভিডিও কল দেখান" },
+  "callFullError": { "message": "এই ভিডিও কলে ইতিমধ্যে চারজন আছেন।" },
+  "callRoomEndedError": { "message": "রুম বা ভিডিও কলটি আর উপলভ্য নয়।" },
+  "callConnectionError": { "message": "ভিডিও কলের সংযোগ বিচ্ছিন্ন হয়েছে।" },
+  "callPermissionError": {
+    "message": "কলে যোগ দিতে ক্যামেরা ও মাইক্রোফোন ব্যবহারের অনুমতি দিন।"
+  },
+  "callDeviceError": {
+    "message": "কোনো ক্যামেরা বা মাইক্রোফোন পাওয়া যায়নি।"
+  },
+  "callGenericError": { "message": "ভিডিও কল শুরু করা যায়নি।" }
 }

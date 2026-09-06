@@ -49,7 +49,9 @@
     "message": "Синхронизировать громкость с другим зрителем"
   },
   "chat": { "message": "Чат" },
-  "chatDescription": { "message": "Показывать всплывающее окно чата" },
+  "chatDescription": {
+    "message": "Показывать чат на панели вечеринки Synclify"
+  },
   "reactions": { "message": "Реакции" },
   "reactionsDescription": { "message": "Показывать панель реакций с эмодзи" },
   "customPlayer": { "message": "Собственный плеер" },
@@ -71,11 +73,41 @@
   "participants": { "message": "Участники" },
   "host": { "message": "Хост" },
   "you": { "message": "Вы" },
-  "hostControlsPlayback": { "message": "Только хост может управлять воспроизведением" },
+  "hostControlsPlayback": {
+    "message": "Только хост может управлять воспроизведением"
+  },
   "sharedMode": { "message": "Совместный режим" },
-  "sharedModeOnHelp": { "message": "Когда общий режим включен, любой участник комнаты может воспроизводить, ставить на паузу, перематывать или менять воспроизведение для всех." },
-  "sharedModeOffHelp": { "message": "Когда общий режим выключен, только хост может воспроизводить, ставить на паузу, перематывать или менять воспроизведение для всех." },
+  "sharedModeOnHelp": {
+    "message": "Когда общий режим включен, любой участник комнаты может воспроизводить, ставить на паузу, перематывать или менять воспроизведение для всех."
+  },
+  "sharedModeOffHelp": {
+    "message": "Когда общий режим выключен, только хост может воспроизводить, ставить на паузу, перематывать или менять воспроизведение для всех."
+  },
   "vpnPromoEyebrow": { "message": "Не открывается?" },
   "vpnPromoTitle": { "message": "Разблокируйте с PureVPN" },
-  "vpnPromoAdLabel": { "message": "Реклама" }
+  "vpnPromoAdLabel": { "message": "Реклама" },
+  "videoCall": { "message": "Видеозвонок" },
+  "startVideoCall": { "message": "Начать звонок" },
+  "joinVideoCall": { "message": "Присоединиться" },
+  "leaveVideoCall": { "message": "Покинуть видеозвонок" },
+  "callFull": { "message": "Звонок заполнен" },
+  "callConnecting": { "message": "Подключение" },
+  "playCallAudio": { "message": "Включить звук звонка" },
+  "callYouSuffix": { "message": "(вы)" },
+  "muteMicrophone": { "message": "Выключить микрофон" },
+  "unmuteMicrophone": { "message": "Включить микрофон" },
+  "hideCamera": { "message": "Выключить камеру" },
+  "showCamera": { "message": "Включить камеру" },
+  "hideVideoCall": { "message": "Скрыть видеозвонок" },
+  "showVideoCall": { "message": "Показать видеозвонок" },
+  "callFullError": { "message": "В этом видеозвонке уже четыре участника." },
+  "callRoomEndedError": {
+    "message": "Комната или видеозвонок больше недоступны."
+  },
+  "callConnectionError": { "message": "Соединение видеозвонка было прервано." },
+  "callPermissionError": {
+    "message": "Разрешите доступ к камере и микрофону, чтобы присоединиться."
+  },
+  "callDeviceError": { "message": "Камера или микрофон не найдены." },
+  "callGenericError": { "message": "Не удалось начать видеозвонок." }
 }

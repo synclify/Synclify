@@ -50,5 +50,13 @@ export enum SOCKET_EVENTS {
   SYNC_PONG = "syncPong",
   ROOM_JOINED = "roomJoined",
   ROOM_UPDATED = "roomUpdated",
-  ROOM_ERROR = "roomError"
+  ROOM_ERROR = "roomError",
+  CALL_JOIN = "callJoin",
+  CALL_GET_STATE = "callGetState",
+  CALL_JOINED = "callJoined",
+  CALL_STATE = "callState",
+  CALL_SIGNAL = "callSignal",
+  CALL_MEDIA_STATE = "callMediaState",
+  CALL_LEAVE = "callLeave",
+  CALL_ERROR = "callError"
 }

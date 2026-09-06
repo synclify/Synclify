@@ -17,6 +17,14 @@ import { debugRoomLog } from "~/lib/debug"
 import browser from "webextension-polyfill"
 import { io } from "socket.io-client"
 import { createPostHog } from "~/lib/posthog"
+import type {
+  CallCommand,
+  CallErrorPayload,
+  CallJoinedPayload,
+  CallState,
+  IncomingCallSignal,
+  VideoCallEvent
+} from "~/types/call"
 
 declare global {
   interface Window {
@@ -69,12 +77,15 @@ export default defineUnlistedScript(async () => {
   let lastAppliedRemoteEventTimestamp = 0
   let joinedRoom: string | null = null
   let activeRoomState: RoomState | null = null
-  let pendingJoinPromise:
-    | Promise<{ status: MESSAGE_STATUS; message?: string }>
-    | null = null
-  let pendingInitPromise:
-    | Promise<{ status: MESSAGE_STATUS; message?: string; messageKey?: string }>
-    | null = null
+  let pendingJoinPromise: Promise<{
+    status: MESSAGE_STATUS
+    message?: string
+  }> | null = null
+  let pendingInitPromise: Promise<{
+    status: MESSAGE_STATUS
+    message?: string
+    messageKey?: string
+  }> | null = null
   let pendingConnectPromise: Promise<void> | null = null
   let connectRequestedByJoin = false
   let isExitingRoom = false
@@ -152,9 +163,7 @@ export default defineUnlistedScript(async () => {
     const trackedRooms = Array.isArray(
       storageResult[TRACKED_MULTI_PARTICIPANT_ROOMS_STORAGE_KEY]
     )
-      ? (storageResult[
-          TRACKED_MULTI_PARTICIPANT_ROOMS_STORAGE_KEY
-        ] as string[])
+      ? (storageResult[TRACKED_MULTI_PARTICIPANT_ROOMS_STORAGE_KEY] as string[])
       : []
 
     if (trackedRooms.includes(trackingKey)) return
@@ -228,47 +237,54 @@ export default defineUnlistedScript(async () => {
     transports: ["websocket", "polling"]
   })
 
+  const forwardVideoCallEvent = (event: VideoCallEvent) => {
+    browser.runtime.sendMessage({
+      action: "forwardToVideoCall",
+      event
+    })
+  }
+
   const init = async (videoId: string) => {
     if (pendingInitPromise) {
       return pendingInitPromise
     }
 
     pendingInitPromise = (async () => {
-    const tabIdResult = await browser.runtime.sendMessage({
-      action: "getTabId"
-    })
-    tabId = tabIdResult as number
-    const storageResult = await browser.storage.local.get("state")
-    const savedState = storageResult.state as State | undefined
+      const tabIdResult = await browser.runtime.sendMessage({
+        action: "getTabId"
+      })
+      tabId = tabIdResult as number
+      const storageResult = await browser.storage.local.get("state")
+      const savedState = storageResult.state as State | undefined
 
-    state = savedState ?? {}
+      state = savedState ?? {}
 
-    const settingsResult = await browser.storage.sync.get("settings")
-    settings = settingsResult.settings as { syncAudio: boolean } | undefined
-    roomCode = state[tabId]?.roomId
-    logRoomDebug("init", {
-      roomId: roomCode,
-      participantId: state?.[tabId]?.participantId,
-      participantCount: state?.[tabId]?.participantCount,
-      participants: state?.[tabId]?.participants,
-      extra: {
-        hasSavedState: !!savedState,
-        hasActiveRoomState: !!activeRoomState
+      const settingsResult = await browser.storage.sync.get("settings")
+      settings = settingsResult.settings as { syncAudio: boolean } | undefined
+      roomCode = state[tabId]?.roomId
+      logRoomDebug("init", {
+        roomId: roomCode,
+        participantId: state?.[tabId]?.participantId,
+        participantCount: state?.[tabId]?.participantCount,
+        participants: state?.[tabId]?.participants,
+        extra: {
+          hasSavedState: !!savedState,
+          hasActiveRoomState: !!activeRoomState
+        }
+      })
+      if (!roomCode) {
+        return {
+          status: MESSAGE_STATUS.ERROR,
+          message: "Missing room code."
+        }
       }
-    })
-    if (!roomCode) {
-      return {
-        status: MESSAGE_STATUS.ERROR,
-        message: "Missing room code."
-      }
-    }
 
-    await ensureParticipantId()
+      await ensureParticipantId()
 
-    const videoResult = getVideo(videoId)
-    if (videoResult.status !== MESSAGE_STATUS.SUCCESS) return videoResult
+      const videoResult = getVideo(videoId)
+      if (videoResult.status !== MESSAGE_STATUS.SUCCESS) return videoResult
 
-    return joinRoom()
+      return joinRoom()
     })()
 
     try {
@@ -443,46 +459,47 @@ export default defineUnlistedScript(async () => {
       }
     })
 
-    pendingJoinPromise = new Promise<{ status: MESSAGE_STATUS; message?: string }>(
-      (resolve) => {
-        const onJoined = async (nextRoomState: RoomState) => {
-          if (nextRoomState.roomId !== roomCode) return
-          logRoomDebug("roomJoined", {
-            roomId: nextRoomState.roomId,
-            participantId,
-            participantCount: nextRoomState.participantCount,
-            participants: nextRoomState.participants,
-            extra: {
-              hostId: nextRoomState.hostId
-            }
-          })
-          cleanup()
-          await applyRoomState(nextRoomState)
-          resolve({ status: MESSAGE_STATUS.SUCCESS })
-        }
-
-        const onError = async (error: RoomErrorPayload) => {
-          if (error.roomId && error.roomId !== roomCode) return
-          cleanup()
-          await clearTabState()
-          await showRoomError(error.message)
-          resolve({
-            status: MESSAGE_STATUS.ERROR,
-            message: error.message
-          })
-        }
-
-        const cleanup = () => {
-          socket.off(SOCKET_EVENTS.ROOM_JOINED, onJoined)
-          socket.off(SOCKET_EVENTS.ROOM_ERROR, onError)
-          pendingJoinPromise = null
-        }
-
-        socket.on(SOCKET_EVENTS.ROOM_JOINED, onJoined)
-        socket.on(SOCKET_EVENTS.ROOM_ERROR, onError)
-        socket.emit(SOCKET_EVENTS.JOIN, payload)
+    pendingJoinPromise = new Promise<{
+      status: MESSAGE_STATUS
+      message?: string
+    }>((resolve) => {
+      const onJoined = async (nextRoomState: RoomState) => {
+        if (nextRoomState.roomId !== roomCode) return
+        logRoomDebug("roomJoined", {
+          roomId: nextRoomState.roomId,
+          participantId,
+          participantCount: nextRoomState.participantCount,
+          participants: nextRoomState.participants,
+          extra: {
+            hostId: nextRoomState.hostId
+          }
+        })
+        cleanup()
+        await applyRoomState(nextRoomState)
+        resolve({ status: MESSAGE_STATUS.SUCCESS })
       }
-    )
+
+      const onError = async (error: RoomErrorPayload) => {
+        if (error.roomId && error.roomId !== roomCode) return
+        cleanup()
+        await clearTabState()
+        await showRoomError(error.message)
+        resolve({
+          status: MESSAGE_STATUS.ERROR,
+          message: error.message
+        })
+      }
+
+      const cleanup = () => {
+        socket.off(SOCKET_EVENTS.ROOM_JOINED, onJoined)
+        socket.off(SOCKET_EVENTS.ROOM_ERROR, onError)
+        pendingJoinPromise = null
+      }
+
+      socket.on(SOCKET_EVENTS.ROOM_JOINED, onJoined)
+      socket.on(SOCKET_EVENTS.ROOM_ERROR, onError)
+      socket.emit(SOCKET_EVENTS.JOIN, payload)
+    })
     return pendingJoinPromise
   }
 
@@ -498,6 +515,10 @@ export default defineUnlistedScript(async () => {
       isExitingRoom = false
       return
     }
+    forwardVideoCallEvent({
+      kind: "transport",
+      payload: { state: "reconnecting" }
+    })
     if (state?.[tabId]) {
       updateTabState({
         isHost: false
@@ -551,6 +572,37 @@ export default defineUnlistedScript(async () => {
     applyRoomState(nextRoomState).catch((error) => {
       posthog.captureException(error as Error)
     })
+    forwardVideoCallEvent({
+      kind: "transport",
+      payload: { state: "connected" }
+    })
+  })
+
+  socket.on(
+    SOCKET_EVENTS.CALL_JOINED,
+    (payload: Omit<CallJoinedPayload, "participantId">) => {
+      const participantId = state?.[tabId]?.participantId
+      if (!participantId) return
+      forwardVideoCallEvent({
+        kind: "joined",
+        payload: { ...payload, participantId }
+      })
+    }
+  )
+
+  socket.on(SOCKET_EVENTS.CALL_STATE, (payload: CallState) => {
+    if (payload.roomId !== roomCode) return
+    forwardVideoCallEvent({ kind: "state", payload })
+  })
+
+  socket.on(SOCKET_EVENTS.CALL_SIGNAL, (payload: IncomingCallSignal) => {
+    if (payload.roomId !== roomCode) return
+    forwardVideoCallEvent({ kind: "signal", payload })
+  })
+
+  socket.on(SOCKET_EVENTS.CALL_ERROR, (payload: CallErrorPayload) => {
+    if (payload.roomId && payload.roomId !== roomCode) return
+    forwardVideoCallEvent({ kind: "error", payload })
   })
 
   socket.on("connect_error", () => {
@@ -692,6 +744,7 @@ export default defineUnlistedScript(async () => {
         type: MESSAGE_TYPE
         text?: string
         emoji?: string
+        call?: CallCommand
       }
     ) => {
       switch (request.type) {
@@ -706,6 +759,7 @@ export default defineUnlistedScript(async () => {
             boundVideo?.removeEventListener(event, checkVideoEvent)
           }
           if (socket.connected && roomCode && state?.[tabId]?.participantId) {
+            socket.emit(SOCKET_EVENTS.CALL_LEAVE, { roomId: roomCode })
             const leavePayload: LeaveRoomPayload = {
               roomId: roomCode,
               participantId: state[tabId].participantId as string
@@ -755,6 +809,42 @@ export default defineUnlistedScript(async () => {
             emoji: request.emoji,
             nickname
           })
+          return Promise.resolve(null)
+        }
+        case MESSAGE_TYPE.VIDEO_CALL: {
+          if (!request.call || !roomCode || !socket.connected) {
+            return Promise.resolve(null)
+          }
+          switch (request.call.kind) {
+            case "getState":
+              socket.emit(SOCKET_EVENTS.CALL_GET_STATE, { roomId: roomCode })
+              break
+            case "join":
+              socket.emit(SOCKET_EVENTS.CALL_JOIN, {
+                roomId: roomCode,
+                micEnabled: request.call.micEnabled,
+                cameraEnabled: request.call.cameraEnabled
+              })
+              break
+            case "signal":
+              socket.emit(SOCKET_EVENTS.CALL_SIGNAL, {
+                roomId: roomCode,
+                toParticipantId: request.call.toParticipantId,
+                description: request.call.description,
+                candidate: request.call.candidate
+              })
+              break
+            case "mediaState":
+              socket.emit(SOCKET_EVENTS.CALL_MEDIA_STATE, {
+                roomId: roomCode,
+                micEnabled: request.call.micEnabled,
+                cameraEnabled: request.call.cameraEnabled
+              })
+              break
+            case "leave":
+              socket.emit(SOCKET_EVENTS.CALL_LEAVE, { roomId: roomCode })
+              break
+          }
           return Promise.resolve(null)
         }
         default:

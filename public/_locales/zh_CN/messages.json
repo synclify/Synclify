@@ -43,7 +43,7 @@
   "syncAudio": { "message": "同步音频" },
   "syncAudioDescription": { "message": "与另一位观看者同步音量" },
   "chat": { "message": "聊天" },
-  "chatDescription": { "message": "显示聊天气泡悬浮层" },
+  "chatDescription": { "message": "在 Synclify 派对面板中显示聊天" },
   "reactions": { "message": "反应" },
   "reactionsDescription": { "message": "显示表情反应栏" },
   "customPlayer": { "message": "自定义播放器" },
@@ -61,9 +61,33 @@
   "you": { "message": "你" },
   "hostControlsPlayback": { "message": "只有主持人可以控制播放" },
   "sharedMode": { "message": "共享模式" },
-  "sharedModeOnHelp": { "message": "开启共享模式后，房间里的任何人都可以为所有人播放、暂停、拖动进度或更改播放。" },
-  "sharedModeOffHelp": { "message": "关闭共享模式后，只有主持人可以为所有人播放、暂停、拖动进度或更改播放。" },
+  "sharedModeOnHelp": {
+    "message": "开启共享模式后，房间里的任何人都可以为所有人播放、暂停、拖动进度或更改播放。"
+  },
+  "sharedModeOffHelp": {
+    "message": "关闭共享模式后，只有主持人可以为所有人播放、暂停、拖动进度或更改播放。"
+  },
   "vpnPromoEyebrow": { "message": "被封锁了？" },
   "vpnPromoTitle": { "message": "用 PureVPN 解锁" },
-  "vpnPromoAdLabel": { "message": "广告" }
+  "vpnPromoAdLabel": { "message": "广告" },
+  "videoCall": { "message": "视频通话" },
+  "startVideoCall": { "message": "开始通话" },
+  "joinVideoCall": { "message": "加入通话" },
+  "leaveVideoCall": { "message": "离开视频通话" },
+  "callFull": { "message": "通话已满" },
+  "callConnecting": { "message": "正在连接" },
+  "playCallAudio": { "message": "播放通话音频" },
+  "callYouSuffix": { "message": "（你）" },
+  "muteMicrophone": { "message": "麦克风静音" },
+  "unmuteMicrophone": { "message": "取消麦克风静音" },
+  "hideCamera": { "message": "关闭摄像头" },
+  "showCamera": { "message": "打开摄像头" },
+  "hideVideoCall": { "message": "隐藏视频通话" },
+  "showVideoCall": { "message": "显示视频通话" },
+  "callFullError": { "message": "此视频通话已有四人。" },
+  "callRoomEndedError": { "message": "房间或视频通话已不可用。" },
+  "callConnectionError": { "message": "视频通话连接已中断。" },
+  "callPermissionError": { "message": "请允许访问摄像头和麦克风以加入通话。" },
+  "callDeviceError": { "message": "未找到摄像头或麦克风。" },
+  "callGenericError": { "message": "无法开始视频通话。" }
 }

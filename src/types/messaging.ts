@@ -29,5 +29,6 @@ export enum MESSAGE_TYPE {
   EXIT = "exit",
   CHECK_VIDEO = "checkVideo",
   CHAT = "chat",
-  REACTION = "reaction"
+  REACTION = "reaction",
+  VIDEO_CALL = "videoCall"
 }

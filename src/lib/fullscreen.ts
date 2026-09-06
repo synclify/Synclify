@@ -9,10 +9,15 @@ const WRAPPER_ATTR = "data-synclify-fs-wrapper"
 const registrations = new Set<FullscreenRegistration>()
 
 function moveToTarget(reg: FullscreenRegistration, target: Element): void {
-  if (reg.element.parentElement !== target) {
-    target.appendChild(reg.element)
+  try {
+    if (reg.element.parentElement !== target) {
+      target.appendChild(reg.element)
+    }
+    reg.element.style.pointerEvents = "auto"
+  } catch {
+    // A few players expose a protected fullscreen subtree. Keep the call
+    // mounted in its original parent; presentation failure must not end it.
   }
-  reg.element.style.pointerEvents = "auto"
 }
 
 function restoreElement(reg: FullscreenRegistration): void {

@@ -49,7 +49,9 @@
     "message": "Sincroniza el volumen con la otra persona"
   },
   "chat": { "message": "Chat" },
-  "chatDescription": { "message": "Muestra la burbuja flotante del chat" },
+  "chatDescription": {
+    "message": "Mostrar el chat en el panel de la fiesta de Synclify"
+  },
   "reactions": { "message": "Reacciones" },
   "reactionsDescription": {
     "message": "Muestra la barra de reacciones con emojis"
@@ -73,11 +75,45 @@
   "participants": { "message": "Participantes" },
   "host": { "message": "Anfitrión" },
   "you": { "message": "Tú" },
-  "hostControlsPlayback": { "message": "Solo el anfitrión puede controlar la reproducción" },
+  "hostControlsPlayback": {
+    "message": "Solo el anfitrión puede controlar la reproducción"
+  },
   "sharedMode": { "message": "Modo compartido" },
-  "sharedModeOnHelp": { "message": "Cuando el modo compartido está activado, cualquier persona en la sala puede reproducir, pausar, adelantar o cambiar la reproducción para todos." },
-  "sharedModeOffHelp": { "message": "Cuando el modo compartido está desactivado, solo el anfitrión puede reproducir, pausar, adelantar o cambiar la reproducción para todos." },
+  "sharedModeOnHelp": {
+    "message": "Cuando el modo compartido está activado, cualquier persona en la sala puede reproducir, pausar, adelantar o cambiar la reproducción para todos."
+  },
+  "sharedModeOffHelp": {
+    "message": "Cuando el modo compartido está desactivado, solo el anfitrión puede reproducir, pausar, adelantar o cambiar la reproducción para todos."
+  },
   "vpnPromoEyebrow": { "message": "¿Bloqueado?" },
   "vpnPromoTitle": { "message": "Desbloquéalo con PureVPN" },
-  "vpnPromoAdLabel": { "message": "Anuncio" }
+  "vpnPromoAdLabel": { "message": "Anuncio" },
+  "videoCall": { "message": "Videollamada" },
+  "startVideoCall": { "message": "Iniciar llamada" },
+  "joinVideoCall": { "message": "Unirse a la llamada" },
+  "leaveVideoCall": { "message": "Salir de la videollamada" },
+  "callFull": { "message": "Llamada llena" },
+  "callConnecting": { "message": "Conectando" },
+  "playCallAudio": { "message": "Reproducir audio" },
+  "callYouSuffix": { "message": "(tú)" },
+  "muteMicrophone": { "message": "Silenciar micrófono" },
+  "unmuteMicrophone": { "message": "Activar micrófono" },
+  "hideCamera": { "message": "Ocultar cámara" },
+  "showCamera": { "message": "Mostrar cámara" },
+  "hideVideoCall": { "message": "Ocultar videollamada" },
+  "showVideoCall": { "message": "Mostrar videollamada" },
+  "callFullError": { "message": "Esta videollamada ya tiene cuatro personas." },
+  "callRoomEndedError": {
+    "message": "La sala o videollamada ya no está disponible."
+  },
+  "callConnectionError": {
+    "message": "Se interrumpió la conexión de la videollamada."
+  },
+  "callPermissionError": {
+    "message": "Permite el acceso a la cámara y al micrófono para unirte."
+  },
+  "callDeviceError": {
+    "message": "No se encontró ninguna cámara o micrófono."
+  },
+  "callGenericError": { "message": "No se pudo iniciar la videollamada." }
 }

@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": false,
+    "verbatimModuleSyntax": false,
+    "esModuleInterop": true,
+    "noEmit": false,
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": ".test-dist",
+    "rootDir": ".",
+    "sourceMap": false
+  },
+  "include": [
+    "src/lib/webrtc-call.ts",
+    "src/types/call.ts",
+    "src/types/communication.ts",
+    "tests/**/*.test.ts"
+  ],
+  "exclude": ["node_modules"]
+}

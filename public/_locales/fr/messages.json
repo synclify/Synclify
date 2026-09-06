@@ -54,7 +54,7 @@
   },
   "chat": { "message": "Chat" },
   "chatDescription": {
-    "message": "Afficher la bulle de chat en surimpression"
+    "message": "Afficher le chat dans le panneau de soirée Synclify"
   },
   "reactions": { "message": "Réactions" },
   "reactionsDescription": { "message": "Afficher la barre de réactions emoji" },
@@ -77,11 +77,47 @@
   "participants": { "message": "Participants" },
   "host": { "message": "Hôte" },
   "you": { "message": "Vous" },
-  "hostControlsPlayback": { "message": "Seul l'hôte peut contrôler la lecture" },
+  "hostControlsPlayback": {
+    "message": "Seul l'hôte peut contrôler la lecture"
+  },
   "sharedMode": { "message": "Mode partagé" },
-  "sharedModeOnHelp": { "message": "Lorsque le mode partagé est activé, n'importe qui dans la salle peut lire, mettre en pause, avancer ou modifier la lecture pour tout le monde." },
-  "sharedModeOffHelp": { "message": "Lorsque le mode partagé est désactivé, seul l'hôte peut lire, mettre en pause, avancer ou modifier la lecture pour tout le monde." },
+  "sharedModeOnHelp": {
+    "message": "Lorsque le mode partagé est activé, n'importe qui dans la salle peut lire, mettre en pause, avancer ou modifier la lecture pour tout le monde."
+  },
+  "sharedModeOffHelp": {
+    "message": "Lorsque le mode partagé est désactivé, seul l'hôte peut lire, mettre en pause, avancer ou modifier la lecture pour tout le monde."
+  },
   "vpnPromoEyebrow": { "message": "Bloqué ?" },
   "vpnPromoTitle": { "message": "Débloquez-le avec PureVPN" },
-  "vpnPromoAdLabel": { "message": "Annonce" }
+  "vpnPromoAdLabel": { "message": "Annonce" },
+  "videoCall": { "message": "Appel vidéo" },
+  "startVideoCall": { "message": "Démarrer l’appel" },
+  "joinVideoCall": { "message": "Rejoindre l’appel" },
+  "leaveVideoCall": { "message": "Quitter l’appel vidéo" },
+  "callFull": { "message": "Appel complet" },
+  "callConnecting": { "message": "Connexion" },
+  "playCallAudio": { "message": "Lire le son de l’appel" },
+  "callYouSuffix": { "message": "(vous)" },
+  "muteMicrophone": { "message": "Couper le microphone" },
+  "unmuteMicrophone": { "message": "Activer le microphone" },
+  "hideCamera": { "message": "Masquer la caméra" },
+  "showCamera": { "message": "Afficher la caméra" },
+  "hideVideoCall": { "message": "Masquer l’appel vidéo" },
+  "showVideoCall": { "message": "Afficher l’appel vidéo" },
+  "callFullError": {
+    "message": "Cet appel vidéo compte déjà quatre personnes."
+  },
+  "callRoomEndedError": {
+    "message": "La salle ou l’appel vidéo n’est plus disponible."
+  },
+  "callConnectionError": {
+    "message": "La connexion à l’appel vidéo a été interrompue."
+  },
+  "callPermissionError": {
+    "message": "Autorisez la caméra et le microphone pour rejoindre l’appel."
+  },
+  "callDeviceError": {
+    "message": "Aucune caméra ou aucun microphone n’a été trouvé."
+  },
+  "callGenericError": { "message": "Impossible de démarrer l’appel vidéo." }
 }

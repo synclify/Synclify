@@ -45,7 +45,7 @@
   "syncAudio": { "message": "ऑडियो सिंक" },
   "syncAudioDescription": { "message": "दूसरे दर्शक के साथ वॉल्यूम सिंक करें" },
   "chat": { "message": "चैट" },
-  "chatDescription": { "message": "चैट बबल ओवरले दिखाएं" },
+  "chatDescription": { "message": "Synclify पार्टी पैनल में चैट दिखाएं" },
   "reactions": { "message": "रिएक्शंस" },
   "reactionsDescription": { "message": "इमोजी रिएक्शन बार दिखाएं" },
   "customPlayer": { "message": "कस्टम प्लेयर" },
@@ -67,11 +67,39 @@
   "participants": { "message": "प्रतिभागी" },
   "host": { "message": "होस्ट" },
   "you": { "message": "आप" },
-  "hostControlsPlayback": { "message": "केवल होस्ट ही प्लेबैक नियंत्रित कर सकता है" },
+  "hostControlsPlayback": {
+    "message": "केवल होस्ट ही प्लेबैक नियंत्रित कर सकता है"
+  },
   "sharedMode": { "message": "साझा मोड" },
-  "sharedModeOnHelp": { "message": "जब Shared mode चालू होता है, तो रूम में कोई भी सभी के लिए प्ले, पॉज़, सीक या प्लेबैक बदल सकता है।" },
-  "sharedModeOffHelp": { "message": "जब Shared mode बंद होता है, तो केवल होस्ट ही सभी के लिए प्ले, पॉज़, सीक या प्लेबैक बदल सकता है।" },
+  "sharedModeOnHelp": {
+    "message": "जब Shared mode चालू होता है, तो रूम में कोई भी सभी के लिए प्ले, पॉज़, सीक या प्लेबैक बदल सकता है।"
+  },
+  "sharedModeOffHelp": {
+    "message": "जब Shared mode बंद होता है, तो केवल होस्ट ही सभी के लिए प्ले, पॉज़, सीक या प्लेबैक बदल सकता है।"
+  },
   "vpnPromoEyebrow": { "message": "ब्लॉक है?" },
   "vpnPromoTitle": { "message": "PureVPN से अनब्लॉक करें" },
-  "vpnPromoAdLabel": { "message": "विज्ञापन" }
+  "vpnPromoAdLabel": { "message": "विज्ञापन" },
+  "videoCall": { "message": "वीडियो कॉल" },
+  "startVideoCall": { "message": "कॉल शुरू करें" },
+  "joinVideoCall": { "message": "कॉल में शामिल हों" },
+  "leaveVideoCall": { "message": "वीडियो कॉल छोड़ें" },
+  "callFull": { "message": "कॉल भर गई" },
+  "callConnecting": { "message": "कनेक्ट हो रहा है" },
+  "playCallAudio": { "message": "कॉल ऑडियो चलाएं" },
+  "callYouSuffix": { "message": "(आप)" },
+  "muteMicrophone": { "message": "माइक्रोफ़ोन म्यूट करें" },
+  "unmuteMicrophone": { "message": "माइक्रोफ़ोन अनम्यूट करें" },
+  "hideCamera": { "message": "कैमरा बंद करें" },
+  "showCamera": { "message": "कैमरा चालू करें" },
+  "hideVideoCall": { "message": "वीडियो कॉल छिपाएँ" },
+  "showVideoCall": { "message": "वीडियो कॉल दिखाएँ" },
+  "callFullError": { "message": "इस वीडियो कॉल में पहले से चार लोग हैं।" },
+  "callRoomEndedError": { "message": "रूम या वीडियो कॉल अब उपलब्ध नहीं है।" },
+  "callConnectionError": { "message": "वीडियो कॉल कनेक्शन टूट गया।" },
+  "callPermissionError": {
+    "message": "कॉल में शामिल होने के लिए कैमरा और माइक्रोफ़ोन की अनुमति दें।"
+  },
+  "callDeviceError": { "message": "कोई कैमरा या माइक्रोफ़ोन नहीं मिला।" },
+  "callGenericError": { "message": "वीडियो कॉल शुरू नहीं हो सकी।" }
 }

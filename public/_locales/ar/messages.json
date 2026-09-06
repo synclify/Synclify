@@ -43,7 +43,7 @@
   "syncAudio": { "message": "مزامنة الصوت" },
   "syncAudioDescription": { "message": "مزامنة مستوى الصوت مع المشاهد الآخر" },
   "chat": { "message": "الدردشة" },
-  "chatDescription": { "message": "إظهار فقاعة الدردشة فوق الفيديو" },
+  "chatDescription": { "message": "إظهار الدردشة في لوحة حفلة Synclify" },
   "reactions": { "message": "التفاعلات" },
   "reactionsDescription": {
     "message": "إظهار شريط التفاعلات بالرموز التعبيرية"
@@ -69,9 +69,35 @@
   "you": { "message": "أنت" },
   "hostControlsPlayback": { "message": "المضيف فقط يمكنه التحكم في التشغيل" },
   "sharedMode": { "message": "الوضع المشترك" },
-  "sharedModeOnHelp": { "message": "عند تفعيل الوضع المشترك، يمكن لأي شخص في الغرفة التشغيل أو الإيقاف المؤقت أو التقديم أو تغيير التشغيل للجميع." },
-  "sharedModeOffHelp": { "message": "عند إيقاف الوضع المشترك، يمكن للمضيف فقط التشغيل أو الإيقاف المؤقت أو التقديم أو تغيير التشغيل للجميع." },
+  "sharedModeOnHelp": {
+    "message": "عند تفعيل الوضع المشترك، يمكن لأي شخص في الغرفة التشغيل أو الإيقاف المؤقت أو التقديم أو تغيير التشغيل للجميع."
+  },
+  "sharedModeOffHelp": {
+    "message": "عند إيقاف الوضع المشترك، يمكن للمضيف فقط التشغيل أو الإيقاف المؤقت أو التقديم أو تغيير التشغيل للجميع."
+  },
   "vpnPromoEyebrow": { "message": "محجوب؟" },
   "vpnPromoTitle": { "message": "افتحه باستخدام PureVPN" },
-  "vpnPromoAdLabel": { "message": "إعلان" }
+  "vpnPromoAdLabel": { "message": "إعلان" },
+  "videoCall": { "message": "مكالمة فيديو" },
+  "startVideoCall": { "message": "بدء المكالمة" },
+  "joinVideoCall": { "message": "الانضمام للمكالمة" },
+  "leaveVideoCall": { "message": "مغادرة مكالمة الفيديو" },
+  "callFull": { "message": "المكالمة ممتلئة" },
+  "callConnecting": { "message": "جارٍ الاتصال" },
+  "playCallAudio": { "message": "تشغيل صوت المكالمة" },
+  "callYouSuffix": { "message": "(أنت)" },
+  "muteMicrophone": { "message": "كتم الميكروفون" },
+  "unmuteMicrophone": { "message": "إلغاء كتم الميكروفون" },
+  "hideCamera": { "message": "إيقاف الكاميرا" },
+  "showCamera": { "message": "تشغيل الكاميرا" },
+  "hideVideoCall": { "message": "إخفاء مكالمة الفيديو" },
+  "showVideoCall": { "message": "إظهار مكالمة الفيديو" },
+  "callFullError": { "message": "تضم مكالمة الفيديو هذه أربعة أشخاص بالفعل." },
+  "callRoomEndedError": { "message": "لم تعد الغرفة أو مكالمة الفيديو متاحة." },
+  "callConnectionError": { "message": "انقطع اتصال مكالمة الفيديو." },
+  "callPermissionError": {
+    "message": "اسمح بالوصول إلى الكاميرا والميكروفون للانضمام."
+  },
+  "callDeviceError": { "message": "لم يتم العثور على كاميرا أو ميكروفون." },
+  "callGenericError": { "message": "تعذر بدء مكالمة الفيديو." }
 }
