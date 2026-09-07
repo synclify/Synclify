@@ -45,7 +45,7 @@
   "syncAudio": { "message": "Sync audio" },
   "syncAudioDescription": { "message": "Sync volume with the other viewer" },
   "chat": { "message": "Chat" },
-  "chatDescription": { "message": "Show chat in the Synclify party panel" },
+  "chatDescription": { "message": "Show the Synclify bubble overlay" },
   "reactions": { "message": "Reactions" },
   "reactionsDescription": { "message": "Show the emoji reaction bar" },
   "customPlayer": { "message": "Custom player" },

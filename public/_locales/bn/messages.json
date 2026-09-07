@@ -45,7 +45,7 @@
   "syncAudio": { "message": "অডিও সিঙ্ক" },
   "syncAudioDescription": { "message": "অন্য দর্শকের সঙ্গে ভলিউম সিঙ্ক করুন" },
   "chat": { "message": "চ্যাট" },
-  "chatDescription": { "message": "Synclify পার্টি প্যানেলে চ্যাট দেখান" },
+  "chatDescription": { "message": "Synclify-এর ভাসমান বাবল দেখান" },
   "reactions": { "message": "প্রতিক্রিয়া" },
   "reactionsDescription": { "message": "ইমোজি প্রতিক্রিয়া বার দেখান" },
   "customPlayer": { "message": "কাস্টম প্লেয়ার" },

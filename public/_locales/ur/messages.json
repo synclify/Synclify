@@ -45,7 +45,7 @@
   "syncAudio": { "message": "آڈیو ہم آہنگ کریں" },
   "syncAudioDescription": { "message": "دوسرے ناظر کے ساتھ آواز ہم آہنگ کریں" },
   "chat": { "message": "چیٹ" },
-  "chatDescription": { "message": "Synclify پارٹی پینل میں چیٹ دکھائیں" },
+  "chatDescription": { "message": "Synclify کا فلوٹنگ ببل دکھائیں" },
   "reactions": { "message": "ردعمل" },
   "reactionsDescription": { "message": "ایموجی ردعمل بار دکھائیں" },
   "customPlayer": { "message": "کسٹم پلیئر" },

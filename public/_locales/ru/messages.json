@@ -50,7 +50,7 @@
   },
   "chat": { "message": "Чат" },
   "chatDescription": {
-    "message": "Показывать чат на панели вечеринки Synclify"
+    "message": "Показывать всплывающий пузырь Synclify"
   },
   "reactions": { "message": "Реакции" },
   "reactionsDescription": { "message": "Показывать панель реакций с эмодзи" },

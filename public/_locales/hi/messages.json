@@ -45,7 +45,7 @@
   "syncAudio": { "message": "ऑडियो सिंक" },
   "syncAudioDescription": { "message": "दूसरे दर्शक के साथ वॉल्यूम सिंक करें" },
   "chat": { "message": "चैट" },
-  "chatDescription": { "message": "Synclify पार्टी पैनल में चैट दिखाएं" },
+  "chatDescription": { "message": "Synclify का फ़्लोटिंग बबल दिखाएं" },
   "reactions": { "message": "रिएक्शंस" },
   "reactionsDescription": { "message": "इमोजी रिएक्शन बार दिखाएं" },
   "customPlayer": { "message": "कस्टम प्लेयर" },

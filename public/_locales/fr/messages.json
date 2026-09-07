@@ -54,7 +54,7 @@
   },
   "chat": { "message": "Chat" },
   "chatDescription": {
-    "message": "Afficher le chat dans le panneau de soirée Synclify"
+    "message": "Afficher la bulle flottante Synclify"
   },
   "reactions": { "message": "Réactions" },
   "reactionsDescription": { "message": "Afficher la barre de réactions emoji" },

@@ -50,7 +50,7 @@
   },
   "chat": { "message": "Chat" },
   "chatDescription": {
-    "message": "Mostrar o chat no painel da festa Synclify"
+    "message": "Mostrar a bolha flutuante do Synclify"
   },
   "reactions": { "message": "Reações" },
   "reactionsDescription": {

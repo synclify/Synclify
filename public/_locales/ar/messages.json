@@ -43,7 +43,7 @@
   "syncAudio": { "message": "مزامنة الصوت" },
   "syncAudioDescription": { "message": "مزامنة مستوى الصوت مع المشاهد الآخر" },
   "chat": { "message": "الدردشة" },
-  "chatDescription": { "message": "إظهار الدردشة في لوحة حفلة Synclify" },
+  "chatDescription": { "message": "إظهار فقاعة Synclify العائمة" },
   "reactions": { "message": "التفاعلات" },
   "reactionsDescription": {
     "message": "إظهار شريط التفاعلات بالرموز التعبيرية"

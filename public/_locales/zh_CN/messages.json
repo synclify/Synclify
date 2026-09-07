@@ -43,7 +43,7 @@
   "syncAudio": { "message": "同步音频" },
   "syncAudioDescription": { "message": "与另一位观看者同步音量" },
   "chat": { "message": "聊天" },
-  "chatDescription": { "message": "在 Synclify 派对面板中显示聊天" },
+  "chatDescription": { "message": "显示 Synclify 悬浮气泡" },
   "reactions": { "message": "反应" },
   "reactionsDescription": { "message": "显示表情反应栏" },
   "customPlayer": { "message": "自定义播放器" },

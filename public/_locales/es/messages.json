@@ -50,7 +50,7 @@
   },
   "chat": { "message": "Chat" },
   "chatDescription": {
-    "message": "Mostrar el chat en el panel de la fiesta de Synclify"
+    "message": "Mostrar la burbuja flotante de Synclify"
   },
   "reactions": { "message": "Reacciones" },
   "reactionsDescription": {
