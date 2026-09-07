@@ -41,6 +41,58 @@ const KEYBOARD_EVENTS = ["keydown", "keyup", "keypress"] as const
 
 type Position = { x: number; y: number }
 type Size = { width: number; height: number }
+type BubbleSide = "left" | "right"
+type BubblePosition = Position & { side: BubbleSide }
+
+function clampBubblePosition(
+  position: Position,
+  width = BUBBLE_SIZE
+): Position {
+  return {
+    x: Math.max(
+      EDGE_MARGIN,
+      Math.min(position.x, window.innerWidth - width - EDGE_MARGIN)
+    ),
+    y: Math.max(
+      EDGE_MARGIN,
+      Math.min(position.y, window.innerHeight - BUBBLE_SIZE - EDGE_MARGIN)
+    )
+  }
+}
+
+function bubbleSideForX(x: number, width = BUBBLE_SIZE): BubbleSide {
+  return x + width / 2 < window.innerWidth / 2 ? "left" : "right"
+}
+
+function bubblePositionAtEdge(
+  side: BubbleSide,
+  y: number,
+  width = BUBBLE_SIZE
+): BubblePosition {
+  const position = clampBubblePosition(
+    {
+      x:
+        side === "left"
+          ? EDGE_MARGIN
+          : window.innerWidth - width - EDGE_MARGIN,
+      y
+    },
+    width
+  )
+  return { ...position, side }
+}
+
+function snapBubblePosition(
+  position: Position,
+  width = BUBBLE_SIZE
+): BubblePosition {
+  const clamped = clampBubblePosition(position, width)
+  return bubblePositionAtEdge(
+    bubbleSideForX(clamped.x, width),
+    clamped.y,
+    width
+  )
+}
 
 function clampPanelSize(size: Size): Size {
   return {
@@ -100,23 +152,14 @@ function bubblePositionBelowPanel(
   position: Position,
   size: Size,
   width = BUBBLE_SIZE
-): Position {
-  return {
-    x: Math.max(
-      EDGE_MARGIN,
-      Math.min(
-        position.x + size.width / 2 - width / 2,
-        window.innerWidth - width - EDGE_MARGIN
-      )
-    ),
-    y: Math.max(
-      EDGE_MARGIN,
-      Math.min(
-        position.y + size.height + PANEL_BUBBLE_GAP,
-        window.innerHeight - BUBBLE_SIZE - EDGE_MARGIN
-      )
-    )
-  }
+): BubblePosition {
+  return snapBubblePosition(
+    {
+      x: position.x + size.width / 2 - width / 2,
+      y: position.y + size.height + PANEL_BUBBLE_GAP
+    },
+    width
+  )
 }
 
 function useActiveSpeaker(
@@ -188,10 +231,10 @@ function useActiveSpeaker(
       if (candidateSamples >= 2) setActiveId(loudestId)
     }, 120)
 
-    audioContext.resume().catch(() => {})
+    audioContext.resume().catch(() => { })
     return () => {
       window.clearInterval(interval)
-      audioContext.close().catch(() => {})
+      audioContext.close().catch(() => { })
     }
   }, [participants, streams])
 
@@ -206,7 +249,7 @@ function ParticipantAudio({ stream }: { stream: MediaStream }) {
     if (!audio) return
     audio.srcObject = stream
     const play = () => {
-      audio.play().catch(() => {})
+      audio.play().catch(() => { })
     }
     play()
     document.addEventListener("pointerdown", play, {
@@ -228,7 +271,11 @@ function CommunicationApp() {
     controller.subscribe,
     controller.getSnapshot
   )
-  const [bubblePos, setBubblePos] = useState({ x: -1, y: -1 })
+  const [bubblePos, setBubblePos] = useState<BubblePosition>({
+    x: -1,
+    y: -1,
+    side: "right"
+  })
   const [dragging, setDragging] = useState(false)
   const [panelPos, setPanelPos] = useState(defaultPanelPosition)
   const [panelSize, setPanelSize] = useState<Size | null>(null)
@@ -246,7 +293,8 @@ function CommunicationApp() {
     x: 0,
     y: 0,
     bx: 0,
-    by: 0
+    by: 0,
+    width: BUBBLE_SIZE
   })
   const panelPointerRef = useRef({
     active: false,
@@ -266,6 +314,8 @@ function CommunicationApp() {
     by: 0
   })
   const panelRef = useRef<HTMLDivElement>(null)
+  const bubbleRef = useRef<HTMLButtonElement>(null)
+  const bubbleWidthRef = useRef(BUBBLE_SIZE)
   const panelSizeRef = useRef({
     width: PANEL_DEFAULT_WIDTH,
     height: PANEL_HEIGHT
@@ -273,7 +323,7 @@ function CommunicationApp() {
   const overlayPointerRef = useRef({ active: false, x: 0, y: 0, bx: 0, by: 0 })
 
   useEffect(() => {
-    controller.initialize().catch(() => {})
+    controller.initialize().catch(() => { })
   }, [controller])
 
   useEffect(() => {
@@ -289,23 +339,26 @@ function CommunicationApp() {
       .then((result) => {
         const saved = (result.communicationBubblePos ??
           result.chatBubblePos ??
-          result.videoCallBubblePos) as { x: number; y: number } | undefined
-        setBubblePos({
-          x: Math.max(
-            EDGE_MARGIN,
-            Math.min(
-              saved?.x ?? window.innerWidth - BUBBLE_SIZE - EDGE_MARGIN,
-              window.innerWidth - BUBBLE_SIZE - EDGE_MARGIN
-            )
-          ),
-          y: Math.max(
-            EDGE_MARGIN,
-            Math.min(
-              saved?.y ?? window.innerHeight - BUBBLE_SIZE - 80,
-              window.innerHeight - BUBBLE_SIZE - EDGE_MARGIN
-            )
-          )
-        })
+          result.videoCallBubblePos) as Partial<BubblePosition> | undefined
+        const savedPosition = {
+          x:
+            Number.isFinite(saved?.x) && saved?.x !== undefined
+              ? saved.x
+              : window.innerWidth - BUBBLE_SIZE - EDGE_MARGIN,
+          y:
+            Number.isFinite(saved?.y) && saved?.y !== undefined
+              ? saved.y
+              : window.innerHeight - BUBBLE_SIZE - 80
+        }
+        setBubblePos(
+          saved?.side === "left" || saved?.side === "right"
+            ? bubblePositionAtEdge(
+                saved.side,
+                savedPosition.y,
+                BUBBLE_SIZE
+              )
+            : snapBubblePosition(savedPosition)
+        )
         const savedPanel = result.communicationPanelPos as Position | undefined
         setPanelPos(
           savedPanel ? clampPanelPosition(savedPanel) : defaultPanelPosition()
@@ -327,28 +380,18 @@ function CommunicationApp() {
                 communicationPanelSizeVersion: PANEL_SIZE_VERSION
               })
             )
-            .catch(() => {})
+            .catch(() => { })
         }
       })
   }, [])
 
   useEffect(() => {
     const onResize = () => {
-      setBubblePos((position) => ({
-        x: Math.max(
-          EDGE_MARGIN,
-          Math.min(
-            position.x,
-            window.innerWidth -
-              (snapshot.inCall ? 132 : BUBBLE_SIZE) -
-              EDGE_MARGIN
-          )
-        ),
-        y: Math.max(
-          EDGE_MARGIN,
-          Math.min(position.y, window.innerHeight - BUBBLE_SIZE - EDGE_MARGIN)
-        )
-      }))
+      const width = bubbleRef.current?.offsetWidth ?? bubbleWidthRef.current
+      bubbleWidthRef.current = width
+      setBubblePos((position) =>
+        bubblePositionAtEdge(position.side, position.y, width)
+      )
       setPanelPos((position) =>
         clampPanelPosition(position, panelSizeRef.current)
       )
@@ -365,11 +408,43 @@ function CommunicationApp() {
   }, [snapshot.inCall])
 
   const adaptiveCallLayout = snapshot.inCall && snapshot.view === "call"
+  const panelVisible =
+    snapshot.inPagePanelOpen &&
+    (!snapshot.presentation.fullscreen || !snapshot.inCall)
+
+  useEffect(() => {
+    const bubble = bubbleRef.current
+    if (!bubble) return
+    const syncWidth = () => {
+      const width = bubble.offsetWidth
+      if (width <= 0) return
+      bubbleWidthRef.current = width
+      setBubblePos((position) => {
+        const next = bubblePositionAtEdge(position.side, position.y, width)
+        return next.x === position.x && next.y === position.y
+          ? position
+          : next
+      })
+    }
+    syncWidth()
+    const observer = new ResizeObserver(syncWidth)
+    observer.observe(bubble)
+    return () => observer.disconnect()
+  }, [panelVisible, snapshot.inCall, snapshot.presentation.mode])
 
   useEffect(() => {
     const panel = panelRef.current
     if (!panel || !snapshot.inPagePanelOpen) return
     const observer = new ResizeObserver(() => {
+      // A final ResizeObserver notification can arrive after React detaches the
+      // panel. Detached elements report a zero-sized rect at (0, 0), which
+      // would incorrectly move the minimized bubble to the top-left corner.
+      if (
+        !panel.isConnected ||
+        panel.offsetWidth <= 0 ||
+        panel.offsetHeight <= 0
+      )
+        return
       const rect = panel.getBoundingClientRect()
       const size = {
         width: panel.offsetWidth,
@@ -384,11 +459,7 @@ function CommunicationApp() {
       const position = clampPanelPosition({ x: rect.left, y: rect.top }, size)
       setPanelPos(position)
       setBubblePos(
-        bubblePositionBelowPanel(
-          position,
-          size,
-          snapshot.inCall ? 132 : BUBBLE_SIZE
-        )
+        bubblePositionBelowPanel(position, size, bubbleWidthRef.current)
       )
     })
     observer.observe(panel)
@@ -413,7 +484,7 @@ function CommunicationApp() {
 
   const dispatch = useCallback(
     (command: Parameters<typeof controller.execute>[0]) => {
-      controller.execute(command).catch(() => {})
+      controller.execute(command).catch(() => { })
     },
     [controller]
   )
@@ -482,24 +553,23 @@ function CommunicationApp() {
   )
   const syncBubbleToPanel = (position: Position, size: Size) => {
     setBubblePos(
-      bubblePositionBelowPanel(
-        position,
-        size,
-        snapshot.inCall ? 132 : BUBBLE_SIZE
-      )
+      bubblePositionBelowPanel(position, size, bubbleWidthRef.current)
     )
   }
 
   const onBubbleDown = (event: React.PointerEvent<HTMLButtonElement>) => {
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
+    const rect = event.currentTarget.getBoundingClientRect()
+    bubbleWidthRef.current = rect.width
     pointerRef.current = {
       active: true,
       moved: false,
       x: event.clientX,
       y: event.clientY,
-      bx: bubblePos.x,
-      by: bubblePos.y
+      bx: rect.left,
+      by: bubblePos.y,
+      width: rect.width
     }
     setDragging(false)
   }
@@ -513,20 +583,13 @@ function CommunicationApp() {
       setDragging(true)
     }
     if (!start.moved) return
+    const position = clampBubblePosition(
+      { x: start.bx + dx, y: start.by + dy },
+      start.width
+    )
     setBubblePos({
-      x: Math.max(
-        EDGE_MARGIN,
-        Math.min(
-          start.bx + dx,
-          window.innerWidth -
-            (snapshot.inCall ? 132 : BUBBLE_SIZE) -
-            EDGE_MARGIN
-        )
-      ),
-      y: Math.max(
-        EDGE_MARGIN,
-        Math.min(start.by + dy, window.innerHeight - BUBBLE_SIZE - EDGE_MARGIN)
-      )
+      ...position,
+      side: bubbleSideForX(position.x, start.width)
     })
   }
   const onBubbleUp = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -534,31 +597,17 @@ function CommunicationApp() {
     start.active = false
     setDragging(false)
     if (!start.moved) return
-    const width = snapshot.inCall ? 132 : BUBBLE_SIZE
-    const currentX = Math.max(
-      EDGE_MARGIN,
-      Math.min(
-        start.bx + event.clientX - start.x,
-        window.innerWidth - width - EDGE_MARGIN
-      )
+    const position = snapBubblePosition(
+      {
+        x: start.bx + event.clientX - start.x,
+        y: start.by + event.clientY - start.y
+      },
+      start.width
     )
-    const position = {
-      x:
-        currentX + width / 2 < window.innerWidth / 2
-          ? EDGE_MARGIN
-          : window.innerWidth - width - EDGE_MARGIN,
-      y: Math.max(
-        EDGE_MARGIN,
-        Math.min(
-          start.by + event.clientY - start.y,
-          window.innerHeight - BUBBLE_SIZE - EDGE_MARGIN
-        )
-      )
-    }
     setBubblePos(position)
     browser.storage.local
       .set({ communicationBubblePos: position })
-      .catch(() => {})
+      .catch(() => { })
   }
   const onBubbleClick = () => {
     if (pointerRef.current.moved) {
@@ -566,10 +615,13 @@ function CommunicationApp() {
       return
     }
     const size = panelSize ?? panelSizeRef.current
-    const bubbleWidth = snapshot.inCall ? 132 : BUBBLE_SIZE
+    const bubbleRect = bubbleRef.current?.getBoundingClientRect()
+    const bubbleCenterX = bubbleRect
+      ? bubbleRect.left + bubbleRect.width / 2
+      : bubblePos.x + bubbleWidthRef.current / 2
     const position = clampPanelPosition(
       {
-        x: bubblePos.x + bubbleWidth / 2 - size.width / 2,
+        x: bubbleCenterX - size.width / 2,
         y: bubblePos.y - size.height - PANEL_BUBBLE_GAP
       },
       size
@@ -638,7 +690,7 @@ function CommunicationApp() {
     const bubblePosition = bubblePositionBelowPanel(
       position,
       panelSizeRef.current,
-      snapshot.inCall ? 132 : BUBBLE_SIZE
+      bubbleWidthRef.current
     )
     setBubblePos(bubblePosition)
     browser.storage.local
@@ -646,7 +698,7 @@ function CommunicationApp() {
         communicationPanelPos: position,
         communicationBubblePos: bubblePosition
       })
-      .catch(() => {})
+      .catch(() => { })
   }
 
   const onPanelKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
@@ -674,14 +726,14 @@ function CommunicationApp() {
     const bubblePosition = bubblePositionBelowPanel(
       position,
       panelSizeRef.current,
-      snapshot.inCall ? 132 : BUBBLE_SIZE
+      bubbleWidthRef.current
     )
     browser.storage.local
       .set({
         communicationPanelPos: position,
         communicationBubblePos: bubblePosition
       })
-      .catch(() => {})
+      .catch(() => { })
   }
 
   const getResizedPanel = (clientX: number, clientY: number) => {
@@ -737,7 +789,7 @@ function CommunicationApp() {
     const bubblePosition = bubblePositionBelowPanel(
       position,
       size,
-      snapshot.inCall ? 132 : BUBBLE_SIZE
+      bubbleWidthRef.current
     )
     setBubblePos(bubblePosition)
     browser.storage.local
@@ -747,7 +799,7 @@ function CommunicationApp() {
         communicationPanelSizeVersion: PANEL_SIZE_VERSION,
         communicationBubblePos: bubblePosition
       })
-      .catch(() => {})
+      .catch(() => { })
   }
   const onResizeKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     const direction = {
@@ -777,7 +829,7 @@ function CommunicationApp() {
     const bubblePosition = bubblePositionBelowPanel(
       position,
       size,
-      snapshot.inCall ? 132 : BUBBLE_SIZE
+      bubbleWidthRef.current
     )
     setBubblePos(bubblePosition)
     browser.storage.local
@@ -787,7 +839,7 @@ function CommunicationApp() {
         communicationPanelSizeVersion: PANEL_SIZE_VERSION,
         communicationBubblePos: bubblePosition
       })
-      .catch(() => {})
+      .catch(() => { })
   }
 
   const panelStyle = {
@@ -808,10 +860,6 @@ function CommunicationApp() {
     ),
     maxHeight: window.innerHeight - EDGE_MARGIN * 2 - PANEL_BUBBLE_SPACE
   }
-  const panelVisible =
-    snapshot.inPagePanelOpen &&
-    (!snapshot.presentation.fullscreen || !snapshot.inCall)
-
   const onOverlayDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement
     if (target.closest("button")) return
@@ -863,10 +911,11 @@ function CommunicationApp() {
       {!panelVisible &&
         !(snapshot.inCall && snapshot.presentation.mode === "floating") && (
           <button
+            ref={bubbleRef}
             type="button"
             className={cn(
               "fixed z-[2147483647] flex h-12 min-w-12 touch-none select-none items-center justify-center gap-2 rounded-3xl border border-[#f4b238]/30 bg-[linear-gradient(145deg,#1a1d24,#090b10)] p-0 text-[#f2eee5] shadow-[0_7px_24px_rgba(0,0,0,.48),inset_0_1px_rgba(255,255,255,.06)] transition hover:-translate-y-0.5 hover:border-[#f4b238]/50 hover:shadow-[0_10px_30px_rgba(0,0,0,.52),0_0_22px_rgba(244,178,56,.16),inset_0_1px_rgba(255,255,255,.08)]",
-              snapshot.inCall && "w-[132px] justify-start py-0 pl-[7px] pr-3",
+              snapshot.inCall && "justify-start py-0 pl-[7px] pr-3",
               dragging && "translate-y-0 transition-none"
             )}
             style={{ left: bubblePos.x, top: bubblePos.y }}
@@ -876,7 +925,11 @@ function CommunicationApp() {
             onPointerCancel={onBubbleUp}
             onClick={onBubbleClick}
             aria-haspopup="dialog"
-            aria-label={t("showVideoCall")}
+            aria-label={
+              snapshot.inCall
+                ? `${t("showVideoCall")}. ${snapshot.callState.participantCount} people in the call. Microphone ${snapshot.micEnabled ? "on" : "muted"}.`
+                : t("showVideoCall")
+            }
             title={t("showVideoCall")}>
             <span
               className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full bg-white/[.035]"
@@ -888,14 +941,22 @@ function CommunicationApp() {
               />
             </span>
             {snapshot.inCall && (
-              <span className="min-w-0 flex-1 text-left">
-                <span className="block text-[9px] font-extrabold uppercase tracking-[.08em]">
-                  Call active
-                </span>
-                <span className="flex items-center gap-[5px] font-mono text-[9px]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-green-800 shadow-[0_0_0_3px_rgba(22,101,52,.14)]" />
-                  {snapshot.callState.participantCount} people ·{" "}
-                  {snapshot.micEnabled ? "mic on" : "muted"}
+              <span className="flex min-w-0 flex-1 items-center gap-1.5 pr-0.5 text-left">
+                <span
+                  className={cn(
+                    "grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full [&>svg]:h-3 [&>svg]:w-3",
+                    snapshot.micEnabled
+                      ? "bg-white/[.07] text-[#d8d5ce]"
+                      : "bg-[#f4b238]/12 text-[#f4b238]"
+                  )}
+                  role="img"
+                  aria-label={
+                    snapshot.micEnabled ? "Microphone on" : "Microphone muted"
+                  }
+                  title={
+                    snapshot.micEnabled ? "Microphone on" : "Microphone muted"
+                  }>
+                  <MicIcon off={!snapshot.micEnabled} />
                 </span>
               </span>
             )}
@@ -995,8 +1056,26 @@ function CommunicationApp() {
           </div>
           {overlayCollapsed ? (
             <div className="flex items-center gap-[7px] px-2.5 pb-[9px] text-[10px] text-[#f2eee5]">
-              <span className="h-[7px] w-[7px] rounded-full bg-green-400 shadow-[0_0_12px_rgba(74,222,128,.55)]" />
-              Call continues · {snapshot.micEnabled ? "mic on" : "muted"}
+              <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-green-400 shadow-[0_0_12px_rgba(74,222,128,.55)]" />
+              <span className="min-w-0 flex-1 whitespace-nowrap">
+                Call continues
+              </span>
+              <span
+                className={cn(
+                  "grid h-5 w-5 shrink-0 place-items-center rounded-full [&>svg]:h-3.5 [&>svg]:w-3.5",
+                  snapshot.micEnabled
+                    ? "bg-white/[.07] text-[#d8d5ce]"
+                    : "bg-[#f4b238]/12 text-[#f4b238]"
+                )}
+                role="img"
+                aria-label={
+                  snapshot.micEnabled ? "Microphone on" : "Microphone muted"
+                }
+                title={
+                  snapshot.micEnabled ? "Microphone on" : "Microphone muted"
+                }>
+                <MicIcon off={!snapshot.micEnabled} />
+              </span>
             </div>
           ) : (
             <>
@@ -1038,7 +1117,7 @@ function CommunicationApp() {
                   className={cn(
                     "grid h-[34px] w-[34px] cursor-pointer place-items-center rounded-full border border-white/[.13] bg-white/[.07] p-0 text-[#f2eee5]",
                     !snapshot.micEnabled &&
-                      "border-[#f4b238]/35 bg-[#f4b238]/10 text-[#f4b238]"
+                    "border-[#f4b238]/35 bg-[#f4b238]/10 text-[#f4b238]"
                   )}
                   onClick={() =>
                     dispatch({ kind: "setMic", enabled: !snapshot.micEnabled })
@@ -1055,7 +1134,7 @@ function CommunicationApp() {
                   className={cn(
                     "grid h-[34px] w-[34px] cursor-pointer place-items-center rounded-full border border-white/[.13] bg-white/[.07] p-0 text-[#f2eee5]",
                     !snapshot.cameraEnabled &&
-                      "border-[#f4b238]/35 bg-[#f4b238]/10 text-[#f4b238]"
+                    "border-[#f4b238]/35 bg-[#f4b238]/10 text-[#f4b238]"
                   )}
                   onClick={() =>
                     dispatch({

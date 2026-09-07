@@ -296,55 +296,73 @@ export function CommunicationPanel({
             )}>
             {!snapshot.inCall ? (
               <div className="flex min-h-full flex-1 items-center justify-center p-3">
-                <div
-                  className="flex items-center justify-center gap-[5px] rounded-[20px] border border-white/10 bg-[#080a0f]/70 p-[5px] shadow-[0_12px_34px_rgba(0,0,0,.32)] backdrop-blur-2xl"
-                  aria-label="Call setup">
-                  <button
-                    type="button"
-                    className={cn(
-                      roundButtonClass,
-                      !prejoinMic && mediaOffClass
-                    )}
-                    onClick={() => setPrejoinMic((value) => !value)}
-                    aria-label={
-                      prejoinMic ? t("muteMicrophone") : t("unmuteMicrophone")
-                    }
-                    title={
-                      prejoinMic ? t("muteMicrophone") : t("unmuteMicrophone")
-                    }>
-                    <MicIcon off={!prejoinMic} />
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(
-                      roundButtonClass,
-                      !prejoinCamera && mediaOffClass
-                    )}
-                    onClick={() => setPrejoinCamera((value) => !value)}
-                    aria-label={
-                      prejoinCamera ? t("hideCamera") : t("showCamera")
-                    }
-                    title={prejoinCamera ? t("hideCamera") : t("showCamera")}>
-                    <CameraIcon off={!prejoinCamera} />
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(
-                      "grid h-[42px] min-w-[82px] cursor-pointer place-items-center rounded-[15px] border-0 bg-[#f4b238] px-3 text-[11px] font-extrabold text-[#080a0f] shadow-[0_10px_28px_rgba(244,178,56,.18)] transition hover:-translate-y-px hover:bg-[#ffc14c] disabled:cursor-wait disabled:opacity-50",
-                      snapshot.joining && "animate-pulse"
-                    )}
-                    disabled={snapshot.joining || callFull}
-                    onClick={() =>
-                      dispatch({
-                        kind: "joinCall",
-                        micEnabled: prejoinMic,
-                        cameraEnabled: prejoinCamera
-                      })
-                    }
-                    aria-label={callActionLabel}
-                    title={callActionLabel}>
-                    {callActionLabel}
-                  </button>
+                <div className="flex max-w-[300px] flex-col items-center gap-2.5">
+                  <div
+                    className="flex items-center justify-center gap-[5px] rounded-[20px] border border-white/10 bg-[#080a0f]/70 p-[5px] shadow-[0_12px_34px_rgba(0,0,0,.32)] backdrop-blur-2xl"
+                    aria-label="Call setup">
+                    <button
+                      type="button"
+                      className={cn(
+                        roundButtonClass,
+                        !prejoinMic && mediaOffClass
+                      )}
+                      onClick={() => setPrejoinMic((value) => !value)}
+                      aria-label={
+                        prejoinMic ? t("muteMicrophone") : t("unmuteMicrophone")
+                      }
+                      title={
+                        prejoinMic ? t("muteMicrophone") : t("unmuteMicrophone")
+                      }>
+                      <MicIcon off={!prejoinMic} />
+                    </button>
+                    <button
+                      type="button"
+                      className={cn(
+                        roundButtonClass,
+                        !prejoinCamera && mediaOffClass
+                      )}
+                      onClick={() => setPrejoinCamera((value) => !value)}
+                      aria-label={
+                        prejoinCamera ? t("hideCamera") : t("showCamera")
+                      }
+                      title={prejoinCamera ? t("hideCamera") : t("showCamera")}>
+                      <CameraIcon off={!prejoinCamera} />
+                    </button>
+                    <button
+                      type="button"
+                      className={cn(
+                        "grid h-[42px] min-w-[82px] cursor-pointer place-items-center rounded-[15px] border-0 bg-[#f4b238] px-3 text-[11px] font-extrabold text-[#080a0f] shadow-[0_10px_28px_rgba(244,178,56,.18)] transition hover:-translate-y-px hover:bg-[#ffc14c] disabled:cursor-wait disabled:opacity-50",
+                        snapshot.joining && "animate-pulse"
+                      )}
+                      disabled={snapshot.joining || callFull}
+                      onClick={() =>
+                        dispatch({
+                          kind: "joinCall",
+                          micEnabled: prejoinMic,
+                          cameraEnabled: prejoinCamera
+                        })
+                      }
+                      aria-label={callActionLabel}
+                      title={callActionLabel}>
+                      {callActionLabel}
+                    </button>
+                  </div>
+                  {callFull && (
+                    <p
+                      className="text-center text-[11px] leading-relaxed text-[#b9bbc2]"
+                      role="status">
+                      Video calls currently support up to 4 people. Need room
+                      for more? Tell us through the{" "}
+                      <a
+                        className="font-semibold text-[#f4b238] underline decoration-[#f4b238]/50 underline-offset-2 transition hover:text-[#ffc14c]"
+                        href="https://forms.gle/tMiFzZPLHVjqjJwm7"
+                        target="_blank"
+                        rel="noopener noreferrer">
+                        Synclify feedback form
+                      </a>
+                      .
+                    </p>
+                  )}
                 </div>
               </div>
             ) : (
