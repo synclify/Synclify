@@ -46,7 +46,7 @@
     "@typescript-eslint/eslint-plugin": "^8.68.0",
     "@typescript-eslint/parser": "^8.68.0",
     "@wxt-dev/module-react": "^1.2.2",
-    "autoprefixer": "^10.5.4",
+    "autoprefixer": "^10.5.5",
     "cssnano": "^7.1.9",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
