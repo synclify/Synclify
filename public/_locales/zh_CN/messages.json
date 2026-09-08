@@ -89,5 +89,21 @@
   "callConnectionError": { "message": "视频通话连接已中断。" },
   "callPermissionError": { "message": "请允许访问摄像头和麦克风以加入通话。" },
   "callDeviceError": { "message": "未找到摄像头或麦克风。" },
-  "callGenericError": { "message": "无法开始视频通话。" }
+  "callGenericError": { "message": "无法开始视频通话。" },
+  "shareScreen": { "message": "共享屏幕" },
+  "stopScreenSharing": { "message": "停止共享" },
+  "viewSharedScreen": { "message": "查看屏幕" },
+  "reopenSharedScreen": { "message": "重新打开屏幕" },
+  "youAreSharingScreen": { "message": "你正在共享屏幕" },
+  "isSharingScreen": { "message": "正在共享屏幕" },
+  "screenShareLimitError": { "message": "屏幕共享仅适用于最多 3 人的通话。" },
+  "screenShareCancelled": { "message": "屏幕共享已取消。" },
+  "screenSharePermissionError": { "message": "Synclify 无法访问所选屏幕。" },
+  "screenShareStartError": { "message": "无法开始屏幕共享。" },
+  "screenShareConnecting": { "message": "正在连接共享屏幕…" },
+  "screenShareEnded": { "message": "屏幕共享已结束" },
+  "screenShareReturning": { "message": "正在返回观看派对…" },
+  "screenShareInProgressError": { "message": "其他参与者已在共享屏幕。" },
+  "screenShareOwnerError": { "message": "只有共享者可以停止屏幕共享。" },
+  "screenShareReadySoon": { "message": "连接就绪后将显示画面。" }
 }

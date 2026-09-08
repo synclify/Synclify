@@ -1,9 +1,12 @@
 import browser from "webextension-polyfill"
 import { t } from "~/lib/i18n"
 import { WebRtcCallController } from "~/lib/webrtc-call"
+import { ScreenShareRelayHost } from "~/lib/screen-share-relay"
 import type {
   CallCommand,
+  CallCommandResult,
   CallErrorPayload,
+  ScreenShareCommandResult,
   VideoCallEvent
 } from "~/types/call"
 import {
@@ -15,11 +18,24 @@ import {
   type CommunicationView
 } from "~/types/communication"
 import type { State } from "~/types/state"
+import type {
+  ScreenShareViewerEvent,
+  ScreenShareViewerSnapshot
+} from "~/types/screen-share"
 
 const JOIN_TIMEOUT_MS = 10_000
 const MAX_CHAT_MESSAGES = 250
 
 type Listener = () => void
+
+function normalizeCallState(
+  state: CommunicationSnapshot["callState"]
+): CommunicationSnapshot["callState"] {
+  return {
+    ...state,
+    screenShare: state.screenShare ?? EMPTY_CALL_STATE.screenShare
+  }
+}
 
 function callErrorMessage(error: CallErrorPayload): string {
   switch (error.code) {
@@ -30,6 +46,12 @@ function callErrorMessage(error: CallErrorPayload): string {
       return t("callRoomEndedError")
     case "connection":
       return t("callConnectionError")
+    case "screen_share_limit":
+      return t("screenShareLimitError")
+    case "screen_share_in_progress":
+      return t("screenShareInProgressError")
+    case "screen_share_not_owner":
+      return t("screenShareOwnerError")
     default:
       return error.message || t("callGenericError")
   }
@@ -58,10 +80,14 @@ export class CommunicationController {
     inPagePanelOpen: false,
     presentation: initialPresentationState(),
     connectionStates: {},
-    streamParticipantIds: []
+    streamParticipantIds: [],
+    screenStreamParticipantIds: [],
+    screenShareStarting: false,
+    screenViewerOpen: false
   }
   private readonly listeners = new Set<Listener>()
   private readonly remoteStreams = new Map<string, MediaStream>()
+  private readonly remoteScreenStreams = new Map<string, MediaStream>()
   private joinTimer: ReturnType<typeof setTimeout> | null = null
   private statePoll: ReturnType<typeof setInterval> | null = null
   private pendingJoinKind: "started" | "joined" = "started"
@@ -69,16 +95,22 @@ export class CommunicationController {
   private destroyed = false
   private panelOpenBeforeFullscreen = false
   private readonly callController: WebRtcCallController
+  private readonly screenRelay: ScreenShareRelayHost
+  private viewerTabId: number | null = null
+  private openedViewerShareStartedAt: number | null = null
 
   constructor() {
     this.callController = new WebRtcCallController({
       sendSignal: (signal) => {
         this.sendCallCommand({ kind: "signal", ...signal }).catch(() => {})
       },
-      onRemoteStream: (participantId, stream) => {
-        if (stream) this.remoteStreams.set(participantId, stream)
-        else this.remoteStreams.delete(participantId)
+      onRemoteStream: (participantId, kind, stream) => {
+        const target =
+          kind === "screen" ? this.remoteScreenStreams : this.remoteStreams
+        if (stream) target.set(participantId, stream)
+        else target.delete(participantId)
         this.updateStreamIds()
+        this.refreshScreenRelay().catch(() => {})
       },
       onConnectionState: (participantId, state) => {
         this.patch({
@@ -88,6 +120,18 @@ export class CommunicationController {
           }
         })
       }
+    })
+    this.screenRelay = new ScreenShareRelayHost((viewerTabId, message) => {
+      browser.runtime
+        .sendMessage({
+          action: "screenShareRelayToViewer",
+          viewerTabId,
+          sourceTabId: this.snapshot.tabId,
+          roomId: this.snapshot.roomId,
+          shareStartedAt: this.snapshot.callState.screenShare.startedAt,
+          message
+        })
+        .catch(() => {})
     })
   }
 
@@ -103,6 +147,13 @@ export class CommunicationController {
       return this.callController.getLocalStream() ?? undefined
     }
     return this.remoteStreams.get(participantId)
+  }
+
+  getScreenStream(participantId: string): MediaStream | undefined {
+    if (participantId === this.snapshot.selfId) {
+      return this.callController.getScreenStream() ?? undefined
+    }
+    return this.remoteScreenStreams.get(participantId)
   }
 
   async initialize(): Promise<void> {
@@ -166,6 +217,15 @@ export class CommunicationController {
       case "setCamera":
         await this.setCamera(command.enabled)
         return
+      case "startScreenShare":
+        await this.startScreenShare()
+        return
+      case "stopScreenShare":
+        await this.stopScreenShare()
+        return
+      case "openScreenShareViewer":
+        await this.openScreenShareViewer(true)
+        return
       case "sendChat":
         await this.sendChat(command.text)
         return
@@ -180,11 +240,11 @@ export class CommunicationController {
     this.listeners.forEach((listener) => listener())
   }
 
-  private sendCallCommand(command: CallCommand): Promise<unknown> {
+  private sendCallCommand<T = unknown>(command: CallCommand): Promise<T> {
     return browser.runtime.sendMessage({
       action: "videoCallCommand",
       body: command
-    })
+    }) as Promise<T>
   }
 
   private async refreshRoomState(): Promise<void> {
@@ -263,6 +323,7 @@ export class CommunicationController {
       self?: boolean
       event?: VideoCallEvent
       command?: CommunicationCommand
+      screenShareViewer?: ScreenShareViewerEvent
     }
 
     if (message.to === "communication" && message.command) {
@@ -275,6 +336,31 @@ export class CommunicationController {
     if (message.to === "videoCall" && message.event) {
       this.handleCallEvent(message.event)
       return Promise.resolve(null)
+    }
+    if (message.to === "communication" && message.screenShareViewer) {
+      const viewer = message.screenShareViewer
+      if (
+        viewer.roomId !== this.snapshot.roomId ||
+        viewer.shareStartedAt !== this.snapshot.callState.screenShare.startedAt
+      ) {
+        return Promise.resolve(null)
+      }
+      if (viewer.kind === "ready") {
+        this.viewerTabId = viewer.viewerTabId
+        this.patch({ screenViewerOpen: true })
+        return this.refreshScreenRelay()
+      }
+      if (viewer.kind === "closed") {
+        if (this.viewerTabId === viewer.viewerTabId) {
+          this.viewerTabId = null
+          this.screenRelay.close()
+          this.patch({ screenViewerOpen: false })
+        }
+        return Promise.resolve(null)
+      }
+      if (viewer.kind === "relay") {
+        return this.screenRelay.handle(viewer.message)
+      }
     }
     return undefined
   }
@@ -399,7 +485,6 @@ export class CommunicationController {
       this.callController.setMicEnabled(micEnabled)
       this.callController.setCameraEnabled(cameraEnabled)
       this.patch({ micEnabled, cameraEnabled })
-      await this.sendCallCommand({ kind: "join", micEnabled, cameraEnabled })
       this.clearJoinTimer()
       this.joinTimer = setTimeout(() => {
         this.sendCallCommand({ kind: "leave" }).catch(() => {})
@@ -409,6 +494,18 @@ export class CommunicationController {
           connectionStatus: "error"
         })
       }, JOIN_TIMEOUT_MS)
+      const result = await this.sendCallCommand<CallCommandResult>({
+        kind: "join",
+        micEnabled,
+        cameraEnabled
+      })
+      if (!result?.ok) {
+        this.resetCall()
+        this.patch({
+          error: t("callConnectionError"),
+          connectionStatus: "error"
+        })
+      }
     } catch (error) {
       this.resetCall()
       const name = error instanceof DOMException ? error.name : ""
@@ -427,14 +524,18 @@ export class CommunicationController {
   private handleCallEvent(event: VideoCallEvent): void {
     if (event.kind === "transport") {
       if (event.payload.state === "reconnecting" && this.snapshot.inCall) {
+        this.callController.stopScreenShare().catch(() => {})
         this.callController.resetPeers()
         this.remoteStreams.clear()
+        this.remoteScreenStreams.clear()
         this.patch({
           connectionStatus: "reconnecting",
           connectionStates: {},
           streamParticipantIds: this.snapshot.selfId
             ? [this.snapshot.selfId]
-            : []
+            : [],
+          screenStreamParticipantIds: [],
+          screenShareStarting: false
         })
       } else if (
         event.payload.state === "connected" &&
@@ -461,10 +562,11 @@ export class CommunicationController {
     }
 
     if (event.kind === "joined") {
+      const callState = normalizeCallState(event.payload.state)
       this.clearJoinTimer()
       this.callController.configure(event.payload.iceConfig.iceServers)
       this.patch({
-        callState: event.payload.state,
+        callState,
         selfId: event.payload.participantId,
         inCall: true,
         joining: false,
@@ -490,17 +592,20 @@ export class CommunicationController {
           ? "video_call_started"
           : "video_call_joined"
       )
+      this.syncScreenShareExperience()
       return
     }
 
     if (event.kind === "state") {
-      const selfPresent = event.payload.participants.some(
+      const previousScreenShare = this.snapshot.callState.screenShare
+      const callState = normalizeCallState(event.payload)
+      const selfPresent = callState.participants.some(
         (participant) => participant.id === this.snapshot.selfId
       )
-      this.patch({ callState: event.payload })
+      this.patch({ callState })
       if (this.snapshot.inCall && this.snapshot.selfId) {
         this.callController.syncParticipants(
-          event.payload.participants
+          callState.participants
             .map((participant) => participant.id)
             .filter((id) => id !== this.snapshot.selfId)
         )
@@ -512,6 +617,7 @@ export class CommunicationController {
           this.resetCall()
         }
       }
+      this.syncScreenShareExperience(previousScreenShare)
       return
     }
 
@@ -554,6 +660,8 @@ export class CommunicationController {
     }
     this.callController.setMicEnabled(enabled)
     this.patch({ micEnabled: enabled, error: "" })
+    const viewerSnapshot = this.createViewerSnapshot()
+    if (viewerSnapshot) this.screenRelay.updateState(viewerSnapshot)
     if (this.snapshot.inCall) this.publishMediaState()
     this.trackCall("video_call_mic_toggled", { enabled })
   }
@@ -567,6 +675,7 @@ export class CommunicationController {
       try {
         await this.callController.ensureMedia("video")
         this.updateStreamIds()
+        await this.refreshScreenRelay()
       } catch {
         this.patch({ error: t("callPermissionError") })
         return
@@ -574,8 +683,236 @@ export class CommunicationController {
     }
     this.callController.setCameraEnabled(enabled)
     this.patch({ cameraEnabled: enabled, error: "" })
+    const viewerSnapshot = this.createViewerSnapshot()
+    if (viewerSnapshot) this.screenRelay.updateState(viewerSnapshot)
     if (this.snapshot.inCall) this.publishMediaState()
     this.trackCall("video_call_camera_toggled", { enabled })
+  }
+
+  private async startScreenShare(): Promise<void> {
+    const screenState = this.snapshot.callState.screenShare
+    if (
+      !this.snapshot.inCall ||
+      this.snapshot.screenShareStarting ||
+      screenState.active
+    ) {
+      return
+    }
+    if (
+      this.snapshot.callState.participantCount > screenState.maxParticipants
+    ) {
+      this.patch({ error: t("screenShareLimitError") })
+      return
+    }
+
+    this.patch({ screenShareStarting: true, error: "" })
+    let stream: MediaStream
+    try {
+      // Keep this as the first awaited operation so it retains the click's
+      // transient user activation in browsers that enforce it strictly.
+      stream = await this.callController.captureScreen()
+    } catch (error) {
+      const name = error instanceof DOMException ? error.name : ""
+      this.patch({
+        screenShareStarting: false,
+        error:
+          name === "NotAllowedError" || name === "AbortError"
+            ? t("screenShareCancelled")
+            : t("screenSharePermissionError")
+      })
+      return
+    }
+
+    const result = await this.sendCallCommand<ScreenShareCommandResult>({
+      kind: "startScreenShare"
+    }).catch((): ScreenShareCommandResult => ({
+      ok: false,
+      code: "connection",
+      message: t("callConnectionError")
+    }))
+    if (!result?.ok) {
+      stream.getTracks().forEach((track) => track.stop())
+      this.patch({
+        screenShareStarting: false,
+        error: result
+          ? callErrorMessage({ roomId: this.snapshot.roomId, ...result })
+          : t("callConnectionError")
+      })
+      return
+    }
+
+    try {
+      await this.callController.startScreenShare(stream, () => {
+        this.stopScreenShare().catch(() => {})
+      })
+      this.patch({
+        callState: result.state,
+        screenShareStarting: false,
+        error: ""
+      })
+      this.trackCall("screen_share_started")
+    } catch {
+      stream.getTracks().forEach((track) => track.stop())
+      await this.sendCallCommand({ kind: "stopScreenShare" }).catch(() => {})
+      this.patch({
+        screenShareStarting: false,
+        error: t("screenShareStartError")
+      })
+    }
+  }
+
+  private async stopScreenShare(): Promise<void> {
+    const isOwner =
+      this.snapshot.callState.screenShare.participantId === this.snapshot.selfId
+    await this.callController.stopScreenShare().catch(() => {})
+    if (isOwner) {
+      this.patch({
+        callState: {
+          ...this.snapshot.callState,
+          screenShare: {
+            ...this.snapshot.callState.screenShare,
+            active: false,
+            participantId: null,
+            startedAt: null
+          }
+        }
+      })
+      const result = await this.sendCallCommand<ScreenShareCommandResult>({
+        kind: "stopScreenShare"
+      }).catch(() => null)
+      if (result?.ok) this.patch({ callState: result.state })
+      else if (result) {
+        this.patch({
+          error: callErrorMessage({ roomId: this.snapshot.roomId, ...result })
+        })
+      }
+      this.trackCall("screen_share_stopped")
+    }
+    this.patch({ screenShareStarting: false })
+  }
+
+  private syncScreenShareExperience(
+    previous = EMPTY_CALL_STATE.screenShare
+  ): void {
+    const current = this.snapshot.callState.screenShare
+    const isRemoteShare =
+      current.active && current.participantId !== this.snapshot.selfId
+
+    if (!current.active) {
+      if (
+        previous.active &&
+        previous.participantId === this.snapshot.selfId &&
+        this.callController.getScreenStream()
+      ) {
+        this.callController.stopScreenShare().catch(() => {})
+      }
+      if (previous.active && previous.participantId !== this.snapshot.selfId) {
+        this.screenRelay.close()
+        browser.runtime
+          .sendMessage({
+            action: "endScreenShareViewer",
+            sourceTabId: this.snapshot.tabId,
+            shareStartedAt: previous.startedAt
+          })
+          .catch(() => {})
+      }
+      this.viewerTabId = null
+      this.openedViewerShareStartedAt = null
+      this.patch({ screenViewerOpen: false })
+      return
+    }
+
+    const viewerSnapshot = this.createViewerSnapshot()
+    if (viewerSnapshot) this.screenRelay.updateState(viewerSnapshot)
+    if (
+      isRemoteShare &&
+      this.snapshot.inCall &&
+      current.startedAt !== this.openedViewerShareStartedAt
+    ) {
+      this.openScreenShareViewer(false).catch(() => {})
+    }
+  }
+
+  private async openScreenShareViewer(force: boolean): Promise<void> {
+    const screenShare = this.snapshot.callState.screenShare
+    if (
+      !this.snapshot.inCall ||
+      !screenShare.active ||
+      !screenShare.startedAt ||
+      screenShare.participantId === this.snapshot.selfId
+    ) {
+      return
+    }
+    if (!force && screenShare.startedAt === this.openedViewerShareStartedAt) {
+      return
+    }
+    this.openedViewerShareStartedAt = screenShare.startedAt
+    await browser.runtime.sendMessage({
+      action: "openScreenShareViewer",
+      sourceTabId: this.snapshot.tabId,
+      roomId: this.snapshot.roomId,
+      shareStartedAt: screenShare.startedAt
+    })
+  }
+
+  private createViewerSnapshot(): ScreenShareViewerSnapshot | null {
+    const screenShare = this.snapshot.callState.screenShare
+    if (
+      !this.snapshot.selfId ||
+      !screenShare.active ||
+      !screenShare.participantId ||
+      !screenShare.startedAt
+    ) {
+      return null
+    }
+    const sharer = this.snapshot.callState.participants.find(
+      ({ id }) => id === screenShare.participantId
+    )
+    if (!sharer) return null
+    return {
+      roomId: this.snapshot.roomId,
+      shareStartedAt: screenShare.startedAt,
+      sharerId: sharer.id,
+      sharerName: sharer.nickname,
+      participants: this.snapshot.callState.participants,
+      selfId: this.snapshot.selfId,
+      micEnabled: this.snapshot.micEnabled,
+      cameraEnabled: this.snapshot.cameraEnabled
+    }
+  }
+
+  private async refreshScreenRelay(): Promise<void> {
+    if (this.viewerTabId === null) return
+    const snapshot = this.createViewerSnapshot()
+    if (!snapshot || snapshot.sharerId === snapshot.selfId) return
+    const media = []
+    const screenStream = this.remoteScreenStreams.get(snapshot.sharerId)
+    if (screenStream) {
+      media.push({
+        stream: screenStream,
+        participantId: snapshot.sharerId,
+        kind: "screen" as const,
+        self: false
+      })
+    }
+    const localStream = this.callController.getLocalStream()
+    if (localStream) {
+      media.push({
+        stream: localStream,
+        participantId: snapshot.selfId,
+        kind: "camera" as const,
+        self: true
+      })
+    }
+    for (const [participantId, stream] of this.remoteStreams) {
+      media.push({
+        stream,
+        participantId,
+        kind: "camera" as const,
+        self: false
+      })
+    }
+    await this.screenRelay.connect(this.viewerTabId, media, snapshot)
   }
 
   private publishMediaState(): void {
@@ -598,7 +935,20 @@ export class CommunicationController {
   private resetCall(): void {
     this.clearJoinTimer()
     this.callController.stop()
+    this.screenRelay.close()
+    if (this.snapshot.callState.screenShare.active) {
+      browser.runtime
+        .sendMessage({
+          action: "endScreenShareViewer",
+          sourceTabId: this.snapshot.tabId,
+          shareStartedAt: this.snapshot.callState.screenShare.startedAt
+        })
+        .catch(() => {})
+    }
     this.remoteStreams.clear()
+    this.remoteScreenStreams.clear()
+    this.viewerTabId = null
+    this.openedViewerShareStartedAt = null
     this.patch({
       inCall: false,
       joining: false,
@@ -608,6 +958,9 @@ export class CommunicationController {
       connectionStatus: "idle",
       connectionStates: {},
       streamParticipantIds: [],
+      screenStreamParticipantIds: [],
+      screenShareStarting: false,
+      screenViewerOpen: false,
       presentation: reducePresentation(this.snapshot.presentation, {
         type: "callEnded"
       })
@@ -624,7 +977,8 @@ export class CommunicationController {
       streamParticipantIds: [
         ...(this.snapshot.selfId ? [this.snapshot.selfId] : []),
         ...this.remoteStreams.keys()
-      ]
+      ],
+      screenStreamParticipantIds: [...this.remoteScreenStreams.keys()]
     })
   }
 
@@ -664,6 +1018,7 @@ export class CommunicationController {
       this.sendCallCommand({ kind: "leave" }).catch(() => {})
     }
     this.callController.stop()
+    this.screenRelay.end()
     this.clearJoinTimer()
     if (this.statePoll) clearInterval(this.statePoll)
     this.statePoll = null

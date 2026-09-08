@@ -8,7 +8,7 @@ export type ChatMessage = {
 
 export type ExtMessage = {
   type: MESSAGE_TYPE
-  videoId: string
+  videoId?: string
 }
 
 export type ExtResponse = {

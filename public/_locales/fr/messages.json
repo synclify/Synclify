@@ -119,5 +119,33 @@
   "callDeviceError": {
     "message": "Aucune caméra ou aucun microphone n’a été trouvé."
   },
-  "callGenericError": { "message": "Impossible de démarrer l’appel vidéo." }
+  "callGenericError": { "message": "Impossible de démarrer l’appel vidéo." },
+  "shareScreen": { "message": "Partager l’écran" },
+  "stopScreenSharing": { "message": "Arrêter le partage" },
+  "viewSharedScreen": { "message": "Voir l’écran" },
+  "reopenSharedScreen": { "message": "Rouvrir l’écran" },
+  "youAreSharingScreen": { "message": "Vous partagez votre écran" },
+  "isSharingScreen": { "message": "partage son écran" },
+  "screenShareLimitError": {
+    "message": "Le partage d’écran est disponible pour les appels de 3 personnes maximum."
+  },
+  "screenShareCancelled": { "message": "Le partage d’écran a été annulé." },
+  "screenSharePermissionError": {
+    "message": "Synclify ne peut pas accéder à l’écran sélectionné."
+  },
+  "screenShareStartError": {
+    "message": "Impossible de démarrer le partage d’écran."
+  },
+  "screenShareConnecting": { "message": "Connexion à l’écran partagé…" },
+  "screenShareEnded": { "message": "Le partage d’écran est terminé" },
+  "screenShareReturning": { "message": "Retour à la soirée vidéo…" },
+  "screenShareInProgressError": {
+    "message": "Une autre personne partage déjà son écran."
+  },
+  "screenShareOwnerError": {
+    "message": "Seule la personne qui partage peut arrêter ce partage."
+  },
+  "screenShareReadySoon": {
+    "message": "L’image apparaîtra dès que la connexion sera prête."
+  }
 }

@@ -7,7 +7,9 @@ import {
   MessageSquare,
   Mic,
   MicOff,
+  MonitorUp,
   PhoneOff,
+  ScreenShareOff,
   Users,
   Video,
   VideoOff
@@ -247,7 +249,10 @@ export function CommunicationPanel({
       ].slice(0, visibleVideoCount)
     : []
   const callFull =
-    snapshot.callState.participantCount >= snapshot.callState.maxParticipants
+    snapshot.callState.participantCount >=
+    (snapshot.callState.screenShare.active
+      ? snapshot.callState.screenShare.maxParticipants
+      : snapshot.callState.maxParticipants)
   const callActionLabel = snapshot.joining
     ? "Connecting…"
     : callFull
@@ -259,6 +264,15 @@ export function CommunicationPanel({
           : "Start call"
   const controlsAlwaysVisible = snapshot.view !== "call"
   const controlsVisible = controlsAlwaysVisible || controlsOpen
+  const screenShare = snapshot.callState.screenShare
+  const isScreenSharer =
+    screenShare.active && screenShare.participantId === snapshot.selfId
+  const remoteSharer = snapshot.callState.participants.find(
+    ({ id }) => id === screenShare.participantId
+  )
+  const screenShareBlocked =
+    !screenShare.active &&
+    snapshot.callState.participantCount > screenShare.maxParticipants
 
   useEffect(() => {
     if (snapshot.view === "chat") dispatch({ kind: "markChatRead" })
@@ -351,16 +365,22 @@ export function CommunicationPanel({
                     <p
                       className="text-center text-[11px] leading-relaxed text-[#b9bbc2]"
                       role="status">
-                      Video calls currently support up to 4 people. Need room
-                      for more? Tell us through the{" "}
-                      <a
-                        className="font-semibold text-[#f4b238] underline decoration-[#f4b238]/50 underline-offset-2 transition hover:text-[#ffc14c]"
-                        href="https://forms.gle/tMiFzZPLHVjqjJwm7"
-                        target="_blank"
-                        rel="noopener noreferrer">
-                        Synclify feedback form
-                      </a>
-                      .
+                      {snapshot.callState.screenShare.active ? (
+                        t("screenShareLimitError")
+                      ) : (
+                        <>
+                          Video calls currently support up to 4 people. Need
+                          room for more? Tell us through the{" "}
+                          <a
+                            className="font-semibold text-[#f4b238] underline decoration-[#f4b238]/50 underline-offset-2 transition hover:text-[#ffc14c]"
+                            href="https://forms.gle/tMiFzZPLHVjqjJwm7"
+                            target="_blank"
+                            rel="noopener noreferrer">
+                            Synclify feedback form
+                          </a>
+                          .
+                        </>
+                      )}
                     </p>
                   )}
                 </div>
@@ -373,6 +393,39 @@ export function CommunicationPanel({
                     role="status">
                     Reconnecting without dropping your camera and microphone…
                   </div>
+                )}
+                {screenShare.active && (
+                  <div className="mx-3 mt-2.5 flex items-center gap-2 rounded-[10px] border border-[#f4b238]/30 bg-[#f4b238]/10 px-2.5 py-2 text-[10px] text-[#e7e4dd]">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#f4b238]/15 text-[#f4b238]">
+                      <MonitorUp aria-hidden="true" size={15} strokeWidth={2} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {isScreenSharer
+                        ? t("youAreSharingScreen")
+                        : `${remoteSharer?.nickname || t("anonymousNickname")} ${t("isSharingScreen")}`}
+                    </span>
+                    <button
+                      type="button"
+                      className="shrink-0 cursor-pointer rounded-lg border border-[#f4b238]/30 bg-[#090b10]/55 px-2 py-1 font-semibold text-[#f4b238]"
+                      onClick={() =>
+                        dispatch({
+                          kind: isScreenSharer
+                            ? "stopScreenShare"
+                            : "openScreenShareViewer"
+                        })
+                      }>
+                      {isScreenSharer
+                        ? t("stopScreenSharing")
+                        : snapshot.screenViewerOpen
+                          ? t("viewSharedScreen")
+                          : t("reopenSharedScreen")}
+                    </button>
+                  </div>
+                )}
+                {screenShareBlocked && (
+                  <p className="mx-3 mt-2 text-center text-[10px] text-[#b9bbc2]">
+                    {t("screenShareLimitError")}
+                  </p>
                 )}
                 <div
                   className={cn(
@@ -631,6 +684,48 @@ export function CommunicationPanel({
                   snapshot.cameraEnabled ? t("hideCamera") : t("showCamera")
                 }>
                 <CameraIcon off={!snapshot.cameraEnabled} />
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  compactButtonClass,
+                  isScreenSharer &&
+                    "border-rose-400/45 bg-rose-500/15 text-rose-300",
+                  screenShare.active &&
+                    !isScreenSharer &&
+                    "border-[#f4b238]/40 bg-[#f4b238]/10 text-[#f4b238]"
+                )}
+                disabled={screenShareBlocked || snapshot.screenShareStarting}
+                onClick={() =>
+                  dispatch({
+                    kind: isScreenSharer
+                      ? "stopScreenShare"
+                      : screenShare.active
+                        ? "openScreenShareViewer"
+                        : "startScreenShare"
+                  })
+                }
+                aria-label={
+                  isScreenSharer
+                    ? t("stopScreenSharing")
+                    : screenShare.active
+                      ? t("viewSharedScreen")
+                      : t("shareScreen")
+                }
+                title={
+                  screenShareBlocked
+                    ? t("screenShareLimitError")
+                    : isScreenSharer
+                      ? t("stopScreenSharing")
+                      : screenShare.active
+                        ? t("viewSharedScreen")
+                        : t("shareScreen")
+                }>
+                {isScreenSharer ? (
+                  <ScreenShareOff aria-hidden="true" size={16} />
+                ) : (
+                  <MonitorUp aria-hidden="true" size={16} />
+                )}
               </button>
               <button
                 type="button"

@@ -84,7 +84,23 @@ export const MESSAGE_KEYS = [
   "callConnectionError",
   "callPermissionError",
   "callDeviceError",
-  "callGenericError"
+  "callGenericError",
+  "shareScreen",
+  "stopScreenSharing",
+  "viewSharedScreen",
+  "reopenSharedScreen",
+  "youAreSharingScreen",
+  "isSharingScreen",
+  "screenShareLimitError",
+  "screenShareCancelled",
+  "screenSharePermissionError",
+  "screenShareStartError",
+  "screenShareConnecting",
+  "screenShareEnded",
+  "screenShareReturning",
+  "screenShareInProgressError",
+  "screenShareOwnerError",
+  "screenShareReadySoon"
 ] as const
 
 export type MessageKey = (typeof MESSAGE_KEYS)[number]

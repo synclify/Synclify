@@ -99,5 +99,31 @@
     "message": "اسمح بالوصول إلى الكاميرا والميكروفون للانضمام."
   },
   "callDeviceError": { "message": "لم يتم العثور على كاميرا أو ميكروفون." },
-  "callGenericError": { "message": "تعذر بدء مكالمة الفيديو." }
+  "callGenericError": { "message": "تعذر بدء مكالمة الفيديو." },
+  "shareScreen": { "message": "مشاركة الشاشة" },
+  "stopScreenSharing": { "message": "إيقاف المشاركة" },
+  "viewSharedScreen": { "message": "عرض الشاشة" },
+  "reopenSharedScreen": { "message": "إعادة فتح الشاشة" },
+  "youAreSharingScreen": { "message": "أنت تشارك شاشتك" },
+  "isSharingScreen": { "message": "يشارك شاشته" },
+  "screenShareLimitError": {
+    "message": "مشاركة الشاشة متاحة للمكالمات التي تضم حتى 3 أشخاص."
+  },
+  "screenShareCancelled": { "message": "تم إلغاء مشاركة الشاشة." },
+  "screenSharePermissionError": {
+    "message": "تعذر على Synclify الوصول إلى الشاشة المحددة."
+  },
+  "screenShareStartError": { "message": "تعذر بدء مشاركة الشاشة." },
+  "screenShareConnecting": { "message": "جارٍ الاتصال بالشاشة المشتركة…" },
+  "screenShareEnded": { "message": "انتهت مشاركة الشاشة" },
+  "screenShareReturning": { "message": "جارٍ العودة إلى حفلة المشاهدة…" },
+  "screenShareInProgressError": {
+    "message": "هناك شخص آخر يشارك شاشته بالفعل."
+  },
+  "screenShareOwnerError": {
+    "message": "يمكن للشخص المشارك فقط إيقاف مشاركة الشاشة."
+  },
+  "screenShareReadySoon": {
+    "message": "ستظهر الصورة بمجرد أن يصبح الاتصال جاهزًا."
+  }
 }

@@ -125,6 +125,49 @@ async function setPersistentDebugShield(
 }
 
 export default defineBackground(async () => {
+  type ScreenShareViewerSession = {
+    sourceTabId: number
+    roomId: string
+    shareStartedAt: number
+  }
+  const screenShareViewerSources = new Map<number, ScreenShareViewerSession>()
+
+  function parseScreenShareViewerSession(
+    url?: string
+  ): ScreenShareViewerSession | null {
+    if (!url) return null
+    const viewerPageUrl = new URL(browser.runtime.getURL("/screen-share.html"))
+    const candidate = new URL(url)
+    if (
+      candidate.origin !== viewerPageUrl.origin ||
+      candidate.pathname !== viewerPageUrl.pathname
+    ) {
+      return null
+    }
+    const sourceTabId = Number(candidate.searchParams.get("sourceTabId"))
+    const roomId = candidate.searchParams.get("roomId") ?? ""
+    const shareStartedAt = Number(candidate.searchParams.get("shareStartedAt"))
+    if (!Number.isInteger(sourceTabId) || !roomId || !shareStartedAt)
+      return null
+    return { sourceTabId, roomId, shareStartedAt }
+  }
+
+  async function validateScreenShareViewer(
+    viewerTabId: number,
+    expected: ScreenShareViewerSession
+  ): Promise<boolean> {
+    let session = screenShareViewerSources.get(viewerTabId)
+    if (!session) {
+      const tab = await browser.tabs.get(viewerTabId).catch(() => null)
+      session = parseScreenShareViewerSession(tab?.url) ?? undefined
+      if (session) screenShareViewerSources.set(viewerTabId, session)
+    }
+    return (
+      session?.sourceTabId === expected.sourceTabId &&
+      session.roomId === expected.roomId &&
+      session.shareStartedAt === expected.shareStartedAt
+    )
+  }
   const bg = globalThis as typeof globalThis & {
     synclifyDebug?: {
       enableShield: (tabId?: number) => Promise<unknown>
@@ -181,6 +224,21 @@ export default defineBackground(async () => {
 
   // --- Tab lifecycle ---
   browser.tabs.onRemoved.addListener((tabId) => {
+    const viewerSession = screenShareViewerSources.get(tabId)
+    if (viewerSession) {
+      screenShareViewerSources.delete(tabId)
+      browser.tabs
+        .sendMessage(viewerSession.sourceTabId, {
+          to: "communication",
+          screenShareViewer: {
+            kind: "closed",
+            viewerTabId: tabId,
+            roomId: viewerSession.roomId,
+            shareStartedAt: viewerSession.shareStartedAt
+          }
+        })
+        .catch(() => {})
+    }
     browser.storage.local
       .get(["state", "communicationRejoin"])
       .then((result) => {
@@ -662,6 +720,93 @@ export default defineBackground(async () => {
     return !!(rooms && rooms[tabId])
   }
 
+  async function openScreenShareViewer(
+    sourceTabId: number,
+    roomId: string,
+    shareStartedAt: number
+  ): Promise<{ viewerTabId: number }> {
+    const pageUrl = browser.runtime.getURL("/screen-share.html")
+    const expectedUrl = `${pageUrl}?sourceTabId=${sourceTabId}&roomId=${encodeURIComponent(roomId)}&shareStartedAt=${shareStartedAt}`
+    const tabs = await browser.tabs.query({})
+    const existing = tabs.find((tab) => tab.url === expectedUrl)
+    if (existing?.id !== undefined) {
+      screenShareViewerSources.set(existing.id, {
+        sourceTabId,
+        roomId,
+        shareStartedAt
+      })
+      await browser.tabs.update(existing.id, { active: true })
+      if (existing.windowId !== undefined) {
+        await browser.windows.update(existing.windowId, { focused: true })
+      }
+      await browser.tabs
+        .sendMessage(sourceTabId, {
+          to: "communication",
+          screenShareViewer: {
+            kind: "ready",
+            viewerTabId: existing.id,
+            roomId,
+            shareStartedAt
+          }
+        })
+        .catch(() => {})
+      return { viewerTabId: existing.id }
+    }
+
+    const created = await browser.tabs.create({
+      url: expectedUrl,
+      active: true
+    })
+    if (created.id === undefined) {
+      throw new Error("Screen share viewer tab did not receive an id")
+    }
+    screenShareViewerSources.set(created.id, {
+      sourceTabId,
+      roomId,
+      shareStartedAt
+    })
+    return { viewerTabId: created.id }
+  }
+
+  async function endScreenShareViewer(
+    sourceTabId: number,
+    shareStartedAt: number | null
+  ): Promise<void> {
+    if (!shareStartedAt) return
+    const pageUrl = browser.runtime.getURL("/screen-share.html")
+    const tabs = await browser.tabs.query({})
+    const viewers = tabs.filter((tab) => {
+      if (tab.id === undefined || !tab.url?.startsWith(pageUrl)) return false
+      const url = new URL(tab.url)
+      return (
+        Number(url.searchParams.get("sourceTabId")) === sourceTabId &&
+        Number(url.searchParams.get("shareStartedAt")) === shareStartedAt
+      )
+    })
+    for (const viewer of viewers) {
+      if (viewer.id === undefined) continue
+      browser.runtime
+        .sendMessage({
+          to: "screenShareViewer",
+          viewerTabId: viewer.id,
+          message: { kind: "ended" }
+        })
+        .catch(() => {})
+      setTimeout(() => {
+        browser.tabs
+          .get(viewer.id as number)
+          .then(async (current) => {
+            screenShareViewerSources.delete(viewer.id as number)
+            await browser.tabs.remove(viewer.id as number)
+            if (current.active) {
+              await browser.tabs.update(sourceTabId, { active: true })
+            }
+          })
+          .catch(() => {})
+      }, 1_500)
+    }
+  }
+
   interface Video {
     src: string
     duration: number
@@ -735,7 +880,11 @@ export default defineBackground(async () => {
         videoId = videos[0].id
         needsCustomPlayer = videos[0].needsCustomPlayer
       } else {
-        return null
+        // Keep the room, chat, and video-call transport alive even when this
+        // page has no video. The injected controller will watch for a video
+        // appearing later and bind playback sync when one becomes available.
+        frameIds = [0]
+        needsCustomPlayer = false
       }
     }
 
@@ -844,6 +993,8 @@ export default defineBackground(async () => {
         | "video_call_left"
         | "video_call_mic_toggled"
         | "video_call_camera_toggled"
+        | "screen_share_started"
+        | "screen_share_stopped"
       surface: "overlay" | "emoji_bar" | "video_call"
       firstInteraction?: "incoming" | "outgoing"
     },
@@ -901,11 +1052,9 @@ export default defineBackground(async () => {
         )
       if (videos.length === 0 && attempt < 2) await wait(700)
     }
-    if (videos.length === 0) return
-
-    const frameIds = [videos[0].frameId]
-    const videoId = videos[0].id
-    const needsCustomPlayer = videos[0].needsCustomPlayer
+    const frameIds = [videos[0]?.frameId ?? 0]
+    const videoId = videos[0]?.id
+    const needsCustomPlayer = videos[0]?.needsCustomPlayer ?? false
 
     await browser.scripting.executeScript({
       files: ["injected.js"],
@@ -1004,12 +1153,116 @@ export default defineBackground(async () => {
       case "videoCallCommand": {
         const callTabId = sender.tab?.id
         if (callTabId) {
-          browser.tabs.sendMessage(callTabId, {
+          return browser.tabs.sendMessage(callTabId, {
             type: MESSAGE_TYPE.VIDEO_CALL,
             call: message.body
           })
         }
         return Promise.resolve(null)
+      }
+      case "openScreenShareViewer":
+        return openScreenShareViewer(
+          message.sourceTabId,
+          message.roomId,
+          message.shareStartedAt
+        )
+      case "endScreenShareViewer":
+        return endScreenShareViewer(message.sourceTabId, message.shareStartedAt)
+      case "screenShareViewerReady": {
+        const viewerTabId = sender.tab?.id
+        if (viewerTabId === undefined) return Promise.resolve(null)
+        return validateScreenShareViewer(viewerTabId, message).then((valid) =>
+          valid
+            ? browser.tabs.sendMessage(message.sourceTabId, {
+                to: "communication",
+                screenShareViewer: {
+                  kind: "ready",
+                  viewerTabId,
+                  roomId: message.roomId,
+                  shareStartedAt: message.shareStartedAt
+                }
+              })
+            : null
+        )
+      }
+      case "screenShareRelayFromViewer": {
+        const viewerTabId = sender.tab?.id
+        if (viewerTabId === undefined) return Promise.resolve(null)
+        return validateScreenShareViewer(viewerTabId, message).then((valid) =>
+          valid
+            ? browser.tabs.sendMessage(message.sourceTabId, {
+                to: "communication",
+                screenShareViewer: {
+                  kind: "relay",
+                  viewerTabId,
+                  roomId: message.roomId,
+                  shareStartedAt: message.shareStartedAt,
+                  message: message.message
+                }
+              })
+            : null
+        )
+      }
+      case "screenShareViewerCommand": {
+        const viewerTabId = sender.tab?.id
+        if (viewerTabId === undefined) return Promise.resolve(null)
+        return validateScreenShareViewer(viewerTabId, message).then((valid) =>
+          valid
+            ? browser.tabs.sendMessage(message.sourceTabId, {
+                to: "communication",
+                command: message.command
+              })
+            : null
+        )
+      }
+      case "screenShareViewerClosed": {
+        const viewerTabId = sender.tab?.id
+        if (viewerTabId === undefined) return Promise.resolve(null)
+        return validateScreenShareViewer(viewerTabId, message).then((valid) => {
+          if (!valid) return null
+          screenShareViewerSources.delete(viewerTabId)
+          return browser.tabs.sendMessage(message.sourceTabId, {
+            to: "communication",
+            screenShareViewer: {
+              kind: "closed",
+              viewerTabId,
+              roomId: message.roomId,
+              shareStartedAt: message.shareStartedAt
+            }
+          })
+        })
+      }
+      case "screenShareRelayToViewer": {
+        return validateScreenShareViewer(message.viewerTabId, message).then(
+          (valid) =>
+            valid
+              ? browser.runtime.sendMessage({
+                  to: "screenShareViewer",
+                  viewerTabId: message.viewerTabId,
+                  message: message.message
+                })
+              : null
+        )
+      }
+      case "closeScreenShareViewer": {
+        const viewerTabId = sender.tab?.id
+        if (viewerTabId === undefined) return Promise.resolve(null)
+        return validateScreenShareViewer(viewerTabId, message).then((valid) => {
+          if (!valid) return null
+          return browser.tabs
+            .get(viewerTabId)
+            .catch(() => null)
+            .then(async (viewerTab) => {
+              screenShareViewerSources.delete(viewerTabId)
+              await browser.tabs.remove(viewerTabId).catch(() => {})
+              if (viewerTab?.active) {
+                await browser.tabs
+                  .update(message.sourceTabId, { active: true })
+                  .catch(() => {})
+              }
+              return null
+            })
+        })
       }
       case "forwardToChat": {
         // Relay from injected script -> chat content script

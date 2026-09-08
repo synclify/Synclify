@@ -19,10 +19,12 @@ import { io } from "socket.io-client"
 import { createPostHog } from "~/lib/posthog"
 import type {
   CallCommand,
+  CallCommandResult,
   CallErrorPayload,
   CallJoinedPayload,
   CallState,
   IncomingCallSignal,
+  ScreenShareCommandResult,
   VideoCallEvent
 } from "~/types/call"
 
@@ -73,6 +75,7 @@ export default defineUnlistedScript(async () => {
   let state: State
   let video: HTMLVideoElement | null | undefined
   let boundVideo: HTMLVideoElement | null = null
+  let missingVideoReported = false
   let suppressEventsUntil = 0
   let lastAppliedRemoteEventTimestamp = 0
   let joinedRoom: string | null = null
@@ -244,7 +247,7 @@ export default defineUnlistedScript(async () => {
     })
   }
 
-  const init = async (videoId: string) => {
+  const init = async (videoId?: string) => {
     if (pendingInitPromise) {
       return pendingInitPromise
     }
@@ -282,9 +285,10 @@ export default defineUnlistedScript(async () => {
       await ensureParticipantId()
 
       const videoResult = getVideo(videoId)
-      if (videoResult.status !== MESSAGE_STATUS.SUCCESS) return videoResult
-
-      return joinRoom()
+      const roomResult = await joinRoom()
+      return roomResult.status === MESSAGE_STATUS.SUCCESS
+        ? videoResult
+        : roomResult
     })()
 
     try {
@@ -356,6 +360,7 @@ export default defineUnlistedScript(async () => {
     }
 
     if (video != null) {
+      missingVideoReported = false
       updateTabState({
         roomId: roomCode,
         videoFound: true
@@ -379,13 +384,16 @@ export default defineUnlistedScript(async () => {
       return { status: MESSAGE_STATUS.SUCCESS }
     }
     observer.observe(document, { subtree: true, childList: true })
-    browser.runtime.sendMessage({
-      action: "showToast",
-      body: { error: true, content: "", messageKey: "videoNotFound" }
-    })
-    posthog.capture("no_video_found", {
-      message: `No video found in ${window.location.href}`
-    })
+    if (!missingVideoReported) {
+      missingVideoReported = true
+      browser.runtime.sendMessage({
+        action: "showToast",
+        body: { error: true, content: "", messageKey: "videoNotFound" }
+      })
+      posthog.capture("no_video_found", {
+        message: `No video found in ${window.location.href}`
+      })
+    }
     return {
       status: MESSAGE_STATUS.ERROR,
       messageKey: "videoNotFound"
@@ -671,9 +679,11 @@ export default defineUnlistedScript(async () => {
       serverTimestamp?: number
     ) => {
       if (video == null) {
-        const e = new Error("Video is null in socket video event handler")
-        posthog.captureException(e)
-        throw e
+        // Room, chat, and call signaling stay available even on pages where a
+        // video is not present yet. Try to bind a newly-added video, but do not
+        // let playback events tear down the rest of the room experience.
+        getVideo()
+        return
       }
       const shouldTrackTimelineEvent =
         eventType === VIDEO_EVENTS.PLAY ||
@@ -812,8 +822,19 @@ export default defineUnlistedScript(async () => {
           return Promise.resolve(null)
         }
         case MESSAGE_TYPE.VIDEO_CALL: {
-          if (!request.call || !roomCode || !socket.connected) {
-            return Promise.resolve(null)
+          if (!request.call) {
+            return Promise.resolve<CallCommandResult>({
+              ok: false,
+              code: "connection",
+              message: "Missing video call command."
+            })
+          }
+          if (!roomCode || !socket.connected) {
+            return Promise.resolve<CallCommandResult>({
+              ok: false,
+              code: "connection",
+              message: "Video call signaling is not connected."
+            })
           }
           switch (request.call.kind) {
             case "getState":
@@ -831,7 +852,8 @@ export default defineUnlistedScript(async () => {
                 roomId: roomCode,
                 toParticipantId: request.call.toParticipantId,
                 description: request.call.description,
-                candidate: request.call.candidate
+                candidate: request.call.candidate,
+                mediaSources: request.call.mediaSources
               })
               break
             case "mediaState":
@@ -841,11 +863,37 @@ export default defineUnlistedScript(async () => {
                 cameraEnabled: request.call.cameraEnabled
               })
               break
+            case "startScreenShare":
+            case "stopScreenShare": {
+              const eventName =
+                request.call.kind === "startScreenShare"
+                  ? SOCKET_EVENTS.CALL_SCREEN_SHARE_START
+                  : SOCKET_EVENTS.CALL_SCREEN_SHARE_STOP
+              return new Promise<ScreenShareCommandResult>((resolve) => {
+                const timer = window.setTimeout(
+                  () =>
+                    resolve({
+                      ok: false,
+                      code: "connection",
+                      message: "The screen sharing request timed out."
+                    }),
+                  8_000
+                )
+                socket.emit(
+                  eventName,
+                  { roomId: roomCode },
+                  (response: ScreenShareCommandResult) => {
+                    window.clearTimeout(timer)
+                    resolve(response)
+                  }
+                )
+              })
+            }
             case "leave":
               socket.emit(SOCKET_EVENTS.CALL_LEAVE, { roomId: roomCode })
               break
           }
-          return Promise.resolve(null)
+          return Promise.resolve<CallCommandResult>({ ok: true })
         }
         default:
           return

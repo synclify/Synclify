@@ -109,5 +109,33 @@
     "message": "Разрешите доступ к камере и микрофону, чтобы присоединиться."
   },
   "callDeviceError": { "message": "Камера или микрофон не найдены." },
-  "callGenericError": { "message": "Не удалось начать видеозвонок." }
+  "callGenericError": { "message": "Не удалось начать видеозвонок." },
+  "shareScreen": { "message": "Поделиться экраном" },
+  "stopScreenSharing": { "message": "Остановить демонстрацию" },
+  "viewSharedScreen": { "message": "Открыть экран" },
+  "reopenSharedScreen": { "message": "Открыть снова" },
+  "youAreSharingScreen": { "message": "Вы показываете свой экран" },
+  "isSharingScreen": { "message": "показывает свой экран" },
+  "screenShareLimitError": {
+    "message": "Демонстрация экрана доступна для звонков до 3 человек."
+  },
+  "screenShareCancelled": { "message": "Демонстрация экрана отменена." },
+  "screenSharePermissionError": {
+    "message": "Synclify не удалось получить доступ к выбранному экрану."
+  },
+  "screenShareStartError": {
+    "message": "Не удалось начать демонстрацию экрана."
+  },
+  "screenShareConnecting": { "message": "Подключение к общему экрану…" },
+  "screenShareEnded": { "message": "Демонстрация экрана завершена" },
+  "screenShareReturning": { "message": "Возвращаемся в комнату…" },
+  "screenShareInProgressError": {
+    "message": "Другой участник уже показывает свой экран."
+  },
+  "screenShareOwnerError": {
+    "message": "Только ведущий трансляции может остановить её."
+  },
+  "screenShareReadySoon": {
+    "message": "Изображение появится, когда соединение будет готово."
+  }
 }

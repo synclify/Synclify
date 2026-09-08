@@ -40,6 +40,9 @@ export type CommunicationSnapshot = {
   presentation: CommunicationPresentationState
   connectionStates: Record<string, RTCPeerConnectionState>
   streamParticipantIds: string[]
+  screenStreamParticipantIds: string[]
+  screenShareStarting: boolean
+  screenViewerOpen: boolean
 }
 
 export type CommunicationPresentationState = {
@@ -63,6 +66,9 @@ export type CommunicationCommand =
   | { kind: "leaveCall" }
   | { kind: "setMic"; enabled: boolean }
   | { kind: "setCamera"; enabled: boolean }
+  | { kind: "startScreenShare" }
+  | { kind: "stopScreenShare" }
+  | { kind: "openScreenShareViewer" }
   | { kind: "sendChat"; text: string }
   | { kind: "markChatRead" }
 
@@ -71,7 +77,13 @@ export const EMPTY_CALL_STATE: CallState = {
   active: false,
   participants: [],
   participantCount: 0,
-  maxParticipants: 4
+  maxParticipants: 4,
+  screenShare: {
+    active: false,
+    participantId: null,
+    startedAt: null,
+    maxParticipants: 3
+  }
 }
 
 export function initialPresentationState(): CommunicationPresentationState {

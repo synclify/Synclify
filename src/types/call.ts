@@ -9,12 +9,23 @@ export type CallParticipant = CallMediaState & {
   joinedAt: number
 }
 
+export type MediaSource =
+  "microphone" | "camera" | "screen-video" | "screen-audio"
+
+export type ScreenShareState = {
+  active: boolean
+  participantId: string | null
+  startedAt: number | null
+  maxParticipants: number
+}
+
 export type CallState = {
   roomId: string
   active: boolean
   participants: CallParticipant[]
   participantCount: number
   maxParticipants: number
+  screenShare: ScreenShareState
 }
 
 export type IceConfig = {
@@ -26,6 +37,7 @@ export type CallSignal = {
   toParticipantId: string
   description?: RTCSessionDescriptionInit
   candidate?: RTCIceCandidateInit | null
+  mediaSources?: Record<string, MediaSource>
 }
 
 export type IncomingCallSignal = Omit<CallSignal, "toParticipantId"> & {
@@ -38,7 +50,17 @@ export type CallCommand =
   | ({ kind: "join" } & CallMediaState)
   | ({ kind: "signal" } & CallSignal)
   | ({ kind: "mediaState" } & CallMediaState)
+  | { kind: "startScreenShare" }
+  | { kind: "stopScreenShare" }
   | { kind: "leave" }
+
+export type CallCommandResult =
+  | { ok: true }
+  | { ok: false; code: "connection"; message: string }
+
+export type ScreenShareCommandResult =
+  | { ok: true; state: CallState }
+  | { ok: false; code: CallErrorPayload["code"]; message: string }
 
 export type CallJoinedPayload = {
   participantId: string
@@ -55,6 +77,9 @@ export type CallErrorPayload = {
     | "not_in_call"
     | "invalid_target"
     | "invalid_payload"
+    | "screen_share_limit"
+    | "screen_share_in_progress"
+    | "screen_share_not_owner"
     | "connection"
   message: string
 }

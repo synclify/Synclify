@@ -1,10 +1,13 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { WebRtcCallController } from "../src/lib/webrtc-call"
+import type { CallSignal } from "../src/types/call"
 
 class FakeTrack {
   enabled = true
   stopped = false
+  onended: (() => void) | null = null
+  readonly constraints: MediaTrackConstraints[] = []
 
   constructor(
     readonly kind: "audio" | "video",
@@ -13,6 +16,10 @@ class FakeTrack {
 
   stop() {
     this.stopped = true
+  }
+
+  async applyConstraints(constraints: MediaTrackConstraints) {
+    this.constraints.push(constraints)
   }
 }
 
@@ -42,6 +49,8 @@ class FakeSender {
     rtcp: { cname: "", reducedSize: false }
   }
 
+  constructor(readonly track: FakeTrack | null = null) {}
+
   getParameters() {
     return this.parameters
   }
@@ -60,12 +69,36 @@ class FakePeerConnection {
   onconnectionstatechange: (() => unknown) | null = null
   readonly candidates: Array<RTCIceCandidateInit | null> = []
   readonly senders: FakeSender[] = []
+  readonly transceivers: Array<{
+    mid: string
+    sender: FakeSender
+    receiver: { track: FakeTrack }
+  }> = []
   closed = false
 
-  addTrack() {
-    const sender = new FakeSender()
+  addTrack(track: FakeTrack) {
+    const sender = new FakeSender(track)
     this.senders.push(sender)
+    this.transceivers.push({
+      mid: String(this.transceivers.length),
+      sender,
+      receiver: { track }
+    })
     return sender as unknown as RTCRtpSender
+  }
+
+  getSenders() {
+    return [...this.senders] as unknown as RTCRtpSender[]
+  }
+
+  getTransceivers() {
+    return this.transceivers as unknown as RTCRtpTransceiver[]
+  }
+
+  removeTrack(sender: RTCRtpSender) {
+    const fakeSender = sender as unknown as FakeSender
+    const index = this.senders.indexOf(fakeSender)
+    if (index >= 0) this.senders.splice(index, 1)
   }
 
   async createOffer(): Promise<RTCSessionDescriptionInit> {
@@ -98,11 +131,7 @@ function createHarness() {
   const stream = new FakeStream()
   let mediaCalls = 0
   const peers = new Map<string, FakePeerConnection>()
-  const signals: Array<{
-    toParticipantId: string
-    description?: RTCSessionDescriptionInit
-    candidate?: RTCIceCandidateInit | null
-  }> = []
+  const signals: CallSignal[] = []
   const controller = new WebRtcCallController({
     sendSignal: (signal) => signals.push(signal),
     onRemoteStream: () => {},
@@ -267,4 +296,101 @@ test("adds a newly enabled camera track without replacing local media", async ()
   assert.equal(mediaCalls, 2)
   assert.equal(localStream.getVideoTracks()[0], video)
   assert.equal(signals.at(-1)?.description?.type, "offer")
+})
+
+test("publishes screen tracks alongside camera and restores camera bandwidth", async () => {
+  const harness = createHarness()
+  await harness.controller.acquireLocalMedia()
+  await harness.controller.connectToExisting(["peer"])
+  const screenVideo = new FakeTrack("video", "screen-video")
+  const screenAudio = new FakeTrack("audio", "screen-audio")
+  const screenStream = {
+    getTracks: () => [screenVideo, screenAudio],
+    getVideoTracks: () => [screenVideo],
+    getAudioTracks: () => [screenAudio]
+  } as unknown as MediaStream
+
+  await harness.controller.startScreenShare(screenStream, () => {})
+  const peer = harness.peers.values().next().value as FakePeerConnection
+  assert.equal(peer.senders.length, 4)
+  assert.deepEqual(
+    Object.values(harness.signals.at(-1)?.mediaSources ?? {}).sort(),
+    ["camera", "microphone", "screen-audio", "screen-video"]
+  )
+  assert.equal(harness.stream.video.enabled, true)
+  assert.equal(peer.senders[1]?.parameters.encodings[0]?.maxBitrate, 300_000)
+
+  await harness.controller.stopScreenShare()
+  assert.equal(screenVideo.stopped, true)
+  assert.equal(screenAudio.stopped, true)
+  assert.equal(peer.senders.length, 2)
+  assert.equal(peer.senders[1]?.parameters.encodings[0]?.maxBitrate, 750_000)
+})
+
+test("reacts to the browser-native stop-sharing control", async () => {
+  const harness = createHarness()
+  await harness.controller.acquireLocalMedia()
+  const screenVideo = new FakeTrack("video", "screen-video")
+  const screenStream = {
+    getTracks: () => [screenVideo],
+    getVideoTracks: () => [screenVideo],
+    getAudioTracks: () => []
+  } as unknown as MediaStream
+  let ended = 0
+
+  await harness.controller.startScreenShare(screenStream, () => {
+    ended += 1
+  })
+  screenVideo.onended?.()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+
+  assert.equal(ended, 1)
+  assert.equal(harness.controller.getScreenStream(), null)
+  assert.equal(harness.stream.video.stopped, false)
+})
+
+test("includes active screen tracks when a peer joins later", async () => {
+  const harness = createHarness()
+  await harness.controller.acquireLocalMedia()
+  const screenVideo = new FakeTrack("video", "screen-video")
+  const screenStream = {
+    getTracks: () => [screenVideo],
+    getVideoTracks: () => [screenVideo],
+    getAudioTracks: () => []
+  } as unknown as MediaStream
+
+  await harness.controller.startScreenShare(screenStream, () => {})
+  await harness.controller.connectToExisting(["late-peer"])
+
+  const peer = harness.peers.values().next().value as FakePeerConnection
+  assert.equal(peer.senders.length, 3)
+  assert.deepEqual(
+    Object.values(harness.signals.at(-1)?.mediaSources ?? {}).sort(),
+    ["camera", "microphone", "screen-video"]
+  )
+})
+
+test("surfaces a cancelled screen picker without publishing media", async () => {
+  let requestedConstraints: DisplayMediaStreamOptions | undefined
+  const controller = new WebRtcCallController({
+    sendSignal: () => {},
+    onRemoteStream: () => {},
+    getDisplayMedia: async (constraints) => {
+      requestedConstraints = constraints
+      throw new DOMException("Cancelled", "NotAllowedError")
+    }
+  })
+
+  await assert.rejects(
+    controller.captureScreen(),
+    (error: DOMException) => error.name === "NotAllowedError"
+  )
+  assert.deepEqual(requestedConstraints, {
+    video: true,
+    audio: true,
+    selfBrowserSurface: "include",
+    preferCurrentTab: true,
+    surfaceSwitching: "include"
+  })
+  assert.equal(controller.getScreenStream(), null)
 })

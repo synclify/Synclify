@@ -50,7 +50,10 @@ type LeaveRoomPayload = {
 };
 
 const roomRegistry = new Map<string, RoomRecord>();
-const socketMembership = new Map<string, { roomId: string; participantId: string }>();
+const socketMembership = new Map<
+  string,
+  { roomId: string; participantId: string }
+>();
 const callRegistry = new CallRegistry();
 
 type CallSignalPayload = {
@@ -66,7 +69,15 @@ type CallSignalPayload = {
     sdpMLineIndex?: number | null;
     usernameFragment?: string | null;
   } | null;
+  mediaSources?: Record<
+    string,
+    "microphone" | "camera" | "screen-video" | "screen-audio"
+  >;
 };
+
+type ScreenShareCommandResponse =
+  | { ok: true; state: ReturnType<CallRegistry["getState"]> }
+  | { ok: false; code: CallErrorCode; message: string };
 
 // Creates a room code and checks that it's empty
 app.get("/create", (res, req) => {
@@ -205,7 +216,8 @@ function proxyToPostHog(method: "GET" | "POST" | "HEAD") {
 
       const resHeaders = filterProxyResponseHeaders(response.headers);
 
-      const hasNoBody = method === "HEAD" || response.status === 204 || response.status === 304;
+      const hasNoBody =
+        method === "HEAD" || response.status === 204 || response.status === 304;
       const resBody = hasNoBody ? "" : await response.text();
 
       if (hasNoBody) {
@@ -511,7 +523,7 @@ io.sockets.on("connection", (socket) => {
 
   socket.on(
     "callJoin",
-    (payload: ({ roomId?: string } & Partial<CallMediaState>) = {}) => {
+    (payload: { roomId?: string } & Partial<CallMediaState> = {}) => {
       const room = payload.roomId?.toUpperCase();
       const membership = socketMembership.get(socket.id);
       if (!room || membership?.roomId !== room) {
@@ -649,12 +661,13 @@ io.sockets.on("connection", (socket) => {
       fromParticipantId: membership.participantId,
       description: payload.description,
       candidate: payload.candidate,
+      mediaSources: payload.mediaSources,
     });
   });
 
   socket.on(
     "callMediaState",
-    (payload: ({ roomId?: string } & Partial<CallMediaState>) = {}) => {
+    (payload: { roomId?: string } & Partial<CallMediaState> = {}) => {
       const room = payload.roomId?.toUpperCase();
       const membership = socketMembership.get(socket.id);
       if (
@@ -693,6 +706,58 @@ io.sockets.on("connection", (socket) => {
     },
   );
 
+  socket.on(
+    "callScreenShareStart",
+    (
+      payload: { roomId?: string } = {},
+      acknowledge?: (response: ScreenShareCommandResponse) => void,
+    ) => {
+      const room = payload.roomId?.toUpperCase();
+      const membership = socketMembership.get(socket.id);
+      if (!room || membership?.roomId !== room) {
+        acknowledge?.({
+          ok: false,
+          code: "not_in_room",
+          message: "Join the watch room before sharing your screen.",
+        });
+        return;
+      }
+
+      const result = callRegistry.startScreenShare(
+        room,
+        membership.participantId,
+      );
+      acknowledge?.(result);
+      if (result.ok) broadcastCallState(room);
+    },
+  );
+
+  socket.on(
+    "callScreenShareStop",
+    (
+      payload: { roomId?: string } = {},
+      acknowledge?: (response: ScreenShareCommandResponse) => void,
+    ) => {
+      const room = payload.roomId?.toUpperCase();
+      const membership = socketMembership.get(socket.id);
+      if (!room || membership?.roomId !== room) {
+        acknowledge?.({
+          ok: false,
+          code: "not_in_room",
+          message: "You are no longer in this watch room.",
+        });
+        return;
+      }
+
+      const result = callRegistry.stopScreenShare(
+        room,
+        membership.participantId,
+      );
+      acknowledge?.(result);
+      if (result.ok) broadcastCallState(room);
+    },
+  );
+
   socket.on("callLeave", (payload: { roomId?: string } = {}) => {
     const room = payload.roomId?.toUpperCase();
     const membership = socketMembership.get(socket.id);
@@ -715,7 +780,9 @@ io.sockets.on("connection", (socket) => {
     const participantId =
       typeof payload === "string" ? socket.id : payload.participantId?.trim();
     const requestedControlMode =
-      typeof payload === "string" ? "shared" : payload.controlMode ?? "shared";
+      typeof payload === "string"
+        ? "shared"
+        : (payload.controlMode ?? "shared");
 
     if (!room || !participantId || !/^[A-Z0-9]{5}$/.test(room)) {
       socket.emit("roomError", {
@@ -727,9 +794,16 @@ io.sockets.on("connection", (socket) => {
     }
 
     const existingRoom = roomRegistry.get(room);
-    const alreadyInRoom = existingRoom?.participants.has(participantId) ?? false;
+    const alreadyInRoom =
+      existingRoom?.participants.has(participantId) ?? false;
 
-    log("Room " + room + " has " + (existingRoom?.participants.size ?? 0) + " client(s)");
+    log(
+      "Room " +
+        room +
+        " has " +
+        (existingRoom?.participants.size ?? 0) +
+        " client(s)",
+    );
     log("Request to create or join room " + room);
 
     if (

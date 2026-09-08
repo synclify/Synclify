@@ -97,5 +97,31 @@
     "message": "کال میں شامل ہونے کے لیے کیمرا اور مائیکروفون کی اجازت دیں۔"
   },
   "callDeviceError": { "message": "کوئی کیمرا یا مائیکروفون نہیں ملا۔" },
-  "callGenericError": { "message": "ویڈیو کال شروع نہیں ہو سکی۔" }
+  "callGenericError": { "message": "ویڈیو کال شروع نہیں ہو سکی۔" },
+  "shareScreen": { "message": "اسکرین شیئر کریں" },
+  "stopScreenSharing": { "message": "شیئرنگ روکیں" },
+  "viewSharedScreen": { "message": "اسکرین دیکھیں" },
+  "reopenSharedScreen": { "message": "اسکرین دوبارہ کھولیں" },
+  "youAreSharingScreen": { "message": "آپ اپنی اسکرین شیئر کر رہے ہیں" },
+  "isSharingScreen": { "message": "اپنی اسکرین شیئر کر رہے ہیں" },
+  "screenShareLimitError": {
+    "message": "اسکرین شیئرنگ زیادہ سے زیادہ 3 افراد کی کال کے لیے دستیاب ہے۔"
+  },
+  "screenShareCancelled": { "message": "اسکرین شیئرنگ منسوخ کر دی گئی۔" },
+  "screenSharePermissionError": {
+    "message": "Synclify منتخب اسکرین تک رسائی حاصل نہیں کر سکا۔"
+  },
+  "screenShareStartError": { "message": "اسکرین شیئرنگ شروع نہیں ہو سکی۔" },
+  "screenShareConnecting": {
+    "message": "شیئر کی گئی اسکرین سے منسلک ہو رہا ہے…"
+  },
+  "screenShareEnded": { "message": "اسکرین شیئرنگ ختم ہو گئی" },
+  "screenShareReturning": { "message": "واچ پارٹی پر واپس جا رہے ہیں…" },
+  "screenShareInProgressError": {
+    "message": "کوئی اور پہلے ہی اپنی اسکرین شیئر کر رہا ہے۔"
+  },
+  "screenShareOwnerError": {
+    "message": "صرف شیئر کرنے والا شخص اسکرین شیئر روک سکتا ہے۔"
+  },
+  "screenShareReadySoon": { "message": "کنکشن تیار ہوتے ہی تصویر ظاہر ہوگی۔" }
 }

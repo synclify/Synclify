@@ -103,5 +103,31 @@
   "callDeviceError": {
     "message": "কোনো ক্যামেরা বা মাইক্রোফোন পাওয়া যায়নি।"
   },
-  "callGenericError": { "message": "ভিডিও কল শুরু করা যায়নি।" }
+  "callGenericError": { "message": "ভিডিও কল শুরু করা যায়নি।" },
+  "shareScreen": { "message": "স্ক্রিন শেয়ার করুন" },
+  "stopScreenSharing": { "message": "শেয়ার বন্ধ করুন" },
+  "viewSharedScreen": { "message": "স্ক্রিন দেখুন" },
+  "reopenSharedScreen": { "message": "স্ক্রিন আবার খুলুন" },
+  "youAreSharingScreen": { "message": "আপনি আপনার স্ক্রিন শেয়ার করছেন" },
+  "isSharingScreen": { "message": "স্ক্রিন শেয়ার করছেন" },
+  "screenShareLimitError": {
+    "message": "সর্বোচ্চ ৩ জনের কলে স্ক্রিন শেয়ার করা যায়।"
+  },
+  "screenShareCancelled": { "message": "স্ক্রিন শেয়ার বাতিল করা হয়েছে।" },
+  "screenSharePermissionError": {
+    "message": "Synclify নির্বাচিত স্ক্রিন অ্যাক্সেস করতে পারেনি।"
+  },
+  "screenShareStartError": { "message": "স্ক্রিন শেয়ার শুরু করা যায়নি।" },
+  "screenShareConnecting": {
+    "message": "শেয়ার করা স্ক্রিনে সংযোগ করা হচ্ছে…"
+  },
+  "screenShareEnded": { "message": "স্ক্রিন শেয়ার শেষ হয়েছে" },
+  "screenShareReturning": { "message": "ওয়াচ পার্টিতে ফিরে যাওয়া হচ্ছে…" },
+  "screenShareInProgressError": {
+    "message": "অন্য একজন ইতিমধ্যে তার স্ক্রিন শেয়ার করছেন।"
+  },
+  "screenShareOwnerError": {
+    "message": "শুধু শেয়ারকারীই স্ক্রিন শেয়ার বন্ধ করতে পারেন।"
+  },
+  "screenShareReadySoon": { "message": "সংযোগ প্রস্তুত হলেই ছবি দেখা যাবে।" }
 }

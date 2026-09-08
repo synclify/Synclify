@@ -9,7 +9,7 @@ import {
 } from "react"
 import type React from "react"
 import browser from "webextension-polyfill"
-import { Scaling } from "lucide-react"
+import { MonitorUp, Scaling, ScreenShareOff } from "lucide-react"
 import iconUrl from "~/assets/icon.png"
 import tailwindStyles from "~/assets/style.css?inline"
 import {
@@ -72,9 +72,7 @@ function bubblePositionAtEdge(
   const position = clampBubblePosition(
     {
       x:
-        side === "left"
-          ? EDGE_MARGIN
-          : window.innerWidth - width - EDGE_MARGIN,
+        side === "left" ? EDGE_MARGIN : window.innerWidth - width - EDGE_MARGIN,
       y
     },
     width
@@ -231,10 +229,10 @@ function useActiveSpeaker(
       if (candidateSamples >= 2) setActiveId(loudestId)
     }, 120)
 
-    audioContext.resume().catch(() => { })
+    audioContext.resume().catch(() => {})
     return () => {
       window.clearInterval(interval)
-      audioContext.close().catch(() => { })
+      audioContext.close().catch(() => {})
     }
   }, [participants, streams])
 
@@ -249,7 +247,7 @@ function ParticipantAudio({ stream }: { stream: MediaStream }) {
     if (!audio) return
     audio.srcObject = stream
     const play = () => {
-      audio.play().catch(() => { })
+      audio.play().catch(() => {})
     }
     play()
     document.addEventListener("pointerdown", play, {
@@ -323,7 +321,7 @@ function CommunicationApp() {
   const overlayPointerRef = useRef({ active: false, x: 0, y: 0, bx: 0, by: 0 })
 
   useEffect(() => {
-    controller.initialize().catch(() => { })
+    controller.initialize().catch(() => {})
   }, [controller])
 
   useEffect(() => {
@@ -352,11 +350,7 @@ function CommunicationApp() {
         }
         setBubblePos(
           saved?.side === "left" || saved?.side === "right"
-            ? bubblePositionAtEdge(
-                saved.side,
-                savedPosition.y,
-                BUBBLE_SIZE
-              )
+            ? bubblePositionAtEdge(saved.side, savedPosition.y, BUBBLE_SIZE)
             : snapBubblePosition(savedPosition)
         )
         const savedPanel = result.communicationPanelPos as Position | undefined
@@ -380,7 +374,7 @@ function CommunicationApp() {
                 communicationPanelSizeVersion: PANEL_SIZE_VERSION
               })
             )
-            .catch(() => { })
+            .catch(() => {})
         }
       })
   }, [])
@@ -421,9 +415,7 @@ function CommunicationApp() {
       bubbleWidthRef.current = width
       setBubblePos((position) => {
         const next = bubblePositionAtEdge(position.side, position.y, width)
-        return next.x === position.x && next.y === position.y
-          ? position
-          : next
+        return next.x === position.x && next.y === position.y ? position : next
       })
     }
     syncWidth()
@@ -484,7 +476,7 @@ function CommunicationApp() {
 
   const dispatch = useCallback(
     (command: Parameters<typeof controller.execute>[0]) => {
-      controller.execute(command).catch(() => { })
+      controller.execute(command).catch(() => {})
     },
     [controller]
   )
@@ -607,7 +599,7 @@ function CommunicationApp() {
     setBubblePos(position)
     browser.storage.local
       .set({ communicationBubblePos: position })
-      .catch(() => { })
+      .catch(() => {})
   }
   const onBubbleClick = () => {
     if (pointerRef.current.moved) {
@@ -698,7 +690,7 @@ function CommunicationApp() {
         communicationPanelPos: position,
         communicationBubblePos: bubblePosition
       })
-      .catch(() => { })
+      .catch(() => {})
   }
 
   const onPanelKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
@@ -733,7 +725,7 @@ function CommunicationApp() {
         communicationPanelPos: position,
         communicationBubblePos: bubblePosition
       })
-      .catch(() => { })
+      .catch(() => {})
   }
 
   const getResizedPanel = (clientX: number, clientY: number) => {
@@ -799,7 +791,7 @@ function CommunicationApp() {
         communicationPanelSizeVersion: PANEL_SIZE_VERSION,
         communicationBubblePos: bubblePosition
       })
-      .catch(() => { })
+      .catch(() => {})
   }
   const onResizeKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     const direction = {
@@ -839,7 +831,7 @@ function CommunicationApp() {
         communicationPanelSizeVersion: PANEL_SIZE_VERSION,
         communicationBubblePos: bubblePosition
       })
-      .catch(() => { })
+      .catch(() => {})
   }
 
   const panelStyle = {
@@ -900,14 +892,12 @@ function CommunicationApp() {
       <style>{tailwindStyles}</style>
       {callParticipants
         .filter((participant) => participant.id !== snapshot.selfId)
-        .map((participant) =>
-          streams[participant.id] ? (
-            <ParticipantAudio
-              key={participant.id}
-              stream={streams[participant.id]}
-            />
+        .map((participant) => {
+          const stream = streams[participant.id]
+          return stream ? (
+            <ParticipantAudio key={participant.id} stream={stream} />
           ) : null
-        )}
+        })}
       {!panelVisible &&
         !(snapshot.inCall && snapshot.presentation.mode === "floating") && (
           <button
@@ -942,6 +932,16 @@ function CommunicationApp() {
             </span>
             {snapshot.inCall && (
               <span className="flex min-w-0 flex-1 items-center gap-1.5 pr-0.5 text-left">
+                {snapshot.callState.screenShare.participantId ===
+                  snapshot.selfId && (
+                  <span
+                    className="flex items-center text-[#f4b238]"
+                    role="img"
+                    aria-label={t("youAreSharingScreen")}
+                    title={t("youAreSharingScreen")}>
+                    <MonitorUp aria-hidden="true" size={13} />
+                  </span>
+                )}
                 <span
                   className={cn(
                     "grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full [&>svg]:h-3 [&>svg]:w-3",
@@ -1041,7 +1041,10 @@ function CommunicationApp() {
             <span>
               {snapshot.connectionStatus === "reconnecting"
                 ? "Reconnecting"
-                : `${snapshot.callState.participantCount} live`}
+                : snapshot.callState.screenShare.participantId ===
+                    snapshot.selfId
+                  ? "You are sharing"
+                  : `${snapshot.callState.participantCount} live`}
             </span>
             <button
               type="button"
@@ -1117,7 +1120,7 @@ function CommunicationApp() {
                   className={cn(
                     "grid h-[34px] w-[34px] cursor-pointer place-items-center rounded-full border border-white/[.13] bg-white/[.07] p-0 text-[#f2eee5]",
                     !snapshot.micEnabled &&
-                    "border-[#f4b238]/35 bg-[#f4b238]/10 text-[#f4b238]"
+                      "border-[#f4b238]/35 bg-[#f4b238]/10 text-[#f4b238]"
                   )}
                   onClick={() =>
                     dispatch({ kind: "setMic", enabled: !snapshot.micEnabled })
@@ -1134,7 +1137,7 @@ function CommunicationApp() {
                   className={cn(
                     "grid h-[34px] w-[34px] cursor-pointer place-items-center rounded-full border border-white/[.13] bg-white/[.07] p-0 text-[#f2eee5]",
                     !snapshot.cameraEnabled &&
-                    "border-[#f4b238]/35 bg-[#f4b238]/10 text-[#f4b238]"
+                      "border-[#f4b238]/35 bg-[#f4b238]/10 text-[#f4b238]"
                   )}
                   onClick={() =>
                     dispatch({
@@ -1146,6 +1149,44 @@ function CommunicationApp() {
                     snapshot.cameraEnabled ? t("hideCamera") : t("showCamera")
                   }>
                   <CameraIcon off={!snapshot.cameraEnabled} />
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "grid h-[34px] w-[34px] cursor-pointer place-items-center rounded-full border border-white/[.13] bg-white/[.07] p-0 text-[#f2eee5]",
+                    snapshot.callState.screenShare.active &&
+                      "border-[#f4b238]/35 bg-[#f4b238]/10 text-[#f4b238]"
+                  )}
+                  disabled={
+                    !snapshot.callState.screenShare.active &&
+                    snapshot.callState.participantCount >
+                      snapshot.callState.screenShare.maxParticipants
+                  }
+                  onClick={() =>
+                    dispatch({
+                      kind:
+                        snapshot.callState.screenShare.participantId ===
+                        snapshot.selfId
+                          ? "stopScreenShare"
+                          : snapshot.callState.screenShare.active
+                            ? "openScreenShareViewer"
+                            : "startScreenShare"
+                    })
+                  }
+                  aria-label={
+                    snapshot.callState.screenShare.participantId ===
+                    snapshot.selfId
+                      ? t("stopScreenSharing")
+                      : snapshot.callState.screenShare.active
+                        ? t("viewSharedScreen")
+                        : t("shareScreen")
+                  }>
+                  {snapshot.callState.screenShare.participantId ===
+                  snapshot.selfId ? (
+                    <ScreenShareOff aria-hidden="true" size={16} />
+                  ) : (
+                    <MonitorUp aria-hidden="true" size={16} />
+                  )}
                 </button>
                 <button
                   type="button"

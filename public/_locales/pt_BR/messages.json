@@ -115,5 +115,35 @@
   "callDeviceError": {
     "message": "Nenhuma câmera ou microfone foi encontrado."
   },
-  "callGenericError": { "message": "Não foi possível iniciar a videochamada." }
+  "callGenericError": { "message": "Não foi possível iniciar a videochamada." },
+  "shareScreen": { "message": "Compartilhar tela" },
+  "stopScreenSharing": { "message": "Parar compartilhamento" },
+  "viewSharedScreen": { "message": "Ver tela" },
+  "reopenSharedScreen": { "message": "Reabrir tela" },
+  "youAreSharingScreen": { "message": "Você está compartilhando sua tela" },
+  "isSharingScreen": { "message": "está compartilhando a tela" },
+  "screenShareLimitError": {
+    "message": "O compartilhamento de tela está disponível para chamadas com até 3 pessoas."
+  },
+  "screenShareCancelled": {
+    "message": "O compartilhamento de tela foi cancelado."
+  },
+  "screenSharePermissionError": {
+    "message": "O Synclify não conseguiu acessar a tela selecionada."
+  },
+  "screenShareStartError": {
+    "message": "Não foi possível iniciar o compartilhamento de tela."
+  },
+  "screenShareConnecting": { "message": "Conectando à tela compartilhada…" },
+  "screenShareEnded": { "message": "O compartilhamento de tela terminou" },
+  "screenShareReturning": { "message": "Voltando para a sala…" },
+  "screenShareInProgressError": {
+    "message": "Outra pessoa já está compartilhando a tela."
+  },
+  "screenShareOwnerError": {
+    "message": "Somente quem está compartilhando pode parar."
+  },
+  "screenShareReadySoon": {
+    "message": "A imagem aparecerá assim que a conexão estiver pronta."
+  }
 }

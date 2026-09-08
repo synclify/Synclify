@@ -115,5 +115,35 @@
   "callDeviceError": {
     "message": "No se encontró ninguna cámara o micrófono."
   },
-  "callGenericError": { "message": "No se pudo iniciar la videollamada." }
+  "callGenericError": { "message": "No se pudo iniciar la videollamada." },
+  "shareScreen": { "message": "Compartir pantalla" },
+  "stopScreenSharing": { "message": "Dejar de compartir" },
+  "viewSharedScreen": { "message": "Ver pantalla" },
+  "reopenSharedScreen": { "message": "Volver a abrir" },
+  "youAreSharingScreen": { "message": "Estás compartiendo tu pantalla" },
+  "isSharingScreen": { "message": "está compartiendo su pantalla" },
+  "screenShareLimitError": {
+    "message": "La pantalla se puede compartir en llamadas de hasta 3 personas."
+  },
+  "screenShareCancelled": {
+    "message": "Se canceló el uso compartido de pantalla."
+  },
+  "screenSharePermissionError": {
+    "message": "Synclify no pudo acceder a la pantalla seleccionada."
+  },
+  "screenShareStartError": { "message": "No se pudo compartir la pantalla." },
+  "screenShareConnecting": {
+    "message": "Conectando a la pantalla compartida…"
+  },
+  "screenShareEnded": { "message": "La pantalla compartida ha terminado" },
+  "screenShareReturning": { "message": "Volviendo a la sala…" },
+  "screenShareInProgressError": {
+    "message": "Otra persona ya está compartiendo su pantalla."
+  },
+  "screenShareOwnerError": {
+    "message": "Solo la persona que comparte puede detener la pantalla compartida."
+  },
+  "screenShareReadySoon": {
+    "message": "La imagen aparecerá cuando la conexión esté lista."
+  }
 }

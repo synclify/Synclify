@@ -57,6 +57,8 @@ export enum SOCKET_EVENTS {
   CALL_STATE = "callState",
   CALL_SIGNAL = "callSignal",
   CALL_MEDIA_STATE = "callMediaState",
+  CALL_SCREEN_SHARE_START = "callScreenShareStart",
+  CALL_SCREEN_SHARE_STOP = "callScreenShareStop",
   CALL_LEAVE = "callLeave",
   CALL_ERROR = "callError"
 }

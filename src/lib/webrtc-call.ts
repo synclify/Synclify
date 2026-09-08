@@ -1,36 +1,63 @@
-import type { CallSignal, IncomingCallSignal } from "~/types/call"
+import type { CallSignal, IncomingCallSignal, MediaSource } from "~/types/call"
 
-const VIDEO_MAX_BITRATE = 750_000
+const CAMERA_MAX_BITRATE = 750_000
+const CAMERA_SHARING_MAX_BITRATE = 300_000
+const SCREEN_MAX_BITRATE = 2_500_000
+
+export type RemoteMediaKind = "camera" | "screen"
 
 type CallControllerOptions = {
   sendSignal: (signal: CallSignal) => void
-  onRemoteStream: (participantId: string, stream: MediaStream | null) => void
+  onRemoteStream: (
+    participantId: string,
+    kind: RemoteMediaKind,
+    stream: MediaStream | null
+  ) => void
   onConnectionState?: (
     participantId: string,
     state: RTCPeerConnectionState
   ) => void
   getUserMedia?: (constraints: MediaStreamConstraints) => Promise<MediaStream>
+  getDisplayMedia?: (
+    constraints: DisplayMediaStreamOptions
+  ) => Promise<MediaStream>
   createPeerConnection?: (configuration: RTCConfiguration) => RTCPeerConnection
+}
+
+type ScreenCaptureOptions = DisplayMediaStreamOptions & {
+  preferCurrentTab?: boolean
+  selfBrowserSurface?: "include" | "exclude"
+  surfaceSwitching?: "include" | "exclude"
 }
 
 export class WebRtcCallController {
   private readonly peers = new Map<string, RTCPeerConnection>()
   private readonly remoteStreams = new Map<string, MediaStream>()
+  private readonly remoteMediaSources = new Map<
+    string,
+    Record<string, MediaSource>
+  >()
   private readonly pendingCandidates = new Map<
     string,
     Array<RTCIceCandidateInit | null>
   >()
+  private readonly localTrackSources = new Map<string, MediaSource>()
   private readonly sendSignal: CallControllerOptions["sendSignal"]
   private readonly onRemoteStream: CallControllerOptions["onRemoteStream"]
   private readonly onConnectionState?: CallControllerOptions["onConnectionState"]
   private readonly getUserMedia: NonNullable<
     CallControllerOptions["getUserMedia"]
   >
+  private readonly getDisplayMedia: NonNullable<
+    CallControllerOptions["getDisplayMedia"]
+  >
   private readonly createPeerConnection: NonNullable<
     CallControllerOptions["createPeerConnection"]
   >
   private iceServers: RTCIceServer[] = []
   private localStream: MediaStream | null = null
+  private screenStream: MediaStream | null = null
+  private screenEnded: (() => void) | null = null
 
   constructor(options: CallControllerOptions) {
     this.sendSignal = options.sendSignal
@@ -39,6 +66,9 @@ export class WebRtcCallController {
     this.getUserMedia =
       options.getUserMedia ??
       ((constraints) => navigator.mediaDevices.getUserMedia(constraints))
+    this.getDisplayMedia =
+      options.getDisplayMedia ??
+      ((constraints) => navigator.mediaDevices.getDisplayMedia(constraints))
     this.createPeerConnection =
       options.createPeerConnection ??
       ((configuration) => new RTCPeerConnection(configuration))
@@ -64,11 +94,94 @@ export class WebRtcCallController {
       return this.localStream
     }
     this.localStream = await this.getUserMedia(constraints)
+    this.registerLocalTracks(this.localStream)
     return this.localStream
+  }
+
+  async captureScreen(): Promise<MediaStream> {
+    const captureOptions: ScreenCaptureOptions = {
+      video: true,
+      audio: true,
+      // Chromium uses these hints to keep the Synclify source tab available
+      // and prominent. Browsers that do not implement them ignore the fields.
+      selfBrowserSurface: "include",
+      preferCurrentTab: true,
+      surfaceSwitching: "include"
+    }
+    const stream = await this.getDisplayMedia(captureOptions)
+    if (stream.getVideoTracks().length === 0) {
+      stream.getTracks().forEach((track) => track.stop())
+      throw new DOMException("No screen was selected", "NotFoundError")
+    }
+    stream
+      .getVideoTracks()[0]
+      ?.applyConstraints?.({
+        width: { ideal: 1920, max: 1920 },
+        height: { ideal: 1080, max: 1080 },
+        frameRate: { ideal: 15, max: 30 }
+      })
+      .catch(() => {})
+    return stream
+  }
+
+  async startScreenShare(
+    stream: MediaStream,
+    onEnded: () => void
+  ): Promise<void> {
+    if (
+      stream.getVideoTracks().length === 0 ||
+      stream.getVideoTracks().every((track) => track.readyState === "ended")
+    ) {
+      stream.getTracks().forEach((track) => track.stop())
+      throw new DOMException("Screen sharing ended", "AbortError")
+    }
+    if (this.screenStream) await this.stopScreenShare()
+    this.screenStream = stream
+    this.screenEnded = onEnded
+    for (const track of stream.getVideoTracks()) {
+      this.localTrackSources.set(track.id, "screen-video")
+      track.onended = this.onScreenTrackEnded
+    }
+    for (const track of stream.getAudioTracks()) {
+      this.localTrackSources.set(track.id, "screen-audio")
+    }
+    for (const peer of this.peers.values()) {
+      for (const track of stream.getTracks()) {
+        const sender = peer.addTrack(track, stream)
+        this.configureSender(sender, this.sourceForTrack(track))
+      }
+    }
+    this.setCameraSharingProfile(true)
+    await this.renegotiatePeers()
+  }
+
+  async stopScreenShare(): Promise<void> {
+    const stream = this.screenStream
+    if (!stream) return
+    this.screenStream = null
+    this.screenEnded = null
+    const trackIds = new Set(stream.getTracks().map((track) => track.id))
+    for (const track of stream.getTracks()) {
+      track.onended = null
+      this.localTrackSources.delete(track.id)
+      track.stop()
+    }
+    for (const peer of this.peers.values()) {
+      for (const sender of peer.getSenders?.() ?? []) {
+        if (sender.track && trackIds.has(sender.track.id))
+          peer.removeTrack(sender)
+      }
+    }
+    this.setCameraSharingProfile(false)
+    await this.renegotiatePeers()
   }
 
   getLocalStream(): MediaStream | null {
     return this.localStream
+  }
+
+  getScreenStream(): MediaStream | null {
+    return this.screenStream
   }
 
   async ensureMedia(kind: "audio" | "video"): Promise<MediaStream> {
@@ -104,24 +217,16 @@ export class WebRtcCallController {
     this.localStream ??= new MediaStream()
     for (const track of acquired.getTracks()) {
       this.localStream.addTrack(track)
+      this.localTrackSources.set(
+        track.id,
+        track.kind === "audio" ? "microphone" : "camera"
+      )
       for (const peer of this.peers.values()) {
-        const receivingTransceiver = peer
-          .getTransceivers?.()
-          .find(
-            (transceiver) =>
-              transceiver.receiver.track.kind === track.kind &&
-              !transceiver.sender.track
-          )
-        const sender = receivingTransceiver
-          ? receivingTransceiver.sender
-          : peer.addTrack(track, this.localStream)
-        if (receivingTransceiver) {
-          await sender.replaceTrack(track)
-          receivingTransceiver.direction = "sendrecv"
-        }
-        if (track.kind === "video") this.limitVideoBitrate(sender)
+        const sender = peer.addTrack(track, this.localStream)
+        this.configureSender(sender, this.sourceForTrack(track))
       }
     }
+    if (this.screenStream) this.setCameraSharingProfile(true)
     await this.renegotiatePeers()
     return this.localStream
   }
@@ -133,20 +238,7 @@ export class WebRtcCallController {
   async connectToExisting(participantIds: string[]): Promise<void> {
     for (const participantId of participantIds) {
       const peer = this.getOrCreatePeer(participantId)
-      const offer = await peer.createOffer()
-      await peer.setLocalDescription(offer)
-      this.sendSignal({
-        toParticipantId: participantId,
-        description: offer
-      })
-    }
-  }
-
-  private async renegotiatePeers(): Promise<void> {
-    for (const [participantId, peer] of this.peers) {
-      const offer = await peer.createOffer()
-      await peer.setLocalDescription(offer)
-      this.sendSignal({ toParticipantId: participantId, description: offer })
+      await this.sendOffer(participantId, peer)
     }
   }
 
@@ -154,6 +246,19 @@ export class WebRtcCallController {
     const participantId = signal.fromParticipantId
     const peer = this.getOrCreatePeer(participantId)
 
+    if (signal.mediaSources) {
+      this.remoteMediaSources.set(participantId, signal.mediaSources)
+      if (
+        !Object.values(signal.mediaSources).some((source) =>
+          source.startsWith("screen")
+        )
+      ) {
+        const key = `${participantId}:screen`
+        if (this.remoteStreams.delete(key)) {
+          this.onRemoteStream(participantId, "screen", null)
+        }
+      }
+    }
     if (signal.description) {
       await peer.setRemoteDescription(signal.description)
       await this.flushPendingCandidates(participantId, peer)
@@ -163,7 +268,8 @@ export class WebRtcCallController {
         await peer.setLocalDescription(answer)
         this.sendSignal({
           toParticipantId: participantId,
-          description: answer
+          description: answer,
+          mediaSources: this.describeLocalSources(peer)
         })
       }
     }
@@ -203,15 +309,82 @@ export class WebRtcCallController {
       this.removePeer(participantId)
     }
     this.pendingCandidates.clear()
+    this.remoteMediaSources.clear()
   }
 
   stop(): void {
     this.resetPeers()
-    for (const track of this.localStream?.getTracks() ?? []) {
+    for (const track of this.localStream?.getTracks() ?? []) track.stop()
+    for (const track of this.screenStream?.getTracks() ?? []) {
+      track.onended = null
       track.stop()
     }
     this.localStream = null
+    this.screenStream = null
+    this.screenEnded = null
+    this.localTrackSources.clear()
     this.iceServers = []
+  }
+
+  private readonly onScreenTrackEnded = () => {
+    const callback = this.screenEnded
+    this.stopScreenShare()
+      .catch(() => {})
+      .finally(() => callback?.())
+  }
+
+  private registerLocalTracks(stream: MediaStream): void {
+    for (const track of stream.getTracks()) {
+      this.localTrackSources.set(
+        track.id,
+        track.kind === "audio" ? "microphone" : "camera"
+      )
+    }
+  }
+
+  private sourceForTrack(track: MediaStreamTrack): MediaSource {
+    return (
+      this.localTrackSources.get(track.id) ??
+      (track.kind === "audio" ? "microphone" : "camera")
+    )
+  }
+
+  private allLocalStreams(): MediaStream[] {
+    return [this.localStream, this.screenStream].filter(
+      (stream): stream is MediaStream => stream !== null
+    )
+  }
+
+  private async renegotiatePeers(): Promise<void> {
+    for (const [participantId, peer] of this.peers) {
+      await this.sendOffer(participantId, peer)
+    }
+  }
+
+  private async sendOffer(
+    participantId: string,
+    peer: RTCPeerConnection
+  ): Promise<void> {
+    const offer = await peer.createOffer()
+    await peer.setLocalDescription(offer)
+    this.sendSignal({
+      toParticipantId: participantId,
+      description: offer,
+      mediaSources: this.describeLocalSources(peer)
+    })
+  }
+
+  private describeLocalSources(
+    peer: RTCPeerConnection
+  ): Record<string, MediaSource> {
+    const sources: Record<string, MediaSource> = {}
+    for (const transceiver of peer.getTransceivers?.() ?? []) {
+      const track = transceiver.sender.track
+      if (transceiver.mid && track) {
+        sources[transceiver.mid] = this.sourceForTrack(track)
+      }
+    }
+    return sources
   }
 
   private getOrCreatePeer(participantId: string): RTCPeerConnection {
@@ -224,20 +397,18 @@ export class WebRtcCallController {
     const peer = this.createPeerConnection({ iceServers: this.iceServers })
     this.peers.set(participantId, peer)
 
-    for (const track of this.localStream.getTracks()) {
-      const sender = peer.addTrack(track, this.localStream)
-      if (track.kind === "video") {
-        this.limitVideoBitrate(sender)
+    for (const stream of this.allLocalStreams()) {
+      for (const track of stream.getTracks()) {
+        const sender = peer.addTrack(track, stream)
+        this.configureSender(sender, this.sourceForTrack(track))
       }
     }
-    const localKinds = new Set(
-      this.localStream.getTracks().map((track) => track.kind)
-    )
+    const localSources = new Set(this.localTrackSources.values())
     if (typeof peer.addTransceiver === "function") {
-      if (!localKinds.has("audio")) {
+      if (!localSources.has("microphone")) {
         peer.addTransceiver("audio", { direction: "recvonly" })
       }
-      if (!localKinds.has("video")) {
+      if (!localSources.has("camera")) {
         peer.addTransceiver("video", { direction: "recvonly" })
       }
     }
@@ -249,15 +420,30 @@ export class WebRtcCallController {
       })
     }
     peer.ontrack = (event) => {
-      let stream = event.streams[0]
-      if (!stream) {
-        stream = this.remoteStreams.get(participantId) ?? new MediaStream()
-        if (!stream.getTracks().some((track) => track.id === event.track.id)) {
-          stream.addTrack(event.track)
+      const source =
+        (event.transceiver.mid
+          ? this.remoteMediaSources.get(participantId)?.[event.transceiver.mid]
+          : undefined) ??
+        (event.track.kind === "audio" ? "microphone" : "camera")
+      const kind: RemoteMediaKind = source.startsWith("screen")
+        ? "screen"
+        : "camera"
+      const key = `${participantId}:${kind}`
+      const stream = this.remoteStreams.get(key) ?? new MediaStream()
+      if (!stream.getTracks().some((track) => track.id === event.track.id)) {
+        stream.addTrack(event.track)
+      }
+      this.remoteStreams.set(key, stream)
+      this.onRemoteStream(participantId, kind, stream)
+      event.track.onended = () => {
+        stream.removeTrack(event.track)
+        if (stream.getTracks().length === 0) {
+          this.remoteStreams.delete(key)
+          this.onRemoteStream(participantId, kind, null)
+        } else {
+          this.onRemoteStream(participantId, kind, stream)
         }
       }
-      this.remoteStreams.set(participantId, stream)
-      this.onRemoteStream(participantId, stream)
     }
     peer.onconnectionstatechange = () => {
       this.onConnectionState?.(participantId, peer.connectionState)
@@ -272,28 +458,61 @@ export class WebRtcCallController {
   ): Promise<void> {
     const candidates = this.pendingCandidates.get(participantId) ?? []
     this.pendingCandidates.delete(participantId)
-    for (const candidate of candidates) {
-      await peer.addIceCandidate(candidate)
-    }
+    for (const candidate of candidates) await peer.addIceCandidate(candidate)
   }
 
   private removePeer(participantId: string): void {
-    const peer = this.peers.get(participantId)
-    peer?.close()
+    this.peers.get(participantId)?.close()
     this.peers.delete(participantId)
     this.pendingCandidates.delete(participantId)
-    this.remoteStreams.delete(participantId)
-    this.onRemoteStream(participantId, null)
+    this.remoteMediaSources.delete(participantId)
+    for (const kind of ["camera", "screen"] as const) {
+      this.remoteStreams.delete(`${participantId}:${kind}`)
+      this.onRemoteStream(participantId, kind, null)
+    }
   }
 
-  private limitVideoBitrate(sender: RTCRtpSender): void {
+  private configureSender(sender: RTCRtpSender, source: MediaSource): void {
+    if (source !== "camera" && !source.startsWith("screen")) return
+    this.setSenderParameters(
+      sender,
+      source.startsWith("screen")
+        ? SCREEN_MAX_BITRATE
+        : this.screenStream
+          ? CAMERA_SHARING_MAX_BITRATE
+          : CAMERA_MAX_BITRATE
+    )
+  }
+
+  private setCameraSharingProfile(sharing: boolean): void {
+    this.localStream
+      ?.getVideoTracks()[0]
+      ?.applyConstraints?.({
+        width: { ideal: sharing ? 640 : 1280, max: sharing ? 640 : 1280 },
+        height: { ideal: sharing ? 360 : 720, max: sharing ? 360 : 720 },
+        frameRate: { ideal: 24, max: 24 }
+      })
+      .catch(() => {})
+    for (const peer of this.peers.values()) {
+      for (const sender of peer.getSenders?.() ?? []) {
+        if (sender.track && this.sourceForTrack(sender.track) === "camera") {
+          this.setSenderParameters(
+            sender,
+            sharing ? CAMERA_SHARING_MAX_BITRATE : CAMERA_MAX_BITRATE
+          )
+        }
+      }
+    }
+  }
+
+  private setSenderParameters(sender: RTCRtpSender, maxBitrate: number): void {
     try {
       const parameters = sender.getParameters()
       if (!parameters.encodings || parameters.encodings.length === 0) {
         parameters.encodings = [{}]
       }
       const encoding = parameters.encodings[0]
-      if (encoding) encoding.maxBitrate = VIDEO_MAX_BITRATE
+      if (encoding) encoding.maxBitrate = maxBitrate
       sender.setParameters(parameters).catch(() => {})
     } catch {
       // Some Firefox versions reject encoding changes before negotiation.

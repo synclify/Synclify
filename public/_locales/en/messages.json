@@ -104,5 +104,33 @@
     "message": "Allow camera and microphone access to join the call."
   },
   "callDeviceError": { "message": "No camera or microphone was found." },
-  "callGenericError": { "message": "The video call could not be started." }
+  "callGenericError": { "message": "The video call could not be started." },
+  "shareScreen": { "message": "Share screen" },
+  "stopScreenSharing": { "message": "Stop sharing" },
+  "viewSharedScreen": { "message": "View screen" },
+  "reopenSharedScreen": { "message": "Reopen screen" },
+  "youAreSharingScreen": { "message": "You are sharing your screen" },
+  "isSharingScreen": { "message": "is sharing their screen" },
+  "screenShareLimitError": {
+    "message": "Screen sharing is available for calls with up to 3 people."
+  },
+  "screenShareCancelled": { "message": "Screen sharing was cancelled." },
+  "screenSharePermissionError": {
+    "message": "Synclify could not access the selected screen."
+  },
+  "screenShareStartError": {
+    "message": "Screen sharing could not be started."
+  },
+  "screenShareConnecting": { "message": "Connecting to shared screen…" },
+  "screenShareEnded": { "message": "Screen sharing has ended" },
+  "screenShareReturning": { "message": "Returning you to the watch party…" },
+  "screenShareInProgressError": {
+    "message": "Someone else is already sharing their screen."
+  },
+  "screenShareOwnerError": {
+    "message": "Only the person sharing can stop this screen share."
+  },
+  "screenShareReadySoon": {
+    "message": "The picture will appear as soon as the connection is ready."
+  }
 }
