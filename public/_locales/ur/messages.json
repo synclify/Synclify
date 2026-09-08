@@ -73,6 +73,10 @@
   "sharedModeOffHelp": {
     "message": "جب Shared mode آف ہو تو صرف میزبان ہی سب کے لیے پلے، پاز، سیک یا پلے بیک تبدیل کرسکتا ہے۔"
   },
+  "bubble": { "message": "ببل" },
+  "bubbleHelp": {
+    "message": "Synclify ببل دکھاتا ہے، جو ریئل ٹائم چیٹ، ویڈیو کال اور اسکرین شیئرنگ کی سہولت دیتا ہے۔"
+  },
   "vpnPromoEyebrow": { "message": "بلاک ہے؟" },
   "vpnPromoTitle": { "message": "PureVPN سے اَن بلاک کریں" },
   "vpnPromoAdLabel": { "message": "اشتہار" },

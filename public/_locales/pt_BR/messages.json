@@ -85,6 +85,10 @@
   "sharedModeOffHelp": {
     "message": "Quando o modo compartilhado está desativado, apenas o anfitrião pode reproduzir, pausar, avançar ou alterar a reprodução para todos."
   },
+  "bubble": { "message": "Bolha" },
+  "bubbleHelp": {
+    "message": "Exibe a bolha do Synclify, que permite conversar em tempo real, fazer videochamadas e compartilhar a tela."
+  },
   "vpnPromoEyebrow": { "message": "Bloqueado?" },
   "vpnPromoTitle": { "message": "Desbloqueie com a PureVPN" },
   "vpnPromoAdLabel": { "message": "Anúncio" },

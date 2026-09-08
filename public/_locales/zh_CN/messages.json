@@ -67,6 +67,10 @@
   "sharedModeOffHelp": {
     "message": "关闭共享模式后，只有主持人可以为所有人播放、暂停、拖动进度或更改播放。"
   },
+  "bubble": { "message": "悬浮气泡" },
+  "bubbleHelp": {
+    "message": "显示 Synclify 悬浮气泡，可用于实时聊天、视频通话和屏幕共享。"
+  },
   "vpnPromoEyebrow": { "message": "被封锁了？" },
   "vpnPromoTitle": { "message": "用 PureVPN 解锁" },
   "vpnPromoAdLabel": { "message": "广告" },

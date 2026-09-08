@@ -87,6 +87,10 @@
   "sharedModeOffHelp": {
     "message": "Lorsque le mode partagé est désactivé, seul l'hôte peut lire, mettre en pause, avancer ou modifier la lecture pour tout le monde."
   },
+  "bubble": { "message": "Bulle" },
+  "bubbleHelp": {
+    "message": "Affiche la bulle Synclify, qui permet de discuter en temps réel, de passer des appels vidéo et de partager l’écran."
+  },
   "vpnPromoEyebrow": { "message": "Bloqué ?" },
   "vpnPromoTitle": { "message": "Débloquez-le avec PureVPN" },
   "vpnPromoAdLabel": { "message": "Annonce" },

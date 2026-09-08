@@ -164,11 +164,7 @@ export class CommunicationController {
       action: "getSenderTabId"
     })) as number
     this.patch({ tabId })
-    await Promise.all([
-      this.refreshRoomState(),
-      this.refreshSettings(),
-      this.refreshRejoinSuggestion()
-    ])
+    await Promise.all([this.refreshRoomState(), this.refreshRejoinSuggestion()])
 
     browser.runtime.onMessage.addListener(this.onRuntimeMessage)
     browser.storage.onChanged.addListener(this.onStorageChanged)
@@ -248,10 +244,16 @@ export class CommunicationController {
   }
 
   private async refreshRoomState(): Promise<void> {
-    const result = await browser.storage.local.get("state")
-    const state = result.state as State | undefined
+    const [stateResult, settingsResult] = await Promise.all([
+      browser.storage.local.get("state"),
+      browser.storage.sync.get("settings")
+    ])
+    const state = stateResult.state as State | undefined
+    const settings = settingsResult.settings as
+      | { showChat?: boolean }
+      | undefined
     const tabState = state?.[this.snapshot.tabId]
-    const visible = !!tabState
+    const visible = !!tabState && settings?.showChat !== false
     const roomChanged =
       !!this.snapshot.roomId && this.snapshot.roomId !== tabState?.roomId
     if (!visible && this.snapshot.inCall) this.leaveCall()
@@ -266,21 +268,6 @@ export class CommunicationController {
     if (visible && (roomChanged || !this.snapshot.callState.roomId)) {
       this.sendCallCommand({ kind: "getState" }).catch(() => {})
     }
-  }
-
-  private async refreshSettings(): Promise<void> {
-    const result = await browser.storage.sync.get("settings")
-    const settings = result.settings as { showChat?: boolean } | undefined
-    const chatEnabled = settings?.showChat !== false
-    this.patch({
-      chatEnabled,
-      view:
-        !chatEnabled && this.snapshot.view === "chat"
-          ? "call"
-          : this.snapshot.view,
-      chatOpen: chatEnabled ? this.snapshot.chatOpen : false,
-      unread: chatEnabled ? this.snapshot.unread : 0
-    })
   }
 
   private async refreshRejoinSuggestion(): Promise<void> {
@@ -310,7 +297,7 @@ export class CommunicationController {
     if (area === "local" && changes.state)
       this.refreshRoomState().catch(() => {})
     if (area === "sync" && changes.settings)
-      this.refreshSettings().catch(() => {})
+      this.refreshRoomState().catch(() => {})
   }
 
   private readonly onRuntimeMessage = (rawMessage: unknown) => {

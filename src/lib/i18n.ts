@@ -62,6 +62,8 @@ export const MESSAGE_KEYS = [
   "sharedMode",
   "sharedModeOnHelp",
   "sharedModeOffHelp",
+  "bubble",
+  "bubbleHelp",
   "vpnPromoEyebrow",
   "vpnPromoTitle",
   "vpnPromoAdLabel",

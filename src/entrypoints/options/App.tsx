@@ -39,7 +39,13 @@ function App() {
     document.documentElement.classList.add("dark")
     browser.storage.sync.get("settings").then((result) => {
       if (result.settings) {
-        form.reset(result.settings as z.infer<typeof settingsSchema>)
+        form.reset({
+          syncAudio: false,
+          showChat: true,
+          showReactions: true,
+          showPlayer: true,
+          ...(result.settings as Partial<z.infer<typeof settingsSchema>>)
+        })
       }
     })
   }, [form])
@@ -122,10 +128,10 @@ function App() {
                   <FormItem className="flex items-center justify-between rounded-xl border border-border bg-card/50 px-4 py-4 transition-colors hover:border-[hsl(38_92%_55%/0.25)]">
                     <div className="space-y-0.5">
                       <p className="text-sm font-medium text-foreground">
-                        {t("chat")}
+                        {t("bubble")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {t("chatDescription")}
+                        {t("bubbleHelp")}
                       </p>
                     </div>
                     <FormControl>

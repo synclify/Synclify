@@ -76,6 +76,10 @@
   "sharedModeOffHelp": {
     "message": "When Shared mode is off, only the host can play, pause, seek, or change playback for everyone."
   },
+  "bubble": { "message": "Bubble" },
+  "bubbleHelp": {
+    "message": "Shows the Synclify bubble, giving you access to real-time chat, video calls, and screen sharing."
+  },
   "vpnPromoEyebrow": { "message": "Geo-blocked?" },
   "vpnPromoTitle": { "message": "Unblock it with PureVPN" },
   "vpnPromoAdLabel": { "message": "Ad" },

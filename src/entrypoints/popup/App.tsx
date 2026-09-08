@@ -45,6 +45,8 @@ function App() {
   const [participantsOpen, setParticipantsOpen] = useState(false)
   const [sharedMode, setSharedMode] = useState(true)
   const [sharedModeHelpOpen, setSharedModeHelpOpen] = useState(false)
+  const [bubbleEnabled, setBubbleEnabled] = useState(true)
+  const [bubbleHelpOpen, setBubbleHelpOpen] = useState(false)
   const {
     register,
     handleSubmit,
@@ -93,11 +95,13 @@ function App() {
   }, [])
 
   const loadPopupState = useCallback(async () => {
-    const [tabId, storageResult, nicknameResult] = await Promise.all([
-      getPopupTabId(),
-      browser.storage.local.get("state"),
-      browser.storage.local.get("nickname")
-    ])
+    const [tabId, storageResult, nicknameResult, settingsResult] =
+      await Promise.all([
+        getPopupTabId(),
+        browser.storage.local.get("state"),
+        browser.storage.local.get("nickname"),
+        browser.storage.sync.get("settings")
+      ])
 
     const nextState = storageResult.state
       ? ({ ...(storageResult.state as State) } as State)
@@ -107,6 +111,10 @@ function App() {
     if (nicknameResult.nickname) {
       setNickname(nicknameResult.nickname as string)
     }
+    const settings = settingsResult.settings as
+      | { showChat?: boolean }
+      | undefined
+    setBubbleEnabled(settings?.showChat !== false)
     logRoomDebug("loadPopupState", {
       currentTabOverride: tabId,
       stateSnapshot: nextState,
@@ -125,6 +133,13 @@ function App() {
       changes: Record<string, browser.Storage.StorageChange>,
       areaName: string
     ) => {
+      if (areaName === "sync" && changes.settings) {
+        const settings = changes.settings.newValue as
+          | { showChat?: boolean }
+          | undefined
+        setBubbleEnabled(settings?.showChat !== false)
+        return
+      }
       if (areaName !== "local" || !changes.state) return
       const nextState = changes.state.newValue as State | undefined
       logRoomDebug("hydrate.storage.onChanged", {
@@ -169,6 +184,25 @@ function App() {
     setState(newState)
     browser.storage.local.set({ state: newState })
   }, [logRoomDebug])
+
+  const updateBubbleEnabled = useCallback((enabled: boolean) => {
+    setBubbleEnabled(enabled)
+    browser.storage.sync
+      .get("settings")
+      .then((result) => {
+        const settings = result.settings as Record<string, unknown> | undefined
+        return browser.storage.sync.set({
+          settings: {
+            ...settings,
+            showChat: enabled
+          }
+        })
+      })
+      .catch((error) => {
+        console.error("Failed to update bubble setting", error)
+        setBubbleEnabled(!enabled)
+      })
+  }, [])
 
   const responseCallback = useCallback((response: ExtResponse) => {
     if (!response) {
@@ -222,7 +256,14 @@ function App() {
         .sendMessage({ action: "inject" })
         .then((response: ExtResponse) => responseCallback(response))
     },
-    [currentTab, responseCallback, state, setStoredState, nickname, sharedMode]
+    [
+      currentTab,
+      responseCallback,
+      state,
+      setStoredState,
+      nickname,
+      sharedMode
+    ]
   )
 
   const requestRoomPermission = useCallback(() => {
@@ -631,6 +672,55 @@ function App() {
                     size="sm"
                     className="mt-4 w-full text-xs"
                     onClick={() => setSharedModeHelpOpen(false)}>
+                    {t("close")}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Bubble toggle */}
+            <div className="animate-fade-in-up mb-3 flex items-center justify-between rounded-lg border border-border/50 bg-card/30 px-3 py-2.5">
+              <div className="flex items-center gap-1.5">
+                <label
+                  htmlFor="bubble-switch"
+                  className="text-[11px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+                  {t("bubble")}
+                </label>
+                <button
+                  type="button"
+                  aria-label={t("bubbleHelp")}
+                  onClick={() => setBubbleHelpOpen(true)}
+                  className="inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full border border-muted-foreground/40 text-[9px] font-semibold leading-none text-muted-foreground transition-colors hover:border-[hsl(38_92%_55%/0.6)] hover:text-foreground">
+                  ?
+                </button>
+              </div>
+              <Switch
+                id="bubble-switch"
+                checked={bubbleEnabled}
+                onCheckedChange={updateBubbleEnabled}
+                className="data-[state=checked]:bg-[hsl(38_92%_55%)]"
+              />
+            </div>
+
+            {/* Bubble help modal */}
+            {bubbleHelpOpen && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+                onClick={() => setBubbleHelpOpen(false)}>
+                <div
+                  className="animate-fade-in-up mx-4 w-full max-w-[280px] rounded-xl border border-border bg-background p-5 shadow-xl"
+                  onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                  <h3 className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.15em] text-foreground">
+                    {t("bubble")}
+                  </h3>
+                  <p className="rounded-lg border border-[hsl(38_92%_55%/0.2)] bg-[hsl(38_92%_55%/0.06)] px-3 py-2.5 text-[11px] leading-snug text-secondary-foreground">
+                    {t("bubbleHelp")}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4 w-full text-xs"
+                    onClick={() => setBubbleHelpOpen(false)}>
                     {t("close")}
                   </Button>
                 </div>

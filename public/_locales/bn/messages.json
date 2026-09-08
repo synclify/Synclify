@@ -77,6 +77,10 @@
   "sharedModeOffHelp": {
     "message": "শেয়ার্ড মোড বন্ধ থাকলে শুধুমাত্র হোস্ট সবার জন্য প্লে, পজ, সিক বা প্লেব্যাক পরিবর্তন করতে পারেন।"
   },
+  "bubble": { "message": "বাবল" },
+  "bubbleHelp": {
+    "message": "Synclify বাবল দেখায়, যা রিয়েল-টাইম চ্যাট, ভিডিও কল এবং স্ক্রিন শেয়ারিংয়ের সুবিধা দেয়।"
+  },
   "vpnPromoEyebrow": { "message": "ব্লক করা?" },
   "vpnPromoTitle": { "message": "PureVPN দিয়ে আনব্লক করুন" },
   "vpnPromoAdLabel": { "message": "বিজ্ঞাপন" },

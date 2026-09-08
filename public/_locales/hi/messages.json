@@ -77,6 +77,10 @@
   "sharedModeOffHelp": {
     "message": "जब Shared mode बंद होता है, तो केवल होस्ट ही सभी के लिए प्ले, पॉज़, सीक या प्लेबैक बदल सकता है।"
   },
+  "bubble": { "message": "बबल" },
+  "bubbleHelp": {
+    "message": "Synclify बबल दिखाता है, जिससे रीयल-टाइम चैट, वीडियो कॉल और स्क्रीन शेयरिंग की सुविधा मिलती है।"
+  },
   "vpnPromoEyebrow": { "message": "ब्लॉक है?" },
   "vpnPromoTitle": { "message": "PureVPN से अनब्लॉक करें" },
   "vpnPromoAdLabel": { "message": "विज्ञापन" },

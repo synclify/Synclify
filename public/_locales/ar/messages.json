@@ -75,6 +75,10 @@
   "sharedModeOffHelp": {
     "message": "عند إيقاف الوضع المشترك، يمكن للمضيف فقط التشغيل أو الإيقاف المؤقت أو التقديم أو تغيير التشغيل للجميع."
   },
+  "bubble": { "message": "الفقاعة" },
+  "bubbleHelp": {
+    "message": "تُظهر فقاعة Synclify التي تتيح لك الدردشة في الوقت الفعلي ومكالمات الفيديو ومشاركة الشاشة."
+  },
   "vpnPromoEyebrow": { "message": "محجوب؟" },
   "vpnPromoTitle": { "message": "افتحه باستخدام PureVPN" },
   "vpnPromoAdLabel": { "message": "إعلان" },
