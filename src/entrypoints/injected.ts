@@ -12,7 +12,11 @@ import {
 } from "~/types/socket"
 import type { State, TabState } from "~/types/state"
 import { VIDEO_EVENTS } from "~/types/video"
-import { findSiteVideo, detectStreamingSite } from "~/lib/video-detection"
+import {
+  findSiteVideo,
+  detectStreamingSite,
+  deepQuerySelector
+} from "~/lib/video-detection"
 import { debugRoomLog } from "~/lib/debug"
 import browser from "webextension-polyfill"
 import { io } from "socket.io-client"
@@ -324,39 +328,59 @@ export default defineUnlistedScript(async () => {
     } else videoEventHandler(event)
   }
 
-  const observer = new MutationObserver(() => {
+  const observedVideoRoots = new Set<Document | ShadowRoot>()
+  const observer = new MutationObserver((records) => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (node instanceof Element) observeVideoRoots(node)
+      }
+    }
     if (!video) getVideo()
   })
 
-  const getVideo = (videoId?: string) => {
-    // First try by synclify-id if provided
-    if (videoId) {
-      video = document.querySelector(
-        `[data-synclify-id="${videoId}"]`
-      ) as HTMLVideoElement | null
+  const observeVideoRoots = (root: Document | ShadowRoot | Element): void => {
+    if (root instanceof Document || root instanceof ShadowRoot) {
+      if (observedVideoRoots.has(root)) return
+      observedVideoRoots.add(root)
+      observer.observe(root, { subtree: true, childList: true })
+      for (const element of root.querySelectorAll<HTMLElement>("*")) {
+        if (element.shadowRoot) observeVideoRoots(element)
+      }
+      return
     }
 
-    // If no videoId or element not found, use site-specific detection
+    if (root.shadowRoot) observeVideoRoots(root.shadowRoot)
+    for (const element of root.querySelectorAll<HTMLElement>("*")) {
+      if (element.shadowRoot) observeVideoRoots(element)
+    }
+  }
+
+  const disconnectVideoObserver = (): void => {
+    observer.disconnect()
+    observedVideoRoots.clear()
+  }
+
+  const getVideo = (videoId?: string) => {
+    if (videoId) {
+      video = deepQuerySelector<HTMLVideoElement>(
+        `[data-synclify-id="${videoId}"]`
+      )
+    }
+
     if (!video) {
       const site = detectStreamingSite()
       if (site !== "unknown") {
         video = findSiteVideo()
-        if (video) {
-          // Ensure it has a synclify-id for future lookups
-          if (!video.dataset.synclifyId) {
-            video.dataset.synclifyId = Math.random().toString(36).slice(2, 7)
-          }
+        if (video && !video.dataset.synclifyId) {
+          video.dataset.synclifyId = Math.random().toString(36).slice(2, 7)
         }
+      } else {
+        video = deepQuerySelector<HTMLVideoElement>("video")
+        posthog.capture("video_id_null_fallback", {
+          message:
+            "videoId is null, using first element returned by deepQuerySelector"
+        })
       }
-    }
-
-    // Final fallback: first video on the page
-    if (!video) {
-      video = document.querySelector("video")
-      posthog.capture("video_id_null_fallback", {
-        message:
-          "videoId is null, using first element returned by document.querySelector"
-      })
     }
 
     if (video != null) {
@@ -376,14 +400,14 @@ export default defineUnlistedScript(async () => {
       for (const event of Object.values(VIDEO_EVENTS)) {
         boundVideo.addEventListener(event, checkVideoEvent)
       }
-      observer.disconnect()
+      disconnectVideoObserver()
       browser.runtime.sendMessage({
         action: "showToast",
         body: { content: "", messageKey: "videoDetected" }
       })
       return { status: MESSAGE_STATUS.SUCCESS }
     }
-    observer.observe(document, { subtree: true, childList: true })
+    observeVideoRoots(document)
     if (!missingVideoReported) {
       missingVideoReported = true
       browser.runtime.sendMessage({
@@ -782,7 +806,7 @@ export default defineUnlistedScript(async () => {
           joinedRoom = null
           activeRoomState = null
           pendingJoinPromise = null
-          observer.disconnect()
+          disconnectVideoObserver()
           video = null
           boundVideo = null
           return Promise.resolve({
