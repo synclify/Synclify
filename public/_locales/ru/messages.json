@@ -22,6 +22,7 @@
   "chatNickname": { "message": "Ник в чате" },
   "nicknameOptional": { "message": "Ник (необязательно)" },
   "createRoom": { "message": "Создать комнату" },
+  "roomCreationFailed": { "message": "Не удалось создать комнату. Попробуйте ещё раз." },
   "orJoin": { "message": "или присоединиться" },
   "enterRoomCode": { "message": "Введите код комнаты" },
   "roomCodeEmpty": { "message": "Код комнаты не может быть пустым." },

@@ -329,37 +329,90 @@ export default defineUnlistedScript(async () => {
   }
 
   const observedVideoRoots = new Set<Document | ShadowRoot>()
-  const observer = new MutationObserver((records) => {
-    for (const record of records) {
-      for (const node of record.addedNodes) {
-        if (node instanceof Element) observeVideoRoots(node)
-      }
-    }
-    if (!video) getVideo()
-  })
+  const VIDEO_ROOT_RESCAN_INTERVAL_MS = 1000
+  const pendingAddedElements = new Set<Element>()
+  let videoScanFrame: number | null = null
+  let videoRootRescanInterval: number | null = null
+  let fullRootScanRequested = false
+  let observer: MutationObserver
 
+  /**
+   * Registers a document or shadow root for child-list observation and
+   * revisits all descendants so roots opened after the initial scan are found.
+   * Re-observing a known root skips only registration, not descendant traversal.
+   */
   const observeVideoRoots = (root: Document | ShadowRoot | Element): void => {
     if (root instanceof Document || root instanceof ShadowRoot) {
-      if (observedVideoRoots.has(root)) return
-      observedVideoRoots.add(root)
-      observer.observe(root, { subtree: true, childList: true })
-      for (const element of root.querySelectorAll<HTMLElement>("*")) {
-        if (element.shadowRoot) observeVideoRoots(element)
+      if (!observedVideoRoots.has(root)) {
+        observedVideoRoots.add(root)
+        observer.observe(root, { subtree: true, childList: true })
+      }
+      for (const element of root.querySelectorAll<Element>("*")) {
+        if (element.shadowRoot) observeVideoRoots(element.shadowRoot)
       }
       return
     }
 
     if (root.shadowRoot) observeVideoRoots(root.shadowRoot)
-    for (const element of root.querySelectorAll<HTMLElement>("*")) {
-      if (element.shadowRoot) observeVideoRoots(element)
+    for (const element of root.querySelectorAll<Element>("*")) {
+      if (element.shadowRoot) observeVideoRoots(element.shadowRoot)
     }
   }
 
+  /**
+   * Coalesces mutation and periodic root scans into one animation-frame
+   * attempt, preserving every added element until that attempt runs.
+   */
+  const scheduleVideoScan = (): void => {
+    if (
+      video != null ||
+      !observedVideoRoots.has(document) ||
+      videoScanFrame !== null
+    ) {
+      return
+    }
+
+    videoScanFrame = window.requestAnimationFrame(() => {
+      videoScanFrame = null
+      if (video != null || !observedVideoRoots.has(document)) return
+
+      for (const element of pendingAddedElements) {
+        observeVideoRoots(element)
+      }
+      pendingAddedElements.clear()
+
+      if (fullRootScanRequested) {
+        fullRootScanRequested = false
+        observeVideoRoots(document)
+      }
+
+      if (video == null) getVideo()
+    })
+  }
+
+  /**
+   * Stops observation and cancels all pending discovery work for this room.
+   */
   const disconnectVideoObserver = (): void => {
     observer.disconnect()
     observedVideoRoots.clear()
+    pendingAddedElements.clear()
+    if (videoScanFrame !== null) {
+      window.cancelAnimationFrame(videoScanFrame)
+      videoScanFrame = null
+    }
+    if (videoRootRescanInterval !== null) {
+      window.clearInterval(videoRootRescanInterval)
+      videoRootRescanInterval = null
+    }
+    fullRootScanRequested = false
   }
 
+  /**
+   * Finds and binds the selected or site-specific video. When absent, keeps
+   * the room alive, reports missing-video telemetry once, and observes roots
+   * until a later mutation or periodic rescan finds a video.
+   */
   const getVideo = (videoId?: string) => {
     if (videoId) {
       video = deepQuerySelector<HTMLVideoElement>(
@@ -376,10 +429,12 @@ export default defineUnlistedScript(async () => {
         }
       } else {
         video = deepQuerySelector<HTMLVideoElement>("video")
-        posthog.capture("video_id_null_fallback", {
-          message:
-            "videoId is null, using first element returned by deepQuerySelector"
-        })
+        if (!missingVideoReported) {
+          posthog.capture("video_id_null_fallback", {
+            message:
+              "videoId is null, using first element returned by deepQuerySelector"
+          })
+        }
       }
     }
 
@@ -407,7 +462,14 @@ export default defineUnlistedScript(async () => {
       })
       return { status: MESSAGE_STATUS.SUCCESS }
     }
-    observeVideoRoots(document)
+
+    if (!observedVideoRoots.has(document)) observeVideoRoots(document)
+    if (videoRootRescanInterval === null) {
+      videoRootRescanInterval = window.setInterval(() => {
+        fullRootScanRequested = true
+        scheduleVideoScan()
+      }, VIDEO_ROOT_RESCAN_INTERVAL_MS)
+    }
     if (!missingVideoReported) {
       missingVideoReported = true
       browser.runtime.sendMessage({
@@ -423,6 +485,15 @@ export default defineUnlistedScript(async () => {
       messageKey: "videoNotFound"
     }
   }
+
+  observer = new MutationObserver((records) => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (node instanceof Element) pendingAddedElements.add(node)
+      }
+    }
+    scheduleVideoScan()
+  })
 
   const ensureSocketConnected = async () => {
     if (socket.connected) return
@@ -807,6 +878,7 @@ export default defineUnlistedScript(async () => {
           activeRoomState = null
           pendingJoinPromise = null
           disconnectVideoObserver()
+          missingVideoReported = false
           video = null
           boundVideo = null
           return Promise.resolve({

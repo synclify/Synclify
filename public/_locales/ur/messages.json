@@ -22,6 +22,7 @@
   "chatNickname": { "message": "چیٹ نک نیم" },
   "nicknameOptional": { "message": "نک نیم (اختیاری)" },
   "createRoom": { "message": "روم بنائیں" },
+  "roomCreationFailed": { "message": "روم نہیں بنایا جا سکا۔ دوبارہ کوشش کریں۔" },
   "orJoin": { "message": "یا شامل ہوں" },
   "enterRoomCode": { "message": "روم کوڈ درج کریں" },
   "roomCodeEmpty": { "message": "روم کوڈ خالی نہیں ہوسکتا۔" },

@@ -278,6 +278,12 @@ function App() {
       })
   }, [])
 
+  /**
+   * Creates a room or joins the supplied room code.
+   *
+   * Room creation responses must contain a non-empty string; invalid
+   * responses show a localized error and do not enter a room.
+   */
   const createOrJoinRoom = useCallback(
     (data?: FormData) => {
       if (data) {
@@ -291,7 +297,7 @@ function App() {
               typeof roomCode === "string" ? roomCode.trim() : ""
             if (!normalizedRoomCode) {
               setError(true)
-              setErrorMessage(t("videoNotDetectedYet"))
+              setErrorMessage(t("roomCreationFailed"))
               return
             }
             roomCallback(normalizedRoomCode)
@@ -299,11 +305,7 @@ function App() {
           .catch((err: unknown) => {
             console.error("createRoom failed", err)
             setError(true)
-            setErrorMessage(
-              err instanceof Error && err.message
-                ? err.message
-                : t("videoNotDetectedYet")
-            )
+            setErrorMessage(t("roomCreationFailed"))
           })
       }
     },

@@ -22,6 +22,7 @@
   "chatNickname": { "message": "Chat nickname" },
   "nicknameOptional": { "message": "Nickname (optional)" },
   "createRoom": { "message": "Create Room" },
+  "roomCreationFailed": { "message": "Failed to create room. Please try again." },
   "orJoin": { "message": "or join" },
   "enterRoomCode": { "message": "Enter room code" },
   "roomCodeEmpty": { "message": "Room code can't be empty." },

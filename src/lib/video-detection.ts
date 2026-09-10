@@ -207,7 +207,10 @@ export const SITE_CONFIGS: Record<
     playerContainer: ".vk-vp-root",
     watchPageTest: () =>
       /^\/video_ext\.php/.test(location.pathname) ||
-      /^\/video-?\d+_\d+/.test(location.pathname),
+      /^\/video-?\d+_\d+/.test(location.pathname) ||
+      /^video-?\d+_\d+(?:\/|$)/.test(
+        new URLSearchParams(location.search).get("z") ?? ""
+      ),
     excludeSelector: ".ads-container video",
     allowUnplayableMatch: true
   }
@@ -245,45 +248,57 @@ export function getSiteConfig(hostname?: string): SiteConfig | null {
  *  boundaries — these helpers do.
  * ------------------------------------------------------------------ */
 
+/**
+ * Yields a document or shadow root before recursively traversing its
+ * open shadow-root descendants in document order.
+ *
+ * Closed shadow roots are intentionally invisible to this traversal.
+ */
+function* allRoots(
+  root: Document | ShadowRoot = document
+): Generator<Document | ShadowRoot> {
+  yield root
+  for (const element of root.querySelectorAll<Element>("*")) {
+    if (element.shadowRoot) yield* allRoots(element.shadowRoot)
+  }
+}
+
+/**
+ * Collects every video in the document and reachable open shadow roots.
+ *
+ * Videos are returned once, grouped by their root-first traversal order.
+ */
 export function collectAllVideos(): HTMLVideoElement[] {
   const found: HTMLVideoElement[] = []
-  const visit = (root: Document | ShadowRoot) => {
+  for (const root of allRoots()) {
     for (const video of root.querySelectorAll<HTMLVideoElement>("video")) {
       found.push(video)
     }
-    for (const element of root.querySelectorAll<HTMLElement>("*")) {
-      const shadowRoot = element.shadowRoot
-      if (shadowRoot) visit(shadowRoot)
-    }
   }
-  visit(document)
   return found
 }
 
+/**
+ * Finds the first selector match using the same root-first traversal as
+ * {@link collectAllVideos}, crossing each open shadow-root host boundary.
+ */
 export function deepQuerySelector<E extends Element = Element>(
   selector: string
 ): E | null {
-  const visit = (root: Document | ShadowRoot): E | null => {
-    const direct = root.querySelector<E>(selector)
-    if (direct) return direct
-    for (const element of root.querySelectorAll<HTMLElement>("*")) {
-      const shadowRoot = element.shadowRoot
-      if (shadowRoot) {
-        const nested = visit(shadowRoot)
-        if (nested) return nested
-      }
-    }
-    return null
+  for (const root of allRoots()) {
+    const match = root.querySelector<E>(selector)
+    if (match) return match
   }
-  return visit(document)
+  return null
 }
 
-/* ------------------------------------------------------------------
- *  Find the primary video element using site-specific knowledge
+/**
+ * Finds the primary video for a known watch page, or uses the playable
+ * size-and-duration heuristic on an unknown site.
  *
- *  Returns the best-matching <video> element, or null if not found.
- *  Falls back to a generic heuristic for unknown sites.
- * ------------------------------------------------------------------ */
+ * Known-site matching allows VK's unplayable placeholder when configured,
+ * while non-watch pages are rejected before candidate selection.
+ */
 
 export function findSiteVideo(hostname?: string): HTMLVideoElement | null {
   const config = getSiteConfig(hostname)
@@ -326,11 +341,12 @@ export function findSiteVideo(hostname?: string): HTMLVideoElement | null {
   return findGenericVideo()
 }
 
-/* ------------------------------------------------------------------
- *  Generic video finder (for non-streaming sites)
+/**
+ * Finds the highest-scoring playable video on an unknown site.
  *
- *  Picks the largest visible, long-enough, non-looping video.
- * ------------------------------------------------------------------ */
+ * Candidates are ranked by rendered area with a duration bonus; this
+ * helper does not apply visibility or loop filtering.
+ */
 
 function findGenericVideo(): HTMLVideoElement | null {
   const videos = collectAllVideos()
@@ -402,14 +418,12 @@ export const COMMERCIAL_PLAYER_SELECTORS = [
   "[data-uia='video-canvas']"
 ]
 
-/* ------------------------------------------------------------------
- *  Determine whether Synclify should show its custom player controls
- *  over a given video element.
+/**
+ * Finds a selector match on an element or one of its shadow-root hosts.
  *
- *  On known streaming sites this always returns false (their own UI
- *  is better). On unknown sites, it returns true only for plain HTML5
- *  videos with native controls that are not inside a commercial player.
- * ------------------------------------------------------------------ */
+ * The lookup crosses each open shadow-root boundary from the element
+ * toward the document.
+ */
 
 function closestAcrossShadowRoots(
   element: Element,
@@ -426,6 +440,13 @@ function closestAcrossShadowRoots(
   return null
 }
 
+/**
+ * Reports whether Synclify should add native controls for a video.
+ *
+ * Known streaming services always opt out; unknown sites require native
+ * controls, visible content, sufficient duration, and no commercial
+ * player ancestor across shadow-root boundaries.
+ */
 export function shouldShowCustomPlayer(video: HTMLVideoElement): boolean {
   // On a known streaming site, never overlay our own controls
   const site = detectStreamingSite()

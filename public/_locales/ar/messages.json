@@ -22,6 +22,7 @@
   "chatNickname": { "message": "الاسم في الدردشة" },
   "nicknameOptional": { "message": "الاسم (اختياري)" },
   "createRoom": { "message": "إنشاء غرفة" },
+  "roomCreationFailed": { "message": "تعذّر إنشاء الغرفة. حاول مرة أخرى." },
   "orJoin": { "message": "أو انضمام" },
   "enterRoomCode": { "message": "أدخل رمز الغرفة" },
   "roomCodeEmpty": { "message": "لا يمكن أن يكون رمز الغرفة فارغًا." },

@@ -20,6 +20,7 @@ export const MESSAGE_KEYS = [
   "chatNickname",
   "nicknameOptional",
   "createRoom",
+  "roomCreationFailed",
   "orJoin",
   "enterRoomCode",
   "roomCodeEmpty",
