@@ -12,7 +12,11 @@ import {
 } from "~/types/socket"
 import type { State, TabState } from "~/types/state"
 import { VIDEO_EVENTS } from "~/types/video"
-import { findSiteVideo, detectStreamingSite } from "~/lib/video-detection"
+import {
+  findSiteVideo,
+  detectStreamingSite,
+  deepQuerySelector
+} from "~/lib/video-detection"
 import { debugRoomLog } from "~/lib/debug"
 import browser from "webextension-polyfill"
 import { io } from "socket.io-client"
@@ -144,7 +148,13 @@ export default defineUnlistedScript(async () => {
     return persistState(nextState)
   }
 
+  /**
+   * Stops discovery and ends the missing-video telemetry period synchronously,
+   * then removes this tab's state asynchronously while preserving other tabs.
+   */
   const clearTabState = async () => {
+    disconnectVideoObserver()
+    missingVideoReported = false
     const latestState = await readLatestState()
     const nextState = { ...latestState }
     delete nextState[tabId]
@@ -247,6 +257,11 @@ export default defineUnlistedScript(async () => {
     })
   }
 
+  /**
+   * Deduplicates INIT requests, loads tab context, starts early video discovery,
+   * and gives a join error precedence over the video result. A successful join
+   * keeps discovery active when the video is not available yet.
+   */
   const init = async (videoId?: string) => {
     if (pendingInitPromise) {
       return pendingInitPromise
@@ -324,39 +339,113 @@ export default defineUnlistedScript(async () => {
     } else videoEventHandler(event)
   }
 
-  const observer = new MutationObserver(() => {
-    if (!video) getVideo()
-  })
+  const observedVideoRoots = new Set<Document | ShadowRoot>()
+  const VIDEO_ROOT_RESCAN_INTERVAL_MS = 1000
+  const pendingAddedElements = new Set<Element>()
+  let videoScanFrame: number | null = null
+  let videoRootRescanInterval: number | null = null
+  let fullRootScanRequested = false
 
-  const getVideo = (videoId?: string) => {
-    // First try by synclify-id if provided
-    if (videoId) {
-      video = document.querySelector(
-        `[data-synclify-id="${videoId}"]`
-      ) as HTMLVideoElement | null
+  /**
+   * Registers a document or shadow root for child-list observation and
+   * revisits all descendants so roots opened after the initial scan are found.
+   * Re-observing a known root skips only registration, not descendant traversal.
+   */
+  const observeVideoRoots = (root: Document | ShadowRoot | Element): void => {
+    if (root instanceof Document || root instanceof ShadowRoot) {
+      if (!observedVideoRoots.has(root)) {
+        observedVideoRoots.add(root)
+        observer.observe(root, { subtree: true, childList: true })
+      }
+      for (const element of root.querySelectorAll<Element>("*")) {
+        if (element.shadowRoot) observeVideoRoots(element.shadowRoot)
+      }
+      return
     }
 
-    // If no videoId or element not found, use site-specific detection
+    if (root.shadowRoot) observeVideoRoots(root.shadowRoot)
+    for (const element of root.querySelectorAll<Element>("*")) {
+      if (element.shadowRoot) observeVideoRoots(element.shadowRoot)
+    }
+  }
+
+  /**
+   * Coalesces mutation and periodic root scans into one animation-frame
+   * attempt, preserving every added element until that attempt runs.
+   */
+  const scheduleVideoScan = (): void => {
+    if (
+      video != null ||
+      !observedVideoRoots.has(document) ||
+      videoScanFrame !== null
+    ) {
+      return
+    }
+
+    videoScanFrame = window.requestAnimationFrame(() => {
+      videoScanFrame = null
+      if (video != null || !observedVideoRoots.has(document)) return
+
+      for (const element of pendingAddedElements) {
+        observeVideoRoots(element)
+      }
+      pendingAddedElements.clear()
+
+      if (fullRootScanRequested) {
+        fullRootScanRequested = false
+        observeVideoRoots(document)
+      }
+
+      if (video == null) getVideo()
+    })
+  }
+
+  /**
+   * Stops observation and cancels all pending discovery work for this room.
+   */
+  const disconnectVideoObserver = (): void => {
+    observer.disconnect()
+    observedVideoRoots.clear()
+    pendingAddedElements.clear()
+    if (videoScanFrame !== null) {
+      window.cancelAnimationFrame(videoScanFrame)
+      videoScanFrame = null
+    }
+    if (videoRootRescanInterval !== null) {
+      window.clearInterval(videoRootRescanInterval)
+      videoRootRescanInterval = null
+    }
+    fullRootScanRequested = false
+  }
+
+  /**
+   * Finds and binds the selected or site-specific video. When absent, keeps
+   * the room alive, reports missing-video telemetry once, and observes roots
+   * until a later mutation or periodic rescan finds a video.
+   */
+  const getVideo = (videoId?: string) => {
+    if (videoId) {
+      video = deepQuerySelector<HTMLVideoElement>(
+        `[data-synclify-id="${videoId}"]`
+      )
+    }
+
     if (!video) {
       const site = detectStreamingSite()
       if (site !== "unknown") {
         video = findSiteVideo()
-        if (video) {
-          // Ensure it has a synclify-id for future lookups
-          if (!video.dataset.synclifyId) {
-            video.dataset.synclifyId = Math.random().toString(36).slice(2, 7)
-          }
+        if (video && !video.dataset.synclifyId) {
+          video.dataset.synclifyId = Math.random().toString(36).slice(2, 7)
+        }
+      } else {
+        video = deepQuerySelector<HTMLVideoElement>("video")
+        if (!missingVideoReported) {
+          posthog.capture("video_id_null_fallback", {
+            message:
+              "videoId is null, using first element returned by deepQuerySelector"
+          })
         }
       }
-    }
-
-    // Final fallback: first video on the page
-    if (!video) {
-      video = document.querySelector("video")
-      posthog.capture("video_id_null_fallback", {
-        message:
-          "videoId is null, using first element returned by document.querySelector"
-      })
     }
 
     if (video != null) {
@@ -376,14 +465,21 @@ export default defineUnlistedScript(async () => {
       for (const event of Object.values(VIDEO_EVENTS)) {
         boundVideo.addEventListener(event, checkVideoEvent)
       }
-      observer.disconnect()
+      disconnectVideoObserver()
       browser.runtime.sendMessage({
         action: "showToast",
         body: { content: "", messageKey: "videoDetected" }
       })
       return { status: MESSAGE_STATUS.SUCCESS }
     }
-    observer.observe(document, { subtree: true, childList: true })
+
+    if (!observedVideoRoots.has(document)) observeVideoRoots(document)
+    if (videoRootRescanInterval === null) {
+      videoRootRescanInterval = window.setInterval(() => {
+        fullRootScanRequested = true
+        scheduleVideoScan()
+      }, VIDEO_ROOT_RESCAN_INTERVAL_MS)
+    }
     if (!missingVideoReported) {
       missingVideoReported = true
       browser.runtime.sendMessage({
@@ -399,6 +495,15 @@ export default defineUnlistedScript(async () => {
       messageKey: "videoNotFound"
     }
   }
+
+  const observer = new MutationObserver((records) => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (node instanceof Element) pendingAddedElements.add(node)
+      }
+    }
+    scheduleVideoScan()
+  })
 
   const ensureSocketConnected = async () => {
     if (socket.connected) return
@@ -431,84 +536,95 @@ export default defineUnlistedScript(async () => {
     return pendingConnectPromise
   }
 
+  /**
+   * Deduplicates pending joins, returning server-error results as-is. Transport
+   * rejections run through tab cleanup and are rethrown with the original Error.
+   */
   const joinRoom = async () => {
     if (pendingJoinPromise) {
       return pendingJoinPromise
     }
-    if (!roomCode) {
-      const e = new Error("Invalid room code: " + roomCode)
-      posthog.captureException(e)
-      throw e
-    }
-    await ensureSocketConnected()
+    try {
+      if (!roomCode) {
+        const e = new Error("Invalid room code: " + roomCode)
+        posthog.captureException(e)
+        throw e
+      }
+      await ensureSocketConnected()
 
-    if (joinedRoom === roomCode && activeRoomState) {
-      return { status: MESSAGE_STATUS.SUCCESS }
-    }
+      if (joinedRoom === roomCode && activeRoomState) {
+        return { status: MESSAGE_STATUS.SUCCESS }
+      }
 
-    const nickname = state?.[tabId]?.nickname || "Anonymous"
-    const participantId = await ensureParticipantId()
-    const controlMode: ControlMode = state?.[tabId]?.controlMode ?? "shared"
-    const payload: JoinRoomPayload = {
-      roomId: roomCode,
-      nickname,
-      participantId,
-      controlMode
-    }
-    logRoomDebug("joinRoom.emit", {
-      roomId: roomCode,
-      participantId,
-      participantCount: state?.[tabId]?.participantCount,
-      participants: state?.[tabId]?.participants,
-      extra: {
+      const nickname = state?.[tabId]?.nickname || "Anonymous"
+      const participantId = await ensureParticipantId()
+      const controlMode: ControlMode = state?.[tabId]?.controlMode ?? "shared"
+      const payload: JoinRoomPayload = {
+        roomId: roomCode,
         nickname,
-        controlMode,
-        socketConnected: socket.connected
+        participantId,
+        controlMode
       }
-    })
+      logRoomDebug("joinRoom.emit", {
+        roomId: roomCode,
+        participantId,
+        participantCount: state?.[tabId]?.participantCount,
+        participants: state?.[tabId]?.participants,
+        extra: {
+          nickname,
+          controlMode,
+          socketConnected: socket.connected
+        }
+      })
 
-    pendingJoinPromise = new Promise<{
-      status: MESSAGE_STATUS
-      message?: string
-    }>((resolve) => {
-      const onJoined = async (nextRoomState: RoomState) => {
-        if (nextRoomState.roomId !== roomCode) return
-        logRoomDebug("roomJoined", {
-          roomId: nextRoomState.roomId,
-          participantId,
-          participantCount: nextRoomState.participantCount,
-          participants: nextRoomState.participants,
-          extra: {
-            hostId: nextRoomState.hostId
-          }
-        })
-        cleanup()
-        await applyRoomState(nextRoomState)
-        resolve({ status: MESSAGE_STATUS.SUCCESS })
-      }
+      pendingJoinPromise = new Promise<{
+        status: MESSAGE_STATUS
+        message?: string
+      }>((resolve) => {
+        const onJoined = async (nextRoomState: RoomState) => {
+          if (nextRoomState.roomId !== roomCode) return
+          logRoomDebug("roomJoined", {
+            roomId: nextRoomState.roomId,
+            participantId,
+            participantCount: nextRoomState.participantCount,
+            participants: nextRoomState.participants,
+            extra: {
+              hostId: nextRoomState.hostId
+            }
+          })
+          cleanup()
+          await applyRoomState(nextRoomState)
+          resolve({ status: MESSAGE_STATUS.SUCCESS })
+        }
 
-      const onError = async (error: RoomErrorPayload) => {
-        if (error.roomId && error.roomId !== roomCode) return
-        cleanup()
-        await clearTabState()
-        await showRoomError(error.message)
-        resolve({
-          status: MESSAGE_STATUS.ERROR,
-          message: error.message
-        })
-      }
+        const onError = async (error: RoomErrorPayload) => {
+          if (error.roomId && error.roomId !== roomCode) return
+          cleanup()
+          await clearTabState()
+          await showRoomError(error.message)
+          resolve({
+            status: MESSAGE_STATUS.ERROR,
+            message: error.message
+          })
+        }
 
-      const cleanup = () => {
-        socket.off(SOCKET_EVENTS.ROOM_JOINED, onJoined)
-        socket.off(SOCKET_EVENTS.ROOM_ERROR, onError)
-        pendingJoinPromise = null
-      }
+        const cleanup = () => {
+          socket.off(SOCKET_EVENTS.ROOM_JOINED, onJoined)
+          socket.off(SOCKET_EVENTS.ROOM_ERROR, onError)
+          pendingJoinPromise = null
+        }
 
-      socket.on(SOCKET_EVENTS.ROOM_JOINED, onJoined)
-      socket.on(SOCKET_EVENTS.ROOM_ERROR, onError)
-      socket.emit(SOCKET_EVENTS.JOIN, payload)
-    })
-    return pendingJoinPromise
+        socket.on(SOCKET_EVENTS.ROOM_JOINED, onJoined)
+        socket.on(SOCKET_EVENTS.ROOM_ERROR, onError)
+        socket.emit(SOCKET_EVENTS.JOIN, payload)
+      })
+      return await pendingJoinPromise
+    } catch (error) {
+      await clearTabState().catch((cleanupError) => {
+        posthog.captureException(cleanupError as Error)
+      })
+      throw error
+    }
   }
 
   socket.on("disconnect", () => {
@@ -782,7 +898,6 @@ export default defineUnlistedScript(async () => {
           joinedRoom = null
           activeRoomState = null
           pendingJoinPromise = null
-          observer.disconnect()
           video = null
           boundVideo = null
           return Promise.resolve({

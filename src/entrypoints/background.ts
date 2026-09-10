@@ -285,8 +285,10 @@ export default defineBackground(async () => {
 
   // --- Message handlers (replaces Plasmo background/messages/) ---
 
-  // Self-contained function injected into page context via executeScript.
-  // Must not reference any outer scope — it gets serialized and run in the page.
+  /**
+   * Detects candidate videos in the current frame using only serialized
+   * page-local code; executeScript cannot provide outer-scope dependencies.
+   */
   function detectPageVideos() {
     const SITE_VIDEO_SELECTORS: Record<
       string,
@@ -295,6 +297,7 @@ export default defineBackground(async () => {
         videoSelector: string
         playerContainer: string
         excludeSelector?: string
+        allowUnplayableMatch?: boolean
         watchPageTest?: () => boolean
       }
     > = {
@@ -383,6 +386,19 @@ export default defineBackground(async () => {
         videoSelector: "#vp-shell video",
         playerContainer: "#vp-shell",
         watchPageTest: () => document.querySelector("#vp-shell") !== null
+      },
+      vkvideo: {
+        hostPatterns: [/(^|\.)vkvideo\.ru$/, /(^|\.)vk\.com$/],
+        videoSelector: '[data-testid="video-container"] video',
+        playerContainer: ".vk-vp-root",
+        watchPageTest: () =>
+          /^\/video_ext\.php/.test(location.pathname) ||
+          /^\/video-?\d+_\d+/.test(location.pathname) ||
+          /^video-?\d+_\d+(?:\/|$)/.test(
+            new URLSearchParams(location.search).get("z") ?? ""
+          ),
+        excludeSelector: ".ads-container video",
+        allowUnplayableMatch: true
       }
     }
 
@@ -394,6 +410,8 @@ export default defineBackground(async () => {
       '[data-testid="playerContainer"]',
       ".ContentPlayer",
       "#vp-shell",
+      ".vk-vp-root",
+      '[data-testid="video-container"]',
       ".html5-video-player",
       ".video-player",
       ".jw-wrapper",
@@ -446,32 +464,72 @@ export default defineBackground(async () => {
       )
     }
 
-    /* Find candidate videos */
+    /* Deep-walk that crosses open shadow roots. VK Video, and a growing
+       number of modern players, mount their <video> inside a closed-looking
+       shadow tree (mode: "open" but not queryable via document.*). */
+    const collectAllVideos = (): HTMLVideoElement[] => {
+      const found: HTMLVideoElement[] = []
+      const visit = (root: Document | ShadowRoot) => {
+        for (const video of root.querySelectorAll<HTMLVideoElement>("video")) {
+          found.push(video)
+        }
+        for (const element of root.querySelectorAll<HTMLElement>("*")) {
+          const shadowRoot = element.shadowRoot
+          if (shadowRoot) visit(shadowRoot)
+        }
+      }
+      visit(document)
+      return found
+    }
+
+    const allVideos = collectAllVideos()
     let candidates: HTMLVideoElement[]
     let trustSiteSelector = false
     if (siteConfig) {
-      // Use site-specific selector for more precise matching
-      candidates = Array.from(
-        document.querySelectorAll<HTMLVideoElement>(siteConfig.videoSelector)
-      )
-      // Filter out excluded elements (ads, overlays, etc.)
-      if (siteConfig.excludeSelector) {
-        const excludeSel = siteConfig.excludeSelector
-        candidates = candidates.filter((v) => !v.matches(excludeSel))
+      const selector = siteConfig.videoSelector
+      const excludeSelector = siteConfig.excludeSelector
+      const isExcluded = (video: HTMLVideoElement) => {
+        if (!excludeSelector) return false
+        try {
+          return video.matches(excludeSelector)
+        } catch {
+          return false
+        }
       }
-      trustSiteSelector = candidates.length > 0
-      // If site-specific selector returned nothing, fall back to all videos
+      candidates = allVideos.filter((video) => {
+        if (isExcluded(video)) return false
+        try {
+          return video.matches(selector)
+        } catch {
+          return false
+        }
+      })
+      trustSiteSelector =
+        candidates.length > 0 && siteConfig.allowUnplayableMatch === true
       if (candidates.length === 0) {
-        candidates = Array.from(document.getElementsByTagName("video"))
+        candidates = allVideos.filter((video) => !isExcluded(video))
       }
     } else {
-      candidates = Array.from(document.getElementsByTagName("video"))
+      candidates = allVideos
+    }
+
+    const closestAcrossShadowRoots = (
+      element: Element,
+      selector: string
+    ): Element | null => {
+      let current: Element | null = element
+      while (current) {
+        const match = current.closest(selector)
+        if (match) return match
+        const root = current.getRootNode()
+        if (!(root instanceof ShadowRoot)) return null
+        current = root.host
+      }
+      return null
     }
 
     return candidates
       .map((video) => {
-        // A site-specific player can expose its video before an async MSE
-        // source is attached. The selector is precise enough to trust it.
         if (!trustSiteSelector && !isPlayable(video)) return null
         if (!video.dataset.synclifyId)
           video.dataset.synclifyId = Math.random().toString(36).slice(2, 7)
@@ -490,7 +548,7 @@ export default defineBackground(async () => {
           const isVisible = video.videoWidth > 0
           const isLongEnough = video.duration > 10 || isNaN(video.duration)
           const insideCommercialPlayer = COMMERCIAL_PLAYER_SELECTORS.some(
-            (sel) => video.closest(sel) !== null
+            (sel) => closestAcrossShadowRoots(video, sel) !== null
           )
           needsCustomPlayer =
             hasNativeControls &&
@@ -685,14 +743,18 @@ export default defineBackground(async () => {
         // Best effort; the current page is already patched as a fallback.
       }
     }
-
     return {
       persistentRegistration,
       reloaded: shouldReload,
       frames
     }
   }
-
+  /**
+   * Creates a room and returns the successful response body.
+   *
+   * Non-OK responses reject with an error containing HTTP status, status
+   * text, and response body; the diagnostic exception is also captured.
+   */
   async function handleCreateRoom(): Promise<string> {
     const res = await fetch(`${SOCKET_URL}/create`)
     const code = await res.text()
@@ -701,6 +763,7 @@ export default defineBackground(async () => {
         `Failed to fetch room code from socket server: ${JSON.stringify({ code: res.status, statusText: res.statusText, body: code })}`
       )
       posthog.captureException(e)
+      throw e
     }
     return code
   }
@@ -841,7 +904,8 @@ export default defineBackground(async () => {
 
     if (!frameIds) {
       let videos: Array<Video & { frameId: number }> = []
-      for (let attempt = 0; attempt < 3 && videos.length === 0; attempt++) {
+      const MAX_ATTEMPTS = 5
+      for (let attempt = 0; attempt < MAX_ATTEMPTS && videos.length === 0; attempt++) {
         const result = await browser.scripting.executeScript({
           func: detectPageVideos,
           target: { tabId: tabId, allFrames: true }
@@ -861,8 +925,8 @@ export default defineBackground(async () => {
             })
           )
 
-        if (videos.length === 0 && attempt < 2) {
-          await wait(700)
+        if (videos.length === 0 && attempt < MAX_ATTEMPTS - 1) {
+          await wait(800)
         }
       }
 
@@ -1029,7 +1093,8 @@ export default defineBackground(async () => {
       frameId: number
       needsCustomPlayer: boolean
     }> = []
-    for (let attempt = 0; attempt < 3 && videos.length === 0; attempt++) {
+    const MAX_ATTEMPTS = 5
+    for (let attempt = 0; attempt < MAX_ATTEMPTS && videos.length === 0; attempt++) {
       const result = await browser.scripting.executeScript({
         func: detectPageVideos,
         target: { tabId, allFrames: true }
@@ -1050,7 +1115,7 @@ export default defineBackground(async () => {
             frameId: injection.frameId
           }))
         )
-      if (videos.length === 0 && attempt < 2) await wait(700)
+      if (videos.length === 0 && attempt < MAX_ATTEMPTS - 1) await wait(800)
     }
     const frameIds = [videos[0]?.frameId ?? 0]
     const videoId = videos[0]?.id

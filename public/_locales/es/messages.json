@@ -22,6 +22,7 @@
   "chatNickname": { "message": "Apodo del chat" },
   "nicknameOptional": { "message": "Apodo (opcional)" },
   "createRoom": { "message": "Crear sala" },
+  "roomCreationFailed": { "message": "No se pudo crear la sala. Inténtalo de nuevo." },
   "orJoin": { "message": "o unirse" },
   "enterRoomCode": { "message": "Introduce el código de sala" },
   "roomCodeEmpty": { "message": "El código de sala no puede estar vacío." },

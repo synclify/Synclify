@@ -22,6 +22,7 @@
   "chatNickname": { "message": "Pseudo du chat" },
   "nicknameOptional": { "message": "Pseudo (facultatif)" },
   "createRoom": { "message": "Créer une salle" },
+  "roomCreationFailed": { "message": "Impossible de créer la salle. Réessayez." },
   "orJoin": { "message": "ou rejoindre" },
   "enterRoomCode": { "message": "Saisissez le code de salle" },
   "roomCodeEmpty": { "message": "Le code de salle ne peut pas être vide." },
