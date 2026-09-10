@@ -148,7 +148,13 @@ export default defineUnlistedScript(async () => {
     return persistState(nextState)
   }
 
+  /**
+   * Stops discovery and ends the missing-video telemetry period synchronously,
+   * then removes this tab's state asynchronously while preserving other tabs.
+   */
   const clearTabState = async () => {
+    disconnectVideoObserver()
+    missingVideoReported = false
     const latestState = await readLatestState()
     const nextState = { ...latestState }
     delete nextState[tabId]
@@ -251,6 +257,11 @@ export default defineUnlistedScript(async () => {
     })
   }
 
+  /**
+   * Deduplicates INIT requests, loads tab context, starts early video discovery,
+   * and gives a join error precedence over the video result. A successful join
+   * keeps discovery active when the video is not available yet.
+   */
   const init = async (videoId?: string) => {
     if (pendingInitPromise) {
       return pendingInitPromise
@@ -334,7 +345,6 @@ export default defineUnlistedScript(async () => {
   let videoScanFrame: number | null = null
   let videoRootRescanInterval: number | null = null
   let fullRootScanRequested = false
-  let observer: MutationObserver
 
   /**
    * Registers a document or shadow root for child-list observation and
@@ -486,7 +496,7 @@ export default defineUnlistedScript(async () => {
     }
   }
 
-  observer = new MutationObserver((records) => {
+  const observer = new MutationObserver((records) => {
     for (const record of records) {
       for (const node of record.addedNodes) {
         if (node instanceof Element) pendingAddedElements.add(node)
@@ -526,84 +536,95 @@ export default defineUnlistedScript(async () => {
     return pendingConnectPromise
   }
 
+  /**
+   * Deduplicates pending joins, returning server-error results as-is. Transport
+   * rejections run through tab cleanup and are rethrown with the original Error.
+   */
   const joinRoom = async () => {
     if (pendingJoinPromise) {
       return pendingJoinPromise
     }
-    if (!roomCode) {
-      const e = new Error("Invalid room code: " + roomCode)
-      posthog.captureException(e)
-      throw e
-    }
-    await ensureSocketConnected()
+    try {
+      if (!roomCode) {
+        const e = new Error("Invalid room code: " + roomCode)
+        posthog.captureException(e)
+        throw e
+      }
+      await ensureSocketConnected()
 
-    if (joinedRoom === roomCode && activeRoomState) {
-      return { status: MESSAGE_STATUS.SUCCESS }
-    }
+      if (joinedRoom === roomCode && activeRoomState) {
+        return { status: MESSAGE_STATUS.SUCCESS }
+      }
 
-    const nickname = state?.[tabId]?.nickname || "Anonymous"
-    const participantId = await ensureParticipantId()
-    const controlMode: ControlMode = state?.[tabId]?.controlMode ?? "shared"
-    const payload: JoinRoomPayload = {
-      roomId: roomCode,
-      nickname,
-      participantId,
-      controlMode
-    }
-    logRoomDebug("joinRoom.emit", {
-      roomId: roomCode,
-      participantId,
-      participantCount: state?.[tabId]?.participantCount,
-      participants: state?.[tabId]?.participants,
-      extra: {
+      const nickname = state?.[tabId]?.nickname || "Anonymous"
+      const participantId = await ensureParticipantId()
+      const controlMode: ControlMode = state?.[tabId]?.controlMode ?? "shared"
+      const payload: JoinRoomPayload = {
+        roomId: roomCode,
         nickname,
-        controlMode,
-        socketConnected: socket.connected
+        participantId,
+        controlMode
       }
-    })
+      logRoomDebug("joinRoom.emit", {
+        roomId: roomCode,
+        participantId,
+        participantCount: state?.[tabId]?.participantCount,
+        participants: state?.[tabId]?.participants,
+        extra: {
+          nickname,
+          controlMode,
+          socketConnected: socket.connected
+        }
+      })
 
-    pendingJoinPromise = new Promise<{
-      status: MESSAGE_STATUS
-      message?: string
-    }>((resolve) => {
-      const onJoined = async (nextRoomState: RoomState) => {
-        if (nextRoomState.roomId !== roomCode) return
-        logRoomDebug("roomJoined", {
-          roomId: nextRoomState.roomId,
-          participantId,
-          participantCount: nextRoomState.participantCount,
-          participants: nextRoomState.participants,
-          extra: {
-            hostId: nextRoomState.hostId
-          }
-        })
-        cleanup()
-        await applyRoomState(nextRoomState)
-        resolve({ status: MESSAGE_STATUS.SUCCESS })
-      }
+      pendingJoinPromise = new Promise<{
+        status: MESSAGE_STATUS
+        message?: string
+      }>((resolve) => {
+        const onJoined = async (nextRoomState: RoomState) => {
+          if (nextRoomState.roomId !== roomCode) return
+          logRoomDebug("roomJoined", {
+            roomId: nextRoomState.roomId,
+            participantId,
+            participantCount: nextRoomState.participantCount,
+            participants: nextRoomState.participants,
+            extra: {
+              hostId: nextRoomState.hostId
+            }
+          })
+          cleanup()
+          await applyRoomState(nextRoomState)
+          resolve({ status: MESSAGE_STATUS.SUCCESS })
+        }
 
-      const onError = async (error: RoomErrorPayload) => {
-        if (error.roomId && error.roomId !== roomCode) return
-        cleanup()
-        await clearTabState()
-        await showRoomError(error.message)
-        resolve({
-          status: MESSAGE_STATUS.ERROR,
-          message: error.message
-        })
-      }
+        const onError = async (error: RoomErrorPayload) => {
+          if (error.roomId && error.roomId !== roomCode) return
+          cleanup()
+          await clearTabState()
+          await showRoomError(error.message)
+          resolve({
+            status: MESSAGE_STATUS.ERROR,
+            message: error.message
+          })
+        }
 
-      const cleanup = () => {
-        socket.off(SOCKET_EVENTS.ROOM_JOINED, onJoined)
-        socket.off(SOCKET_EVENTS.ROOM_ERROR, onError)
-        pendingJoinPromise = null
-      }
+        const cleanup = () => {
+          socket.off(SOCKET_EVENTS.ROOM_JOINED, onJoined)
+          socket.off(SOCKET_EVENTS.ROOM_ERROR, onError)
+          pendingJoinPromise = null
+        }
 
-      socket.on(SOCKET_EVENTS.ROOM_JOINED, onJoined)
-      socket.on(SOCKET_EVENTS.ROOM_ERROR, onError)
-      socket.emit(SOCKET_EVENTS.JOIN, payload)
-    })
-    return pendingJoinPromise
+        socket.on(SOCKET_EVENTS.ROOM_JOINED, onJoined)
+        socket.on(SOCKET_EVENTS.ROOM_ERROR, onError)
+        socket.emit(SOCKET_EVENTS.JOIN, payload)
+      })
+      return await pendingJoinPromise
+    } catch (error) {
+      await clearTabState().catch((cleanupError) => {
+        posthog.captureException(cleanupError as Error)
+      })
+      throw error
+    }
   }
 
   socket.on("disconnect", () => {
@@ -877,8 +898,6 @@ export default defineUnlistedScript(async () => {
           joinedRoom = null
           activeRoomState = null
           pendingJoinPromise = null
-          disconnectVideoObserver()
-          missingVideoReported = false
           video = null
           boundVideo = null
           return Promise.resolve({
