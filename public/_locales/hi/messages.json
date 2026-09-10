@@ -22,6 +22,7 @@
   "chatNickname": { "message": "चैट निकनेम" },
   "nicknameOptional": { "message": "निकनेम (वैकल्पिक)" },
   "createRoom": { "message": "रूम बनाएं" },
+  "roomCreationFailed": { "message": "रूम नहीं बनाया जा सका। फिर से कोशिश करें।" },
   "orJoin": { "message": "या जुड़ें" },
   "enterRoomCode": { "message": "रूम कोड दर्ज करें" },
   "roomCodeEmpty": { "message": "रूम कोड खाली नहीं हो सकता।" },

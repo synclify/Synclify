@@ -22,6 +22,7 @@
   "chatNickname": { "message": "聊天昵称" },
   "nicknameOptional": { "message": "昵称（可选）" },
   "createRoom": { "message": "创建房间" },
+  "roomCreationFailed": { "message": "创建房间失败，请重试。" },
   "orJoin": { "message": "或加入" },
   "enterRoomCode": { "message": "输入房间代码" },
   "roomCodeEmpty": { "message": "房间代码不能为空。" },

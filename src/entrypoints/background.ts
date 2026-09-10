@@ -285,8 +285,10 @@ export default defineBackground(async () => {
 
   // --- Message handlers (replaces Plasmo background/messages/) ---
 
-  // Self-contained function injected into page context via executeScript.
-  // Must not reference any outer scope — it gets serialized and run in the page.
+  /**
+   * Detects candidate videos in the current frame using only serialized
+   * page-local code; executeScript cannot provide outer-scope dependencies.
+   */
   function detectPageVideos() {
     const SITE_VIDEO_SELECTORS: Record<
       string,
@@ -391,7 +393,10 @@ export default defineBackground(async () => {
         playerContainer: ".vk-vp-root",
         watchPageTest: () =>
           /^\/video_ext\.php/.test(location.pathname) ||
-          /^\/video-?\d+_\d+/.test(location.pathname),
+          /^\/video-?\d+_\d+/.test(location.pathname) ||
+          /^video-?\d+_\d+(?:\/|$)/.test(
+            new URLSearchParams(location.search).get("z") ?? ""
+          ),
         excludeSelector: ".ads-container video",
         allowUnplayableMatch: true
       }
@@ -744,6 +749,12 @@ export default defineBackground(async () => {
       frames
     }
   }
+  /**
+   * Creates a room and returns the successful response body.
+   *
+   * Non-OK responses reject with an error containing HTTP status, status
+   * text, and response body; the diagnostic exception is also captured.
+   */
   async function handleCreateRoom(): Promise<string> {
     const res = await fetch(`${SOCKET_URL}/create`)
     const code = await res.text()
