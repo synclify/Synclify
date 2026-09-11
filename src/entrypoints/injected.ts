@@ -88,6 +88,7 @@ export default defineUnlistedScript(async () => {
     status: MESSAGE_STATUS
     message?: string
   }> | null = null
+  let pendingJoinReject: ((error: Error) => void) | null = null
   let pendingInitPromise: Promise<{
     status: MESSAGE_STATUS
     message?: string
@@ -98,6 +99,7 @@ export default defineUnlistedScript(async () => {
   let isExitingRoom = false
   let settings: { syncAudio: boolean } | undefined
   const SYNTHETIC_SUPPRESSION_MS = 400
+  const JOIN_ROOM_TIMEOUT_MS = 30000
   const suppressOutboundEvents = () => {
     suppressEventsUntil = Date.now() + SYNTHETIC_SUPPRESSION_MS
   }
@@ -340,10 +342,12 @@ export default defineUnlistedScript(async () => {
   }
 
   const observedVideoRoots = new Set<Document | ShadowRoot>()
-  const VIDEO_ROOT_RESCAN_INTERVAL_MS = 1000
+  const VIDEO_ROOT_RESCAN_INITIAL_DELAY_MS = 1000
+  const VIDEO_ROOT_RESCAN_MAX_DELAY_MS = 30000
   const pendingAddedElements = new Set<Element>()
   let videoScanFrame: number | null = null
-  let videoRootRescanInterval: number | null = null
+  let videoRootRescanDelayMs = VIDEO_ROOT_RESCAN_INITIAL_DELAY_MS
+  let videoRootRescanTimeout: number | null = null
   let fullRootScanRequested = false
 
   /**
@@ -371,7 +375,8 @@ export default defineUnlistedScript(async () => {
 
   /**
    * Coalesces mutation and periodic root scans into one animation-frame
-   * attempt, preserving every added element until that attempt runs.
+   * attempt, preserving every added element until that attempt runs. Periodic
+   * rescans use exponential backoff while a video remains unavailable.
    */
   const scheduleVideoScan = (): void => {
     if (
@@ -400,6 +405,22 @@ export default defineUnlistedScript(async () => {
     })
   }
 
+  const scheduleVideoRootRescan = (): void => {
+    if (video != null || videoRootRescanTimeout !== null) return
+
+    videoRootRescanTimeout = window.setTimeout(() => {
+      videoRootRescanTimeout = null
+      if (video != null) return
+      fullRootScanRequested = true
+      scheduleVideoScan()
+      videoRootRescanDelayMs = Math.min(
+        videoRootRescanDelayMs * 2,
+        VIDEO_ROOT_RESCAN_MAX_DELAY_MS
+      )
+      scheduleVideoRootRescan()
+    }, videoRootRescanDelayMs)
+  }
+
   /**
    * Stops observation and cancels all pending discovery work for this room.
    */
@@ -411,10 +432,11 @@ export default defineUnlistedScript(async () => {
       window.cancelAnimationFrame(videoScanFrame)
       videoScanFrame = null
     }
-    if (videoRootRescanInterval !== null) {
-      window.clearInterval(videoRootRescanInterval)
-      videoRootRescanInterval = null
+    if (videoRootRescanTimeout !== null) {
+      window.clearTimeout(videoRootRescanTimeout)
+      videoRootRescanTimeout = null
     }
+    videoRootRescanDelayMs = VIDEO_ROOT_RESCAN_INITIAL_DELAY_MS
     fullRootScanRequested = false
   }
 
@@ -474,12 +496,7 @@ export default defineUnlistedScript(async () => {
     }
 
     if (!observedVideoRoots.has(document)) observeVideoRoots(document)
-    if (videoRootRescanInterval === null) {
-      videoRootRescanInterval = window.setInterval(() => {
-        fullRootScanRequested = true
-        scheduleVideoScan()
-      }, VIDEO_ROOT_RESCAN_INTERVAL_MS)
-    }
+    scheduleVideoRootRescan()
     if (!missingVideoReported) {
       missingVideoReported = true
       browser.runtime.sendMessage({
@@ -577,10 +594,51 @@ export default defineUnlistedScript(async () => {
         }
       })
 
-      pendingJoinPromise = new Promise<{
+      let settled = false
+      let timeoutHandle: number | null = null
+      let activeJoinPromise: Promise<{
         status: MESSAGE_STATUS
         message?: string
-      }>((resolve) => {
+      }> | null = null
+      let cleanupJoin: (() => void) | null = null
+
+      const joinPromise = new Promise<{
+        status: MESSAGE_STATUS
+        message?: string
+      }>((resolve, reject) => {
+        const cleanup = () => {
+          socket.off(SOCKET_EVENTS.ROOM_JOINED, onJoined)
+          socket.off(SOCKET_EVENTS.ROOM_ERROR, onError)
+          if (timeoutHandle !== null) {
+            window.clearTimeout(timeoutHandle)
+            timeoutHandle = null
+          }
+          if (pendingJoinPromise === activeJoinPromise) {
+            pendingJoinPromise = null
+          }
+          if (pendingJoinReject === fail) {
+            pendingJoinReject = null
+          }
+        }
+        cleanupJoin = cleanup
+
+        const succeed = (result: {
+          status: MESSAGE_STATUS
+          message?: string
+        }) => {
+          if (settled) return
+          settled = true
+          cleanup()
+          resolve(result)
+        }
+
+        const fail = (error: unknown) => {
+          if (settled) return
+          settled = true
+          cleanup()
+          reject(error instanceof Error ? error : new Error(String(error)))
+        }
+
         const onJoined = async (nextRoomState: RoomState) => {
           if (nextRoomState.roomId !== roomCode) return
           logRoomDebug("roomJoined", {
@@ -592,33 +650,46 @@ export default defineUnlistedScript(async () => {
               hostId: nextRoomState.hostId
             }
           })
-          cleanup()
-          await applyRoomState(nextRoomState)
-          resolve({ status: MESSAGE_STATUS.SUCCESS })
+          try {
+            await applyRoomState(nextRoomState)
+            succeed({ status: MESSAGE_STATUS.SUCCESS })
+          } catch (error) {
+            fail(error)
+          }
         }
 
         const onError = async (error: RoomErrorPayload) => {
           if (error.roomId && error.roomId !== roomCode) return
-          cleanup()
-          await clearTabState()
-          await showRoomError(error.message)
-          resolve({
-            status: MESSAGE_STATUS.ERROR,
-            message: error.message
-          })
+          try {
+            await clearTabState()
+            await showRoomError(error.message)
+            succeed({
+              status: MESSAGE_STATUS.ERROR,
+              message: error.message
+            })
+          } catch (failure) {
+            fail(failure)
+          }
         }
 
-        const cleanup = () => {
-          socket.off(SOCKET_EVENTS.ROOM_JOINED, onJoined)
-          socket.off(SOCKET_EVENTS.ROOM_ERROR, onError)
-          pendingJoinPromise = null
+        try {
+          socket.on(SOCKET_EVENTS.ROOM_JOINED, onJoined)
+          socket.on(SOCKET_EVENTS.ROOM_ERROR, onError)
+          timeoutHandle = window.setTimeout(
+            () => fail(new Error("Timed out joining room")),
+            JOIN_ROOM_TIMEOUT_MS
+          )
+          pendingJoinReject = fail
+          socket.emit(SOCKET_EVENTS.JOIN, payload)
+        } catch (error) {
+          fail(error)
         }
-
-        socket.on(SOCKET_EVENTS.ROOM_JOINED, onJoined)
-        socket.on(SOCKET_EVENTS.ROOM_ERROR, onError)
-        socket.emit(SOCKET_EVENTS.JOIN, payload)
       })
-      return await pendingJoinPromise
+
+      activeJoinPromise = joinPromise
+      pendingJoinPromise = joinPromise
+      if (settled) cleanupJoin?.()
+      return await joinPromise
     } catch (error) {
       await clearTabState().catch((cleanupError) => {
         posthog.captureException(cleanupError as Error)
@@ -633,6 +704,7 @@ export default defineUnlistedScript(async () => {
         isExitingRoom
       }
     })
+    pendingJoinReject?.(new Error("Socket disconnected while joining room"))
     joinedRoom = null
     activeRoomState = null
     if (isExitingRoom) {
@@ -892,12 +964,15 @@ export default defineUnlistedScript(async () => {
             }
             socket.emit(SOCKET_EVENTS.LEAVE, leavePayload)
           }
-          clearTabState().catch(() => {})
+          if (pendingJoinReject) {
+            pendingJoinReject(new Error("Room exited before join completed"))
+          } else {
+            clearTabState().catch(() => {})
+          }
           socket.disconnect()
           roomCode = ""
           joinedRoom = null
           activeRoomState = null
-          pendingJoinPromise = null
           video = null
           boundVideo = null
           return Promise.resolve({
