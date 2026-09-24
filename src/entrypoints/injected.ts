@@ -585,34 +585,60 @@ export default defineUnlistedScript(async () => {
     if (pendingJoinPromise) {
       return pendingJoinPromise
     }
+    const requestedRoomCode = roomCode
+    let cancelledError: Error | null = null
+    let rejectCancellation: ((error: Error) => void) | null = null
+    let rejectJoinAcknowledgement: ((error: Error) => void) | null = null
+    const cancelJoin = (error: Error) => {
+      if (cancelledError) return
+      cancelledError = error
+      rejectCancellation?.(error)
+      rejectJoinAcknowledgement?.(error)
+    }
+    pendingJoinReject = cancelJoin
 
     const joinPromise: Promise<{
       status: MESSAGE_STATUS
       message?: string
     }> = Promise.resolve().then(async () => {
       try {
-        if (!roomCode) {
-          const e = new Error("Invalid room code: " + roomCode)
+        if (!requestedRoomCode) {
+          const e = new Error("Invalid room code: " + requestedRoomCode)
           posthog.captureException(e)
           throw e
         }
-        await ensureSocketConnected()
+        if (cancelledError || roomCode !== requestedRoomCode) {
+          throw cancelledError ?? new Error("Room changed before join completed")
+        }
+        const cancellation = new Promise<never>((_, reject) => {
+          rejectCancellation = reject
+        })
+        await Promise.race([ensureSocketConnected(), cancellation])
+        if (cancelledError || roomCode !== requestedRoomCode) {
+          throw cancelledError ?? new Error("Room changed before join completed")
+        }
 
-        if (joinedRoom === roomCode && activeRoomState) {
+        if (joinedRoom === requestedRoomCode && activeRoomState) {
           return { status: MESSAGE_STATUS.SUCCESS }
         }
 
         const nickname = state?.[tabId]?.nickname || "Anonymous"
-        const participantId = await ensureParticipantId()
+        const participantId = await Promise.race([
+          ensureParticipantId(),
+          cancellation
+        ])
+        if (cancelledError || roomCode !== requestedRoomCode) {
+          throw cancelledError ?? new Error("Room changed before join completed")
+        }
         const controlMode: ControlMode = state?.[tabId]?.controlMode ?? "shared"
         const payload: JoinRoomPayload = {
-          roomId: roomCode,
+          roomId: requestedRoomCode,
           nickname,
           participantId,
           controlMode
         }
         logRoomDebug("joinRoom.emit", {
-          roomId: roomCode,
+          roomId: requestedRoomCode,
           participantId,
           participantCount: state?.[tabId]?.participantCount,
           participants: state?.[tabId]?.participants,
@@ -637,8 +663,8 @@ export default defineUnlistedScript(async () => {
               window.clearTimeout(timeoutHandle)
               timeoutHandle = null
             }
-            if (pendingJoinReject === fail) {
-              pendingJoinReject = null
+            if (rejectJoinAcknowledgement === fail) {
+              rejectJoinAcknowledgement = null
             }
           }
 
@@ -660,7 +686,7 @@ export default defineUnlistedScript(async () => {
           }
 
           const onJoined = async (nextRoomState: RoomState) => {
-            if (nextRoomState.roomId !== roomCode) return
+            if (nextRoomState.roomId !== requestedRoomCode) return
             logRoomDebug("roomJoined", {
               roomId: nextRoomState.roomId,
               participantId,
@@ -679,7 +705,7 @@ export default defineUnlistedScript(async () => {
           }
 
           const onError = async (error: RoomErrorPayload) => {
-            if (error.roomId && error.roomId !== roomCode) return
+            if (error.roomId && error.roomId !== requestedRoomCode) return
             try {
               await clearTabState()
               await showRoomError(error.message)
@@ -699,7 +725,7 @@ export default defineUnlistedScript(async () => {
               () => fail(new Error("Timed out joining room")),
               JOIN_ROOM_TIMEOUT_MS
             )
-            pendingJoinReject = fail
+            rejectJoinAcknowledgement = fail
             socket.emit(SOCKET_EVENTS.JOIN, payload)
           } catch (error) {
             fail(error)
@@ -710,6 +736,10 @@ export default defineUnlistedScript(async () => {
           posthog.captureException(cleanupError as Error)
         })
         throw error
+      } finally {
+        if (pendingJoinReject === cancelJoin) {
+          pendingJoinReject = null
+        }
       }
     })
     pendingJoinPromise = joinPromise
