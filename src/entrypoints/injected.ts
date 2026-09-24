@@ -529,173 +529,197 @@ export default defineUnlistedScript(async () => {
     }
 
     connectRequestedByJoin = true
-    pendingConnectPromise = new Promise<void>((resolve, reject) => {
-      const onConnect = () => {
-        cleanup()
-        resolve()
+    let attempt: Promise<void>
+    let timeoutHandle: number | null = null
+    let resolveAttempt!: () => void
+    let rejectAttempt!: (error: Error) => void
+    const cleanup = () => {
+      socket.off("connect", onConnect)
+      socket.off("connect_error", onError)
+      socket.off("disconnect", onDisconnect)
+      if (timeoutHandle !== null) {
+        window.clearTimeout(timeoutHandle)
+        timeoutHandle = null
       }
-      const onError = (error: Error) => {
-        cleanup()
-        reject(error)
-      }
-      const cleanup = () => {
-        socket.off("connect", onConnect)
-        socket.off("connect_error", onError)
+      if (pendingConnectPromise === attempt) {
         pendingConnectPromise = null
         connectRequestedByJoin = false
       }
+    }
+    const settle = (error?: Error) => {
+      cleanup()
+      if (error) rejectAttempt(error)
+      else resolveAttempt()
+    }
+    const onConnect = () => settle()
+    const onError = (error: Error) => settle(error)
+    const onDisconnect = () =>
+      settle(new Error("Socket disconnected while connecting to room"))
 
-      socket.on("connect", onConnect)
-      socket.on("connect_error", onError)
-      socket.connect()
+    attempt = new Promise<void>((resolve, reject) => {
+      resolveAttempt = resolve
+      rejectAttempt = reject
     })
+    pendingConnectPromise = attempt
+    socket.on("connect", onConnect)
+    socket.on("connect_error", onError)
+    socket.on("disconnect", onDisconnect)
+    timeoutHandle = window.setTimeout(
+      () => settle(new Error("Timed out connecting to room")),
+      JOIN_ROOM_TIMEOUT_MS
+    )
+    try {
+      socket.connect()
+    } catch (error) {
+      settle(error instanceof Error ? error : new Error(String(error)))
+    }
 
-    return pendingConnectPromise
+    return attempt
   }
 
   /**
    * Deduplicates pending joins, returning server-error results as-is. Transport
    * rejections run through tab cleanup and are rethrown with the original Error.
    */
-  const joinRoom = async () => {
+  const joinRoom = () => {
     if (pendingJoinPromise) {
       return pendingJoinPromise
     }
-    try {
-      if (!roomCode) {
-        const e = new Error("Invalid room code: " + roomCode)
-        posthog.captureException(e)
-        throw e
-      }
-      await ensureSocketConnected()
 
-      if (joinedRoom === roomCode && activeRoomState) {
-        return { status: MESSAGE_STATUS.SUCCESS }
-      }
+    const joinPromise: Promise<{
+      status: MESSAGE_STATUS
+      message?: string
+    }> = Promise.resolve().then(async () => {
+      try {
+        if (!roomCode) {
+          const e = new Error("Invalid room code: " + roomCode)
+          posthog.captureException(e)
+          throw e
+        }
+        await ensureSocketConnected()
 
-      const nickname = state?.[tabId]?.nickname || "Anonymous"
-      const participantId = await ensureParticipantId()
-      const controlMode: ControlMode = state?.[tabId]?.controlMode ?? "shared"
-      const payload: JoinRoomPayload = {
-        roomId: roomCode,
-        nickname,
-        participantId,
-        controlMode
-      }
-      logRoomDebug("joinRoom.emit", {
-        roomId: roomCode,
-        participantId,
-        participantCount: state?.[tabId]?.participantCount,
-        participants: state?.[tabId]?.participants,
-        extra: {
+        if (joinedRoom === roomCode && activeRoomState) {
+          return { status: MESSAGE_STATUS.SUCCESS }
+        }
+
+        const nickname = state?.[tabId]?.nickname || "Anonymous"
+        const participantId = await ensureParticipantId()
+        const controlMode: ControlMode = state?.[tabId]?.controlMode ?? "shared"
+        const payload: JoinRoomPayload = {
+          roomId: roomCode,
           nickname,
-          controlMode,
-          socketConnected: socket.connected
+          participantId,
+          controlMode
         }
-      })
-
-      let settled = false
-      let timeoutHandle: number | null = null
-      let activeJoinPromise: Promise<{
-        status: MESSAGE_STATUS
-        message?: string
-      }> | null = null
-      let cleanupJoin: (() => void) | null = null
-
-      const joinPromise = new Promise<{
-        status: MESSAGE_STATUS
-        message?: string
-      }>((resolve, reject) => {
-        const cleanup = () => {
-          socket.off(SOCKET_EVENTS.ROOM_JOINED, onJoined)
-          socket.off(SOCKET_EVENTS.ROOM_ERROR, onError)
-          if (timeoutHandle !== null) {
-            window.clearTimeout(timeoutHandle)
-            timeoutHandle = null
+        logRoomDebug("joinRoom.emit", {
+          roomId: roomCode,
+          participantId,
+          participantCount: state?.[tabId]?.participantCount,
+          participants: state?.[tabId]?.participants,
+          extra: {
+            nickname,
+            controlMode,
+            socketConnected: socket.connected
           }
-          if (pendingJoinPromise === activeJoinPromise) {
-            pendingJoinPromise = null
-          }
-          if (pendingJoinReject === fail) {
-            pendingJoinReject = null
-          }
-        }
-        cleanupJoin = cleanup
+        })
 
-        const succeed = (result: {
+        let settled = false
+        let timeoutHandle: number | null = null
+
+        return await new Promise<{
           status: MESSAGE_STATUS
           message?: string
-        }) => {
-          if (settled) return
-          settled = true
-          cleanup()
-          resolve(result)
-        }
-
-        const fail = (error: unknown) => {
-          if (settled) return
-          settled = true
-          cleanup()
-          reject(error instanceof Error ? error : new Error(String(error)))
-        }
-
-        const onJoined = async (nextRoomState: RoomState) => {
-          if (nextRoomState.roomId !== roomCode) return
-          logRoomDebug("roomJoined", {
-            roomId: nextRoomState.roomId,
-            participantId,
-            participantCount: nextRoomState.participantCount,
-            participants: nextRoomState.participants,
-            extra: {
-              hostId: nextRoomState.hostId
+        }>((resolve, reject) => {
+          const cleanup = () => {
+            socket.off(SOCKET_EVENTS.ROOM_JOINED, onJoined)
+            socket.off(SOCKET_EVENTS.ROOM_ERROR, onError)
+            if (timeoutHandle !== null) {
+              window.clearTimeout(timeoutHandle)
+              timeoutHandle = null
             }
-          })
+            if (pendingJoinReject === fail) {
+              pendingJoinReject = null
+            }
+          }
+
+          const succeed = (result: {
+            status: MESSAGE_STATUS
+            message?: string
+          }) => {
+            if (settled) return
+            settled = true
+            cleanup()
+            resolve(result)
+          }
+
+          const fail = (error: unknown) => {
+            if (settled) return
+            settled = true
+            cleanup()
+            reject(error instanceof Error ? error : new Error(String(error)))
+          }
+
+          const onJoined = async (nextRoomState: RoomState) => {
+            if (nextRoomState.roomId !== roomCode) return
+            logRoomDebug("roomJoined", {
+              roomId: nextRoomState.roomId,
+              participantId,
+              participantCount: nextRoomState.participantCount,
+              participants: nextRoomState.participants,
+              extra: {
+                hostId: nextRoomState.hostId
+              }
+            })
+            try {
+              await applyRoomState(nextRoomState)
+              succeed({ status: MESSAGE_STATUS.SUCCESS })
+            } catch (error) {
+              fail(error)
+            }
+          }
+
+          const onError = async (error: RoomErrorPayload) => {
+            if (error.roomId && error.roomId !== roomCode) return
+            try {
+              await clearTabState()
+              await showRoomError(error.message)
+              succeed({
+                status: MESSAGE_STATUS.ERROR,
+                message: error.message
+              })
+            } catch (failure) {
+              fail(failure)
+            }
+          }
+
           try {
-            await applyRoomState(nextRoomState)
-            succeed({ status: MESSAGE_STATUS.SUCCESS })
+            socket.on(SOCKET_EVENTS.ROOM_JOINED, onJoined)
+            socket.on(SOCKET_EVENTS.ROOM_ERROR, onError)
+            timeoutHandle = window.setTimeout(
+              () => fail(new Error("Timed out joining room")),
+              JOIN_ROOM_TIMEOUT_MS
+            )
+            pendingJoinReject = fail
+            socket.emit(SOCKET_EVENTS.JOIN, payload)
           } catch (error) {
             fail(error)
           }
-        }
-
-        const onError = async (error: RoomErrorPayload) => {
-          if (error.roomId && error.roomId !== roomCode) return
-          try {
-            await clearTabState()
-            await showRoomError(error.message)
-            succeed({
-              status: MESSAGE_STATUS.ERROR,
-              message: error.message
-            })
-          } catch (failure) {
-            fail(failure)
-          }
-        }
-
-        try {
-          socket.on(SOCKET_EVENTS.ROOM_JOINED, onJoined)
-          socket.on(SOCKET_EVENTS.ROOM_ERROR, onError)
-          timeoutHandle = window.setTimeout(
-            () => fail(new Error("Timed out joining room")),
-            JOIN_ROOM_TIMEOUT_MS
-          )
-          pendingJoinReject = fail
-          socket.emit(SOCKET_EVENTS.JOIN, payload)
-        } catch (error) {
-          fail(error)
-        }
-      })
-
-      activeJoinPromise = joinPromise
-      pendingJoinPromise = joinPromise
-      if (settled) cleanupJoin?.()
-      return await joinPromise
-    } catch (error) {
-      await clearTabState().catch((cleanupError) => {
-        posthog.captureException(cleanupError as Error)
-      })
-      throw error
+        })
+      } catch (error) {
+        await clearTabState().catch((cleanupError) => {
+          posthog.captureException(cleanupError as Error)
+        })
+        throw error
+      }
+    })
+    pendingJoinPromise = joinPromise
+    const clearPendingJoin = () => {
+      if (pendingJoinPromise === joinPromise) {
+        pendingJoinPromise = null
+      }
     }
+    joinPromise.then(clearPendingJoin, clearPendingJoin)
+    return joinPromise
   }
 
   socket.on("disconnect", () => {
