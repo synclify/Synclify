@@ -82,9 +82,6 @@
   "bubbleHelp": {
     "message": "Synclify बबल दिखाता है, जिससे रीयल-टाइम चैट, वीडियो कॉल और स्क्रीन शेयरिंग की सुविधा मिलती है।"
   },
-  "vpnPromoEyebrow": { "message": "ब्लॉक है?" },
-  "vpnPromoTitle": { "message": "PureVPN से अनब्लॉक करें" },
-  "vpnPromoAdLabel": { "message": "विज्ञापन" },
   "videoCall": { "message": "वीडियो कॉल" },
   "startVideoCall": { "message": "कॉल शुरू करें" },
   "joinVideoCall": { "message": "कॉल में शामिल हों" },

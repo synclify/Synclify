@@ -72,9 +72,6 @@
   "bubbleHelp": {
     "message": "显示 Synclify 悬浮气泡，可用于实时聊天、视频通话和屏幕共享。"
   },
-  "vpnPromoEyebrow": { "message": "被封锁了？" },
-  "vpnPromoTitle": { "message": "用 PureVPN 解锁" },
-  "vpnPromoAdLabel": { "message": "广告" },
   "videoCall": { "message": "视频通话" },
   "startVideoCall": { "message": "开始通话" },
   "joinVideoCall": { "message": "加入通话" },

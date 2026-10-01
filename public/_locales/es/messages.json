@@ -90,9 +90,6 @@
   "bubbleHelp": {
     "message": "Muestra la burbuja de Synclify, que permite chatear en tiempo real, hacer videollamadas y compartir la pantalla."
   },
-  "vpnPromoEyebrow": { "message": "¿Bloqueado?" },
-  "vpnPromoTitle": { "message": "Desbloquéalo con PureVPN" },
-  "vpnPromoAdLabel": { "message": "Anuncio" },
   "videoCall": { "message": "Videollamada" },
   "startVideoCall": { "message": "Iniciar llamada" },
   "joinVideoCall": { "message": "Unirse a la llamada" },

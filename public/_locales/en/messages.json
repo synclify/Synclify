@@ -81,9 +81,6 @@
   "bubbleHelp": {
     "message": "Shows the Synclify bubble, giving you access to real-time chat, video calls, and screen sharing."
   },
-  "vpnPromoEyebrow": { "message": "Geo-blocked?" },
-  "vpnPromoTitle": { "message": "Unblock it with PureVPN" },
-  "vpnPromoAdLabel": { "message": "Ad" },
   "videoCall": { "message": "Video call" },
   "startVideoCall": { "message": "Start call" },
   "joinVideoCall": { "message": "Join call" },

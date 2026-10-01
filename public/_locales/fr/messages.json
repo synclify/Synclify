@@ -92,9 +92,6 @@
   "bubbleHelp": {
     "message": "Affiche la bulle Synclify, qui permet de discuter en temps réel, de passer des appels vidéo et de partager l’écran."
   },
-  "vpnPromoEyebrow": { "message": "Bloqué ?" },
-  "vpnPromoTitle": { "message": "Débloquez-le avec PureVPN" },
-  "vpnPromoAdLabel": { "message": "Annonce" },
   "videoCall": { "message": "Appel vidéo" },
   "startVideoCall": { "message": "Démarrer l’appel" },
   "joinVideoCall": { "message": "Rejoindre l’appel" },
